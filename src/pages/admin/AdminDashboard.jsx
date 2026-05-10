@@ -26,40 +26,28 @@ const C = {
 
 const ADMIN_NAV = [
   { section: 'Overview', items: [
-    { id: 'dashboard',     icon: '⊞', label: 'Dashboard' },
-    { id: 'notifications', icon: '◎', label: 'Notifications', badge: '3' },
+    { id: 'dashboard', icon: '⊞', label: 'Dashboard' },
   ]},
-  { section: 'People', items: [
-    { id: 'users',         icon: '◈', label: 'User Management' },
-    { id: 'students',      icon: '◉', label: 'Students' },
-    { id: 'instructors',   icon: '⬡', label: 'Instructors' },
-  ]},
-  { section: 'Academics', items: [
-    { id: 'lessons',       icon: '♫', label: 'Lesson Packages' },
-    { id: 'timeslots',     icon: '◷', label: 'Time Slots' },
-    { id: 'scheduling',    icon: '▦', label: 'Scheduling' },
-  ]},
-  { section: 'Facilities', items: [
-    { id: 'studio',        icon: '♬', label: 'Studio Management' },
+  { section: 'Management', items: [
+    { id: 'users',         icon: '◈', label: 'Users' },
+    { id: 'lessons',       icon: '♫', label: 'Lessons' },
+    { id: 'scheduling',    icon: '▦', label: 'Schedules' },
+    { id: 'studio',        icon: '♬', label: 'Studio Rooms' },
     { id: 'instruments',   icon: '♪', label: 'Instruments' },
-  ]},
-  { section: 'Finance', items: [
-    { id: 'billing',       icon: '◈', label: 'Billing' },
-  ]},
-  { section: 'Analytics', items: [
-    { id: 'reports',       icon: '▲', label: 'Reports' },
-  ]},
-  { section: 'Communication', items: [
     { id: 'announcements', icon: '◐', label: 'Announcements' },
+    { id: 'reports',       icon: '▲', label: 'Reports' },
   ]},
 ]
 
 const PAGE_LABELS = {
-  dashboard: 'Dashboard', notifications: 'Notifications',
-  users: 'User Management', students: 'Students', instructors: 'Instructors',
-  lessons: 'Lesson Packages', timeslots: 'Time Slots', scheduling: 'Scheduling',
-  studio: 'Studio Management', instruments: 'Instruments',
-  billing: 'Billing', reports: 'Reports', announcements: 'Announcements',
+  dashboard: 'Dashboard',
+  users: 'Users',
+  lessons: 'Lessons',
+  scheduling: 'Schedules',
+  studio: 'Studio Rooms',
+  instruments: 'Instruments',
+  announcements: 'Announcements',
+  reports: 'Reports',
 }
 
 // ── Animations ────────────────────────────────────────────────
