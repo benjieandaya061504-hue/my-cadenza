@@ -1,5 +1,9 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import UserManagement from './UserManagement'
+import LessonManagement from './LessonManagement'
+import ScheduleManagement from './ScheduleManagement'
+import StudioRoomManagement from './StudioRoomManagement'
 
 const C = {
   bg:       '#0e0f13',
@@ -620,13 +624,21 @@ function Dashboard({ onLogout }) {
           <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '24px 28px', background: C.bg }}>
             {activePage === 'dashboard'
               ? <DashboardContent onNavigate={setActivePage} isMobile={isMobile} isTablet={isTablet} />
-              : (
-                <div style={{ textAlign: 'center', paddingTop: '80px', color: C.text3, fontFamily: C.font, animation: 'fadeUp 0.4s ease both' }}>
-                  <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}>◎</div>
-                  <div style={{ fontFamily: C.display, fontSize: '26px', fontWeight: 700, color: C.text, marginBottom: '8px' }}>{pageLabel}</div>
-                  <div style={{ fontSize: '13px' }}>This module is not yet built. Navigate to another page.</div>
-                </div>
-              )
+              : activePage === 'users'
+                ? <UserManagement isMobile={isMobile} isTablet={isTablet} />
+                : activePage === 'lessons'
+                  ? <LessonManagement isMobile={isMobile} isTablet={isTablet} />
+                  : activePage === 'scheduling'
+                    ? <ScheduleManagement isMobile={isMobile} isTablet={isTablet} />
+                    : activePage === 'studio'
+                      ? <StudioRoomManagement isMobile={isMobile} isTablet={isTablet} />
+                      : (
+                        <div style={{ textAlign: 'center', paddingTop: '80px', color: C.text3, fontFamily: C.font, animation: 'fadeUp 0.4s ease both' }}>
+                          <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}>◎</div>
+                          <div style={{ fontFamily: C.display, fontSize: '26px', fontWeight: 700, color: C.text, marginBottom: '8px' }}>{pageLabel}</div>
+                          <div style={{ fontSize: '13px' }}>This module is not yet built. Navigate to another page.</div>
+                        </div>
+                      )
             }
           </div>
         </div>
