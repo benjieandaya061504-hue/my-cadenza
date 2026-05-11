@@ -4,6 +4,9 @@ import UserManagement from './UserManagement'
 import LessonManagement from './LessonManagement'
 import ScheduleManagement from './ScheduleManagement'
 import StudioRoomManagement from './StudioRoomManagement'
+import InstrumentManagement from './InstrumentManagement'
+import AnnouncementManagement from './AnnouncementManagement'
+import Reports from './Reports'
 
 const C = {
   bg:       '#0e0f13',
@@ -632,13 +635,19 @@ function Dashboard({ onLogout }) {
                     ? <ScheduleManagement isMobile={isMobile} isTablet={isTablet} />
                     : activePage === 'studio'
                       ? <StudioRoomManagement isMobile={isMobile} isTablet={isTablet} />
-                      : (
-                        <div style={{ textAlign: 'center', paddingTop: '80px', color: C.text3, fontFamily: C.font, animation: 'fadeUp 0.4s ease both' }}>
-                          <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}>◎</div>
-                          <div style={{ fontFamily: C.display, fontSize: '26px', fontWeight: 700, color: C.text, marginBottom: '8px' }}>{pageLabel}</div>
-                          <div style={{ fontSize: '13px' }}>This module is not yet built. Navigate to another page.</div>
-                        </div>
-                      )
+                      : activePage === 'instruments'
+                        ? <InstrumentManagement isMobile={isMobile} isTablet={isTablet} />
+              : activePage === 'announcements'
+                          ? <AnnouncementManagement isMobile={isMobile} isTablet={isTablet} />
+              : activePage === 'reports'
+                            ? <Reports isMobile={isMobile} isTablet={isTablet} />
+                        : (
+                          <div style={{ textAlign: 'center', paddingTop: '80px', color: C.text3, fontFamily: C.font, animation: 'fadeUp 0.4s ease both' }}>
+                            <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}>◎</div>
+                            <div style={{ fontFamily: C.display, fontSize: '26px', fontWeight: 700, color: C.text, marginBottom: '8px' }}>{pageLabel}</div>
+                            <div style={{ fontSize: '13px' }}>This module is not yet built. Navigate to another page.</div>
+                          </div>
+                        )
             }
           </div>
         </div>

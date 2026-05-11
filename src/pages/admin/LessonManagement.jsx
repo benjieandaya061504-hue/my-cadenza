@@ -549,9 +549,7 @@ function LessonManagement({ isMobile = false, isTablet = false }) {
 
             <div style={{ background: C.bg3, border: `1px solid ${C.border}`, borderRadius: '16px', padding: isMobile ? '14px' : '18px 20px' }}>
               <div style={{ fontFamily: C.display, fontSize: '15px', fontWeight: 700, color: C.text, marginBottom: '6px' }}>Lesson progress records</div>
-              <p style={{ fontSize: '12px', color: C.text3, marginBottom: '14px', lineHeight: 1.45 }}>
-                Monitor enrolled students: completed sessions vs package limits, remaining sessions, and last activity. Use “Log session” after a lesson is delivered to update counts (demo).
-              </p>
+
               <div style={{ marginBottom: '14px', maxWidth: '400px', position: 'relative' }}>
                 <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: C.text3, fontSize: '14px' }}>⌕</span>
                 <input
