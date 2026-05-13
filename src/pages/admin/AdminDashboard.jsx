@@ -608,7 +608,7 @@ function Dashboard({ onLogout }) {
       onLogout()
       return
     }
-    navigate('/')
+    navigate('/admin/login')
   }
 
   useEffect(() => {
