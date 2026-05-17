@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Login from './pages/admin/AdminLogin'
 import Dashboard from './pages/admin/AdminDashboard'
+import FrontDeskLogin from './pages/frontdesk/FrontDeskLogin'
+import FrontDeskDashboard from './pages/frontdesk/FrontDeskDashboard'
 import LandingPage from './pages/LandingPage'
 import EnrollmentPage from './pages/public/EnrollmentPage'
 import PublicSiteLayout from './pages/public/PublicSiteLayout'
@@ -19,8 +21,9 @@ function App() {
         <Route path="/studio-booking" element={<StudioBookingPublicPage />} />
       </Route>
       <Route path="/admin/login" element={<Login role="admin" />} />
-      <Route path="/frontdesk/login" element={<Login role="frontdesk" />} />
+      <Route path="/frontdesk/login" element={<FrontDeskLogin />} />
       <Route path="/admin/dashboard" element={<Dashboard />} />
+      <Route path="/frontdesk/dashboard" element={<FrontDeskDashboard />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
