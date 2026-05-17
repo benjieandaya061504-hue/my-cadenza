@@ -1,7 +1,9 @@
 import { Outlet } from 'react-router-dom'
 import { PublicSiteProvider, usePublicSite } from './PublicSiteContext'
-import PublicTopNav from './PublicTopNav'
+import PublicNav from '../../components/PublicNav'
+import '../../styles/publicSiteTheme.css'
 import './publicSiteLight.css'
+import './publicSiteModules.css'
 
 function PublicModals() {
   const {
@@ -170,7 +172,7 @@ function PublicShell() {
 
   return (
     <div id="pub-site-light">
-      <PublicTopNav />
+      <PublicNav />
       <Outlet />
       <PublicModals />
       <div className={`pub-toast${toast.show ? ' show' : ''}`} role="status">

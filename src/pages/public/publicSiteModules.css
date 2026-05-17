@@ -1,0 +1,96 @@
+/* Dashboard-aligned overrides for enrollment, modals, and forms */
+
+#pub-site-light .he-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+#pub-site-light .he-si.active {
+  color: var(--accentL);
+}
+#pub-site-light .he-si.active .he-snum {
+  background: linear-gradient(135deg, var(--accent), var(--accentD));
+  border-color: transparent;
+  color: #fff;
+}
+#pub-site-light .he-lesson-card {
+  background: var(--surface2);
+  border-color: var(--border);
+  animation: fadeUp 0.4s ease both;
+}
+#pub-site-light .he-lesson-card:hover {
+  border-color: rgba(124, 106, 247, 0.4);
+  box-shadow: 0 12px 32px rgba(124, 106, 247, 0.18);
+  transform: translateY(-3px);
+}
+#pub-site-light .he-lesson-card.selected {
+  border-color: rgba(124, 106, 247, 0.5);
+  background: rgba(124, 106, 247, 0.1);
+  box-shadow: 0 0 0 3px rgba(124, 106, 247, 0.2);
+}
+#pub-site-light .he-sel-badge {
+  background: linear-gradient(135deg, var(--accent), var(--accentD));
+  color: #fff;
+}
+#pub-site-light .he-l-rate {
+  color: var(--accentL);
+}
+#pub-site-light .he-tslot.he-sel-slot {
+  background: linear-gradient(135deg, var(--accent), var(--accentD));
+  border-color: transparent;
+  color: #fff;
+}
+#pub-site-light .he-chip {
+  background: rgba(124, 106, 247, 0.2);
+  color: var(--accentL);
+  border: 1px solid rgba(124, 106, 247, 0.35);
+}
+#pub-site-light .he-info-banner {
+  background: rgba(124, 106, 247, 0.08);
+  border-color: rgba(124, 106, 247, 0.25);
+}
+#pub-site-light .he-cal-btn:hover {
+  background: rgba(124, 106, 247, 0.15);
+  border-color: rgba(124, 106, 247, 0.4);
+  color: var(--accentL);
+}
+
+#pub-site-light .modal-overlay,
+#pub-site-light .pub-signup-overlay {
+  background: rgba(5, 6, 10, 0.72);
+  backdrop-filter: blur(4px);
+}
+#pub-site-light .modal,
+#pub-site-light .pub-signup-modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.45);
+  animation: fadeUp 0.4s ease both;
+}
+#pub-site-light .pub-signup-modal .sg-sub,
+#pub-site-light .pub-signup-modal .sg-notice {
+  color: var(--text2);
+}
+#pub-site-light .pub-signup-modal .sg-field label {
+  color: var(--text2);
+}
+#pub-site-light .pub-signup-modal .sg-field input {
+  background: var(--surface3);
+  border-color: var(--border2);
+  font-family: var(--font-body);
+}
+#pub-site-light .pub-signup-modal .sg-field input:focus {
+  border-color: rgba(124, 106, 247, 0.45);
+  box-shadow: 0 0 0 3px rgba(124, 106, 247, 0.12);
+}
+#pub-site-light .pub-signup-modal .sg-notice a {
+  color: var(--accentL);
+}
+
+#pub-site-light .pub-toast {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  animation: fadeUp 0.35s ease both;
+}

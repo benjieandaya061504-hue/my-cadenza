@@ -18,7 +18,8 @@ function App() {
         <Route path="/rental" element={<RentalPublicPage />} />
         <Route path="/studio-booking" element={<StudioBookingPublicPage />} />
       </Route>
-      <Route path="/admin/login" element={<Login />} />
+      <Route path="/admin/login" element={<Login role="admin" />} />
+      <Route path="/frontdesk/login" element={<Login role="frontdesk" />} />
       <Route path="/admin/dashboard" element={<Dashboard />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

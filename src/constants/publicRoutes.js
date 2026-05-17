@@ -8,3 +8,4 @@ export const PUBLIC_ROUTES = {
 }
 
 export const ADMIN_LOGIN_PATH = '/admin/login'
+export const FRONTDESK_LOGIN_PATH = '/frontdesk/login'

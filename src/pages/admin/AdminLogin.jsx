@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { ADMIN_LOGIN_PATH, FRONTDESK_LOGIN_PATH } from '../../constants/publicRoutes'
 
 const C = {
   bg: '#0e0f13',
@@ -218,11 +219,29 @@ function PwdSuccessModal({ open, onClose, isMobile }) {
   )
 }
 
-function Login() {
+const ROLE_META = {
+  admin: {
+    label: 'Administrator',
+    defaultUsername: 'admin@Cadenza MUsic Center',
+    dashboardPath: '/admin/dashboard',
+    alternatePath: FRONTDESK_LOGIN_PATH,
+    alternateLabel: 'Front desk login',
+  },
+  frontdesk: {
+    label: 'Front Desk',
+    subtitle: 'Front desk portal — enrollments, payments, and scheduling',
+    defaultUsername: 'frontdesk@cadenza.edu',
+    dashboardPath: '/admin/dashboard',
+    alternatePath: ADMIN_LOGIN_PATH,
+    alternateLabel: 'Admin login',
+  },
+}
+
+function Login({ role = 'admin' }) {
   const navigate = useNavigate()
+  const meta = ROLE_META[role] ?? ROLE_META.admin
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth)
-  const [role, setRole] = useState('admin')
-  const [username, setUsername] = useState('admin@Cadenza MUsic Center')
+  const [username, setUsername] = useState(meta.defaultUsername)
   const [password, setPassword] = useState('••••••••')
   const [showOTP, setShowOTP] = useState(false)
   const [otpSession, setOtpSession] = useState(0)
@@ -241,7 +260,7 @@ function Login() {
     if (!username.trim()) return setError('Please enter your username.')
     if (!password.trim()) return setError('Please enter your password.')
     setError('')
-    navigate('/admin/dashboard')
+    navigate(meta.dashboardPath)
   }
 
   const handleOTPVerified = () => {
@@ -274,33 +293,10 @@ function Login() {
             <div className="glow-ring" style={{ width: '52px', height: '52px', borderRadius: '14px', margin: '0 auto 10px', background: `linear-gradient(135deg, ${C.accent}, ${C.accentD})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px' }}>♬</div>
             <h1 style={{ fontFamily: C.display, fontSize: isMobile ? '24px' : '28px', fontWeight: 700, letterSpacing: '0.01em', color: C.text, margin: 0 }}>Cadenza Music Center</h1>
             <p style={{ fontSize: '12px', color: C.text3, marginTop: '3px', fontFamily: C.font }}>Music School Management System</p>
-          </div>
-
-          <div style={{ display: 'flex', gap: '2px', background: C.bg3, border: `1px solid ${C.border}`, padding: '3px', borderRadius: '10px', marginBottom: '22px', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
-            {[['admin', 'Administrator'], ['frontdesk', 'Front Desk']].map(([key, label]) => (
-              <div
-                key={key}
-                onClick={() => setRole(key)}
-                style={{
-                  flex: 1,
-                  minWidth: isMobile ? '100%' : 0,
-                  padding: '8px 4px',
-                  textAlign: 'center',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: role === key ? C.accentL : C.text2,
-                  background: role === key ? 'rgba(124,106,247,0.12)' : 'transparent',
-                  border: role === key ? `1px solid rgba(124,106,247,0.3)` : '1px solid transparent',
-                  transition: 'all .15s',
-                  fontFamily: C.font,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {label}
-              </div>
-            ))}
+            <p style={{ fontSize: '11px', color: C.accentL, marginTop: '10px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: C.font }}>
+              {meta.label}
+            </p>
+            <p style={{ fontSize: '12px', color: C.text2, marginTop: '6px', lineHeight: 1.5, fontFamily: C.font }}>{meta.subtitle}</p>
           </div>
 
           {error && (
@@ -356,6 +352,16 @@ function Login() {
           >
             Forgot Password?
           </div>
+          <p style={{ textAlign: 'center', marginTop: '12px', fontSize: '12px', fontFamily: C.font }}>
+            <Link
+              to={meta.alternatePath}
+              style={{ color: C.text3, textDecoration: 'none', transition: 'color .15s' }}
+              onMouseEnter={e => { e.currentTarget.style.color = C.accentL }}
+              onMouseLeave={e => { e.currentTarget.style.color = C.text3 }}
+            >
+              {meta.alternateLabel} →
+            </Link>
+          </p>
         </div>
       </div>
 
