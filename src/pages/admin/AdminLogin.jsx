@@ -333,7 +333,10 @@ function Login({ role = 'admin' }) {
           </div>
 
           <button
-            onClick={doLogin}
+            onClick={() => {
+              console.log('Button clicked!');
+              doLogin();
+            }}
             onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.07)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
             onMouseLeave={e => { e.currentTarget.style.filter = 'none'; e.currentTarget.style.transform = 'none' }}
             style={{ width: '100%', padding: '12px', background: `linear-gradient(135deg, ${C.accent}, ${C.accentD})`, color: '#fff', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: 600, letterSpacing: '0.03em', cursor: 'pointer', marginTop: '4px', fontFamily: C.font, transition: 'all .15s' }}

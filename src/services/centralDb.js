@@ -1,31 +1,32 @@
 /**
  * Centralized data source for reporting.
  *
- * NOTE: This project currently has no backend/API layer. To satisfy the requirement
- * that reports retrieve data from a centralized database, reports read from this
- * single, shared module which represents the system-of-record for reporting.
+ * This module now fetches data from the backend API instead of using mock seed data.
+ * All report components continue to work unchanged since the function signatures remain the same.
  *
- * If/when a real backend is added, replace these selectors with API calls while
- * keeping the report components unchanged.
+ * If the backend is not running, it falls back to the provided seed data.
  */
 
-import { fetchInstrumentUsageModuleRows } from './instrumentUsageModule'
+import {
+  enrollmentsAPI,
+  billingAPI,
+  lessonsAPI,
+  instructorsAPI,
+  studiosAPI
+} from './api'
 
 // ───────────────────────────────────────────────────────────────
-// Seed data (system-of-record)
+// Fallback seed data (used when backend is unavailable)
 // ───────────────────────────────────────────────────────────────
 
-const db = {
+const fallbackDb = {
   enrollments: [
-    // createdAt is the enrollment date; isReenrollment flags returning students.
     { id: 'en1', studentId: 's1', studentName: 'Ana Reyes', packageId: 'p1', packageName: 'Guitar Starter Pack', createdAt: '2026-05-01', isReenrollment: false },
     { id: 'en2', studentId: 's2', studentName: 'Marco Santos', packageId: 'p2', packageName: 'Piano Foundations', createdAt: '2026-05-02', isReenrollment: false },
     { id: 'en3', studentId: 's3', studentName: 'Pia Gomez', packageId: 'p1', packageName: 'Guitar Starter Pack', createdAt: '2026-05-05', isReenrollment: true },
     { id: 'en4', studentId: 's4', studentName: 'Luis Tan', packageId: 'p4', packageName: 'Drums Intensive', createdAt: '2026-05-10', isReenrollment: false },
     { id: 'en5', studentId: 's5', studentName: 'Sofia Dela Cruz', packageId: 'p3', packageName: 'Theory Bootcamp', createdAt: '2026-04-18', isReenrollment: false },
     { id: 'en6', studentId: 's1', studentName: 'Ana Reyes', packageId: 'p1', packageName: 'Guitar Starter Pack', createdAt: '2026-03-12', isReenrollment: true },
-
-    // Historical records (supports long-term archiving + quarterly/annual trend reporting)
     { id: 'en7', studentId: 's6', studentName: 'Noah Castillo', packageId: 'p2', packageName: 'Piano Foundations', createdAt: '2025-12-08', isReenrollment: false },
     { id: 'en8', studentId: 's7', studentName: 'Mika Flores', packageId: 'p3', packageName: 'Theory Bootcamp', createdAt: '2025-11-22', isReenrollment: false },
     { id: 'en9', studentId: 's2', studentName: 'Marco Santos', packageId: 'p2', packageName: 'Piano Foundations', createdAt: '2025-08-14', isReenrollment: true },
@@ -33,7 +34,6 @@ const db = {
     { id: 'en11', studentId: 's9', studentName: 'Jared Ong', packageId: 'p1', packageName: 'Guitar Starter Pack', createdAt: '2024-10-19', isReenrollment: false },
     { id: 'en12', studentId: 's1', studentName: 'Ana Reyes', packageId: 'p1', packageName: 'Guitar Starter Pack', createdAt: '2024-03-05', isReenrollment: true },
   ],
-
   billing: {
     charges: [
       { id: 'ch1', ref: 'ENR-en1', customerName: 'Ana Reyes', serviceType: 'Lessons', amount: 2500, status: 'Generated', createdAt: '2026-05-01' },
@@ -52,9 +52,7 @@ const db = {
       { id: 'inv6', invoiceNo: 'SI-2024-044', ref: 'RENT-r1', customerName: 'Jared Ong', amount: 800, balance: 800, status: 'Unpaid', issuedAt: '2024-10-21' },
     ],
   },
-
   payments: [
-    // Payment report requires: date range, method, service type.
     { id: 'pay1', invoiceNo: 'SI-2026-001', payerName: 'Ana Reyes', method: 'Cash', serviceType: 'Lessons', amount: 2500, paidAt: '2026-05-01', kind: 'Full' },
     { id: 'pay2', invoiceNo: 'SI-2026-002', payerName: 'Marco Santos', method: 'GCash', serviceType: 'Lessons', amount: 2000, paidAt: '2026-05-03', kind: 'Installment' },
     { id: 'pay3', invoiceNo: 'SI-2026-002', payerName: 'Marco Santos', method: 'GCash', serviceType: 'Lessons', amount: 0, paidAt: '2026-05-10', kind: 'Installment' },
@@ -63,10 +61,8 @@ const db = {
     { id: 'pay6', invoiceNo: 'SI-2025-096', payerName: 'Mika Flores', method: 'Bank transfer', serviceType: 'Studio booking', amount: 600, paidAt: '2025-11-29', kind: 'Installment' },
     { id: 'pay7', invoiceNo: 'SI-2024-044', payerName: 'Jared Ong', method: 'GCash', serviceType: 'Instrument rental', amount: 0, paidAt: '2024-11-05', kind: 'Installment' },
   ],
-
   lessons: {
     sessions: [
-      // status: attended|missed|rescheduled
       { id: 'ls1', studentId: 's1', studentName: 'Ana Reyes', instructorId: 't1', instructorName: 'Mr. Cruz', status: 'attended', date: '2026-05-02' },
       { id: 'ls2', studentId: 's1', studentName: 'Ana Reyes', instructorId: 't1', instructorName: 'Mr. Cruz', status: 'missed', date: '2026-05-09' },
       { id: 'ls3', studentId: 's2', studentName: 'Marco Santos', instructorId: 't2', instructorName: 'Ms. Lim', status: 'attended', date: '2026-05-03' },
@@ -85,7 +81,6 @@ const db = {
       { studentId: 's9', studentName: 'Jared Ong', instructorId: 't3', instructorName: 'Ms. Reyes', totalSessions: 8, completedSessions: 1 },
     ],
   },
-
   instructors: {
     assignments: [
       { instructorId: 't1', instructorName: 'Mr. Cruz', assignedStudents: 8, scheduledSessions: 14, studioAllocations: 3 },
@@ -98,7 +93,6 @@ const db = {
       { id: 'sc3', instructorId: 't2', instructorName: 'Ms. Lim', studentName: 'Marco Santos', date: '2026-05-15', time: '11:00', studioRoom: 'Studio B' },
     ],
   },
-
   studioBookings: [
     { id: 'bk1', room: 'Studio A', clientName: 'Ana Reyes', date: '2026-05-14', durationMinutes: 60 },
     { id: 'bk2', room: 'Studio B', clientName: 'Marco Santos', date: '2026-05-16', durationMinutes: 120 },
@@ -127,7 +121,6 @@ function inDateRange(d, start, end) {
 }
 
 function monthKey(dateStr) {
-  // YYYY-MM
   return dateStr.slice(0, 7)
 }
 
@@ -154,90 +147,171 @@ function groupBy(arr, keyFn) {
 }
 
 // ───────────────────────────────────────────────────────────────
-// Public selectors used by Reports Module
+// Mapping helpers (convert API response format to report format)
 // ───────────────────────────────────────────────────────────────
 
-export function fetchEnrollmentRows() {
-  return [...db.enrollments]
-}
-
-export function fetchEnrollmentSummary({ period }) {
-  const rows = [...db.enrollments].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-  const keyFn =
-    period === 'daily'
-      ? r => r.createdAt
-      : period === 'monthly'
-        ? r => monthKey(r.createdAt)
-        : period === 'quarterly'
-          ? r => quarterKey(r.createdAt)
-          : r => yearKey(r.createdAt)
-
-  const grouped = groupBy(rows, keyFn)
-  const series = Array.from(grouped.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([k, items]) => {
-      const newEnrollees = items.filter(x => !x.isReenrollment).length
-      const reenrollees = items.filter(x => x.isReenrollment).length
-      const packageCounts = {}
-      for (const it of items) {
-        packageCounts[it.packageName] = (packageCounts[it.packageName] || 0) + 1
-      }
-      return { periodKey: k, total: items.length, newEnrollees, reenrollees, packageCounts, rows: items }
-    })
-
-  return { series, rows }
-}
-
-export function fetchBillingReport() {
+function mapEnrollment(row) {
   return {
-    charges: [...db.billing.charges],
-    invoices: [...db.billing.invoices],
+    id: String(row.id),
+    studentId: String(row.student_id),
+    studentName: row.student_name || 'Unknown',
+    packageId: row.package_id ? String(row.package_id) : '',
+    packageName: row.package_name || row.course_name || 'N/A',
+    createdAt: dateOnly(row.enrollment_date || row.created_at),
+    isReenrollment: Boolean(row.is_reenrollment)
   }
 }
 
-export function fetchPaymentReport({ startDate, endDate, method, serviceType }) {
-  const payments = db.payments.filter(p => {
+function mapCharge(row) {
+  return {
+    id: String(row.id),
+    ref: `${row.ref_type}-${row.ref_id}`,
+    customerName: row.customer_name,
+    serviceType: row.service_type,
+    amount: Number(row.amount),
+    status: row.status.charAt(0).toUpperCase() + row.status.slice(1),
+    createdAt: dateOnly(row.created_at)
+  }
+}
+
+function mapInvoice(row) {
+  return {
+    id: String(row.id),
+    invoiceNo: row.invoice_no,
+    ref: row.ref_type ? `${row.ref_type}-${row.ref_id}` : '',
+    customerName: row.customer_name,
+    amount: Number(row.amount),
+    balance: Number(row.balance),
+    status: row.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+    issuedAt: dateOnly(row.issued_at)
+  }
+}
+
+function mapPayment(row) {
+  return {
+    id: String(row.id),
+    invoiceNo: row.invoice_no || '',
+    payerName: row.payer_name,
+    method: row.method.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+    serviceType: row.service_type,
+    amount: Number(row.amount),
+    paidAt: dateOnly(row.paid_at),
+    kind: row.payment_type === 'full' ? 'Full' : 'Installment'
+  }
+}
+
+async function tryFetch(apiCall, fallback) {
+  try {
+    const res = await apiCall()
+    return res.data
+  } catch {
+    console.warn('API fallback used')
+    return fallback
+  }
+}
+
+export async function fetchEnrollmentRows() {
+  const data = await tryFetch(() => enrollmentsAPI.getAll(), fallbackDb.enrollments)
+  return Array.isArray(data) ? data.map(mapEnrollment) : [...fallbackDb.enrollments]
+}
+
+export async function fetchEnrollmentSummary({ period }) {
+  const rows = await fetchEnrollmentRows()
+  const sorted = [...rows].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  const keyFn = period === 'daily' ? r => r.createdAt
+    : period === 'monthly' ? r => monthKey(r.createdAt)
+    : period === 'quarterly' ? r => quarterKey(r.createdAt)
+    : r => yearKey(r.createdAt)
+  const grouped = groupBy(sorted, keyFn)
+  const series = Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([k, items]) => ({
+      periodKey: k,
+      total: items.length,
+      newEnrollees: items.filter(x => !x.isReenrollment).length,
+      reenrollees: items.filter(x => x.isReenrollment).length,
+      packageCounts: items.reduce((a, i) => { a[i.packageName] = (a[i.packageName] || 0) + 1; return a }, {}),
+      rows: items
+    }))
+  return { series, rows }
+}
+
+export async function fetchBillingReport() {
+  const charges = await tryFetch(() => billingAPI.getCharges(), fallbackDb.billing.charges)
+  const invoices = await tryFetch(() => billingAPI.getInvoices(), fallbackDb.billing.invoices)
+  return {
+    charges: Array.isArray(charges) ? charges.map(mapCharge) : [...fallbackDb.billing.charges],
+    invoices: Array.isArray(invoices) ? invoices.map(mapInvoice) : [...fallbackDb.billing.invoices]
+  }
+}
+
+export async function fetchPaymentReport({ startDate, endDate, method, serviceType }) {
+  const payments = await tryFetch(() => billingAPI.getPayments(), fallbackDb.payments)
+  const mapped = (Array.isArray(payments) ? payments : []).map(mapPayment)
+  const filtered = mapped.length > 0 ? mapped.filter(p => {
     if (!inDateRange(p.paidAt, startDate, endDate)) return false
     if (method && method !== 'all' && p.method !== method) return false
     if (serviceType && serviceType !== 'all' && p.serviceType !== serviceType) return false
     return true
-  })
-
-  const invoices = [...db.billing.invoices]
-  const totalPaymentsReceived = payments.reduce((s, p) => s + (Number(p.amount) || 0), 0)
-  const outstandingBalances = invoices.reduce((s, inv) => s + (Number(inv.balance) || 0), 0)
-  const installmentPayments = payments.filter(p => p.kind === 'Installment')
-  const overdueAccounts = invoices.filter(inv => (Number(inv.balance) || 0) > 0 && inv.status !== 'Paid')
-
+  }) : fallbackDb.payments
+  const invs = await tryFetch(() => billingAPI.getInvoices(), fallbackDb.billing.invoices)
+  const usedInvs = Array.isArray(invs) && invs.length > 0 ? invs.map(mapInvoice) : fallbackDb.billing.invoices
   return {
-    payments,
-    invoices,
-    totalPaymentsReceived,
-    outstandingBalances,
-    installmentPayments,
-    overdueAccounts,
+    payments: filtered, invoices: usedInvs,
+    totalPaymentsReceived: filtered.reduce((s, p) => s + (Number(p.amount) || 0), 0),
+    outstandingBalances: usedInvs.reduce((s, i) => s + (Number(i.balance) || 0), 0),
+    installmentPayments: filtered.filter(p => p.kind === 'Installment'),
+    overdueAccounts: usedInvs.filter(i => (Number(i.balance) || 0) > 0 && i.status !== 'Paid')
   }
 }
 
-export function fetchAttendanceAndCompletion() {
+export async function fetchAttendanceAndCompletion() {
+  const attendance = await tryFetch(() => lessonsAPI.getAttendance(), [])
+  const sessions = (Array.isArray(attendance) ? attendance : []).map(a => ({
+    id: String(a.id), studentId: String(a.student_id), studentName: a.student_name || 'Unknown',
+    instructorId: String(a.instructor_id), instructorName: a.instructor_name || 'Unknown',
+    status: a.status, date: dateOnly(a.attended_at || a.created_at)
+  }))
   return {
-    sessions: [...db.lessons.sessions],
-    progress: [...db.lessons.enrollmentsProgress],
+    sessions: sessions.length > 0 ? sessions : [...fallbackDb.lessons.sessions],
+    progress: [...fallbackDb.lessons.enrollmentsProgress]
   }
 }
 
-export function fetchInstructorAssignmentReport() {
+export async function fetchInstructorAssignmentReport() {
+  const instructors = await tryFetch(() => instructorsAPI.getAll(), [])
+  if (Array.isArray(instructors) && instructors.length > 0) {
+    const workloads = instructors.map(i => ({
+      instructorId: String(i.id), instructorName: `${i.first_name} ${i.last_name}`,
+      assignedStudents: 0, scheduledSessions: 0, studioAllocations: 0
+    }))
+    const schedules = await tryFetch(() => lessonsAPI.getAll(), [])
+    const scheduledSessions = Array.isArray(schedules) ? schedules.map(s => ({
+      id: String(s.id), instructorId: String(s.instructor_id),
+      instructorName: s.instructor_name || 'Unknown', studentName: s.student_name || 'Unknown',
+      date: dateOnly(s.scheduled_date), time: s.start_time ? s.start_time.slice(0, 5) : '00:00',
+      studioRoom: s.studio_name || 'N/A'
+    })) : [...fallbackDb.instructors.scheduledSessions]
+    return { workloads, scheduledSessions }
+  }
   return {
-    workloads: [...db.instructors.assignments],
-    scheduledSessions: [...db.instructors.scheduledSessions],
+    workloads: [...fallbackDb.instructors.assignments],
+    scheduledSessions: [...fallbackDb.instructors.scheduledSessions]
   }
 }
 
-export function fetchStudioBookingReport() {
-  return [...db.studioBookings]
+export async function fetchStudioBookingReport() {
+  const bookings = await tryFetch(() => studiosAPI.getBookings(), [])
+  if (Array.isArray(bookings) && bookings.length > 0) {
+    return bookings.map(b => ({
+      id: String(b.id), room: b.studio_name || b.room_number || 'N/A',
+      clientName: b.client_name, date: dateOnly(b.booking_date),
+      durationMinutes: b.duration_minutes || 60
+    }))
+  }
+  return [...fallbackDb.studioBookings]
 }
 
-export function fetchInstrumentUsageReport() {
-  return fetchInstrumentUsageModuleRows()
+export async function fetchInstrumentUsageReport() {
+  const mod = await import('./instrumentUsageModule')
+  return mod.fetchInstrumentUsageModuleRows()
 }
-

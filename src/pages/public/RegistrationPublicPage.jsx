@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import PublicSectionNav from './PublicSectionNav'
 import { usePublicSite } from './PublicSiteContext'
+import axios from 'axios'
 
 export default function RegistrationPublicPage() {
   const { showToast } = usePublicSite()
@@ -13,6 +14,7 @@ export default function RegistrationPublicPage() {
     confirmPassword: '',
   })
   const [passwordError, setPasswordError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -21,7 +23,7 @@ export default function RegistrationPublicPage() {
     }
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!formData.username || !formData.email || !formData.contactNumber || !formData.password || !formData.confirmPassword) {
       showToast('Please fill in all required fields.')
@@ -31,16 +33,36 @@ export default function RegistrationPublicPage() {
       setPasswordError('Incorrect Password')
       return
     }
-    showToast('Registration submitted. Your application will be routed to the Student Approval Module for verification.')
-    setFormData({
-      username: '',
-      email: '',
-      contactNumber: '',
-      address: '',
-      password: '',
-      confirmPassword: '',
-    })
-    setPasswordError('')
+
+    setIsSubmitting(true)
+    try {
+      const response = await axios.post('http://localhost:5000/api/register', {
+        username: formData.username,
+        email: formData.email,
+        contactNumber: formData.contactNumber,
+        address: formData.address,
+        password: formData.password,
+      })
+
+      if (response.status === 201) {
+        showToast('Registration successful! Your application will be routed to the Student Approval Module for verification.')
+        setFormData({
+          username: '',
+          email: '',
+          contactNumber: '',
+          address: '',
+          password: '',
+          confirmPassword: '',
+        })
+        setPasswordError('')
+      }
+    } catch (error) {
+      console.error('Registration error:', error)
+      const errorMessage = error.response?.data?.error || 'Registration failed. Please try again.'
+      showToast(errorMessage)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleCancel = () => {
@@ -157,6 +179,7 @@ export default function RegistrationPublicPage() {
               type="button"
               onClick={handleCancel}
               className="btn btn-secondary"
+              disabled={isSubmitting}
               style={{
                 flex: 1,
                 padding: '12px 24px',
@@ -166,7 +189,8 @@ export default function RegistrationPublicPage() {
                 color: 'white',
                 fontSize: '14px',
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                opacity: isSubmitting ? 0.6 : 1,
               }}
             >
               Cancel
@@ -174,6 +198,7 @@ export default function RegistrationPublicPage() {
             <button
               type="submit"
               className="btn"
+              disabled={isSubmitting}
               style={{
                 flex: 1,
                 padding: '12px 24px',
@@ -183,10 +208,11 @@ export default function RegistrationPublicPage() {
                 color: 'white',
                 fontSize: '14px',
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                opacity: isSubmitting ? 0.6 : 1,
               }}
             >
-              Register
+              {isSubmitting ? 'Registering...' : 'Register'}
             </button>
           </div>
         </form>
