@@ -47,7 +47,7 @@ async function setupDatabase() {
     
     // Drop database if it exists for a clean setup
     try {
-      await connection.query('DROP DATABASE IF EXISTS cadenza_db')
+      await connection.query('DROP DATABASE IF EXISTS cadenza_music_db')
       console.log('🧹 Cleaned up old database')
     } catch (err) {
       console.log('   (No old database to clean)')
@@ -61,7 +61,7 @@ async function setupDatabase() {
     console.log('')
 
     // List tables
-    const [tables] = await connection.query('SHOW TABLES FROM cadenza_db')
+    const [tables] = await connection.query('SHOW TABLES FROM cadenza_music_db')
     console.log('📊 Tables in cadenza_db:')
     tables.forEach((t, i) => {
       const tableName = Object.values(t)[0]

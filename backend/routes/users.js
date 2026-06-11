@@ -45,8 +45,8 @@ router.post('/register', async (req, res) => {
     const { username, email, contactNumber, address, password, role } = req.body
 
     if (!username || !email || !contactNumber || !password) {
-      return res.status(400).json({ error: 'All required fields must be filled' })
-    }
+  return res.status(400).json({ error: 'All required fields must be filled' })
+}
 
     const [existing] = await pool.query(
       'SELECT id FROM users WHERE email = ? OR username = ?',
