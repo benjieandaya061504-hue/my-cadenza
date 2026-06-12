@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import PublicSectionNav from './PublicSectionNav'
 import { usePublicSite } from './PublicSiteContext'
+import { instrumentsAPI } from '../../services/api'
 
 const INSTRUMENTS = [
   {
@@ -108,16 +109,30 @@ export default function RentalPublicPage() {
     setSelected(null)
   }
 
-  const submitRental = () => {
+  const submitRental = async () => {
     if (!form.name.trim() || !form.contact.trim()) {
       showToast('Please enter your name and contact number.')
       return
     }
-    openSuccessModal({
-      title: 'Rental Request Submitted!',
-      message: 'Your request has been received. Our team will review and contact you within 24 hours.',
-    })
-    closeModal()
+    try {
+      await instrumentsAPI.createRental({
+        instrument_id: selected.id,
+        renter_name: form.name.trim(),
+        rental_start_date: form.start || new Date().toISOString().slice(0, 10),
+        rental_type: 'monthly',
+        rate_at_time_of_rental: selected.rate,
+        deposit_amount: selected.deposit,
+        notes: `Contact: ${form.contact}, Email: ${form.email}, Address: ${form.address}`,
+      })
+      openSuccessModal({
+        title: 'Rental Request Submitted!',
+        message: 'Your request has been received. Our team will review and contact you within 24 hours.',
+      })
+      closeModal()
+    } catch (err) {
+      console.error('Rental error:', err)
+      showToast('Failed to submit rental request. Please try again.')
+    }
   }
 
   return (

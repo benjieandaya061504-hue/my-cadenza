@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import PublicSectionNav from './PublicSectionNav'
 import { usePublicSite } from './PublicSiteContext'
+import { studiosAPI } from '../../services/api'
 
 const ROOM_RATES = { A: 300, B: 300, C: 500 }
 
@@ -53,22 +54,37 @@ export default function StudioBookingPublicPage() {
     setShowGcash(v === 'GCash')
   }
 
-  const submitBooking = () => {
+  const submitBooking = async () => {
     if (!bkForm.name.trim() || !bkForm.contact.trim()) {
       showToast('Please enter your name and contact number.')
       return
     }
-    openSignupGate({
-      icon: '🎵',
-      title: 'Studio Booking',
-      subtitle: 'Sign up to submit your studio booking request.',
-      onContinue: () => {
-        openSuccessModal({
-          title: 'Booking Request Submitted!',
-          message: 'Your request has been received. Our team will review availability and contact you.',
-        })
-      },
-    })
+    try {
+      const endTime = (() => {
+        const [hh, mm] = startTime.split(':').map(Number)
+        const dur = parseInt(duration, 10) || 1
+        const endH = Math.min(hh + dur, 23)
+        return `${String(endH).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
+      })()
+      await studiosAPI.createBooking({
+        studio_id: room === 'A' ? 1 : room === 'B' ? 2 : 3,
+        client_name: bkForm.name.trim(),
+        booking_date: date,
+        start_time: startTime,
+        end_time: endTime,
+        duration_minutes: parseInt(duration, 10) * 60,
+        purpose: purpose,
+        total_fee: summary.total,
+        notes: `Contact: ${bkForm.contact}, Email: ${bkForm.email}`,
+      })
+      openSuccessModal({
+        title: 'Booking Request Submitted!',
+        message: 'Your request has been received. Our team will review availability and contact you.',
+      })
+    } catch (err) {
+      console.error('Booking error:', err)
+      showToast('Failed to submit booking. Please try again.')
+    }
   }
 
   return (

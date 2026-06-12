@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
+import { usersAPI } from '../../services/api'
 
 const C = {
   bg: '#0e0f13',
@@ -23,39 +24,8 @@ const C = {
   mono: "'Space Mono', monospace",
 }
 
-const ROLES = ['Student', 'Instructor', 'Front Desk', 'Administrator']
-const STATUSES = ['active', 'inactive']
-
-const initialUsers = () => [
-  { id: '1', name: 'Ana Reyes', email: 'ana.reyes@email.com', phone: '+63 917 111 2233', role: 'Student', status: 'active', createdAt: '2025-11-02' },
-  { id: '2', name: 'Marco Santos', email: 'marco.santos@email.com', phone: '+63 918 222 3344', role: 'Student', status: 'active', createdAt: '2025-10-18' },
-  { id: '3', name: 'Mr. Cruz', email: 'cruz.instructor@cadenza.edu', phone: '+63 919 333 4455', role: 'Instructor', status: 'active', createdAt: '2024-03-01' },
-  { id: '4', name: 'Ms. Lim', email: 'lim.instructor@cadenza.edu', phone: '+63 920 444 5566', role: 'Instructor', status: 'inactive', createdAt: '2024-01-15' },
-  { id: '5', name: 'Pia Gomez', email: 'pia.gomez@email.com', phone: '+63 921 555 6677', role: 'Student', status: 'inactive', createdAt: '2025-08-20' },
-  { id: '6', name: 'Luis Tan', email: 'luis.tan@email.com', phone: '+63 922 666 7788', role: 'Student', status: 'active', createdAt: '2026-01-10' },
-  { id: '7', name: 'Rosa Navarro', email: 'rosa.navarro@cadenza.edu', phone: '+63 923 777 8899', role: 'Front Desk', status: 'active', createdAt: '2025-06-01' },
-  { id: '8', name: 'System Admin', email: 'admin@cadenza.edu', phone: '—', role: 'Administrator', status: 'active', createdAt: '2023-01-01' },
-]
-
-const USER_DETAIL_DEFAULTS = {
-  username: '',
-  dateOfBirth: '',
-  addressLine: '',
-  city: '',
-  emergencyContact: '',
-  profilePhotoUrl: null,
-}
-
-const seededUsers = () =>
-  initialUsers().map(u => ({
-    ...USER_DETAIL_DEFAULTS,
-    ...u,
-    username:
-      u.username ||
-      (typeof u.email === 'string' && u.email.includes('@') ? u.email.split('@')[0] : `user_${u.id}`),
-  }))
-
-let nextId = 9
+const ROLES = ['student', 'instructor', 'frontdesk', 'admin']
+const STATUSES = ['pending', 'approved', 'rejected']
 
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
@@ -77,22 +47,6 @@ function UserAvatar({ url, name, size = 36 }) {
     .join('')
     .slice(0, 2)
     .toUpperCase()
-  if (url) {
-    return (
-      <img
-        src={url}
-        alt=""
-        style={{
-          width: size,
-          height: size,
-          borderRadius: '10px',
-          objectFit: 'cover',
-          border: `1px solid ${C.border}`,
-          flexShrink: 0,
-        }}
-      />
-    )
-  }
   return (
     <div
       style={{
@@ -151,63 +105,41 @@ function inputStyle(focused) {
 }
 
 function UserFormModal({ mode, initial, onClose, onSave }) {
-  const [name, setName] = useState(initial?.name ?? '')
+  const [username, setUsername] = useState(initial?.username ?? '')
   const [email, setEmail] = useState(initial?.email ?? '')
-  const [phone, setPhone] = useState(initial?.phone ?? '')
-  const [role, setRole] = useState(initial?.role ?? 'Student')
+  const [contactNumber, setContactNumber] = useState(initial?.contact_number ?? '')
+  const [address, setAddress] = useState(initial?.address ?? '')
+  const [role, setRole] = useState(initial?.role ?? 'student')
   const [password, setPassword] = useState('')
   const [focus, setFocus] = useState(null)
-  const [username, setUsername] = useState(initial?.username ?? '')
-  const [dateOfBirth, setDateOfBirth] = useState(initial?.dateOfBirth ?? '')
-  const [addressLine, setAddressLine] = useState(initial?.addressLine ?? '')
-  const [city, setCity] = useState(initial?.city ?? '')
-  const [emergencyContact, setEmergencyContact] = useState(initial?.emergencyContact ?? '')
-  const [photoPreview, setPhotoPreview] = useState(initial?.profilePhotoUrl ?? null)
-  const [newPassword, setNewPassword] = useState('')
 
-  const onPhotoChange = e => {
-    const file = e.target.files?.[0]
-    if (!file || !file.type.startsWith('image/')) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      setPhotoPreview(typeof reader.result === 'string' ? reader.result : null)
-    }
-    reader.readAsDataURL(file)
-  }
-
-  const handleSubmit = e => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!name.trim() || !email.trim()) return
-    const loginUser = (username.trim() || email.split('@')[0] || '').replace(/\s+/g, '')
-    const extra = {
-      username: loginUser,
-      dateOfBirth: dateOfBirth.trim(),
-      addressLine: addressLine.trim(),
-      city: city.trim(),
-      emergencyContact: emergencyContact.trim(),
-      profilePhotoUrl: photoPreview || null,
+    if (!username.trim() || !email.trim()) return
+
+    try {
+      if (mode === 'add') {
+      await onSave({
+  username: username.trim(),
+  email: email.trim(),
+  contactNumber: contactNumber.trim(),  // ✅ camelCase - matches backend
+  address: address.trim(),
+  password,
+  role,
+})
+      } else {
+        await onSave({
+          ...initial,
+          username: username.trim(),
+          email: email.trim(),
+          contact_number: contactNumber.trim(),
+          address: address.trim(),
+        })
+      }
+      onClose()
+    } catch (err) {
+      console.error('Save error:', err)
     }
-    const payload = {
-      name: name.trim(),
-      email: email.trim(),
-      phone: phone.trim() || '—',
-      role,
-      ...extra,
-    }
-    if (mode === 'add') {
-      onSave({
-        ...payload,
-        id: String(nextId++),
-        status: 'active',
-        createdAt: new Date().toISOString().slice(0, 10),
-        tempPassword: password.trim() || undefined,
-      })
-    } else {
-      const merged = { ...initial, ...payload }
-      if (newPassword.trim()) merged.lastCredentialUpdate = new Date().toISOString().slice(0, 10)
-      onSave(merged)
-    }
-    onClose()
   }
 
   return (
@@ -240,33 +172,17 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {sectionLabel('Profile photo')}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-              <UserAvatar url={photoPreview} name={name} size={64} />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <input type="file" accept="image/*" onChange={onPhotoChange} style={{ fontSize: '12px', color: C.text2, maxWidth: '220px' }} />
-                {photoPreview && (
-                  <button
-                    type="button"
-                    onClick={() => setPhotoPreview(null)}
-                    className="um-pill"
-                    style={{ alignSelf: 'flex-start', padding: '5px 10px', borderRadius: '8px', border: `1px solid ${C.border}`, background: C.bg4, color: C.text3, cursor: 'pointer', fontSize: '11px', fontFamily: C.font }}
-                  >
-                    Remove photo
-                  </button>
-                )}
+            {sectionLabel('Login credentials')}
+            <div>
+              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Username</label>
+              <input value={username} onChange={e => setUsername(e.target.value)} required style={inputStyle(focus === 'user')} onFocus={() => setFocus('user')} onBlur={() => setFocus(null)} />
+            </div>
+            {mode === 'add' && (
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Password</label>
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)} required={mode === 'add'} style={inputStyle(focus === 'pw')} onFocus={() => setFocus('pw')} onBlur={() => setFocus(null)} autoComplete="new-password" />
               </div>
-            </div>
-
-            {sectionLabel('Personal information')}
-            <div>
-              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Full name</label>
-              <input value={name} onChange={e => setName(e.target.value)} required style={inputStyle(focus === 'name')} onFocus={() => setFocus('name')} onBlur={() => setFocus(null)} />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Date of birth</label>
-              <input type="date" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)} style={inputStyle(focus === 'dob')} onFocus={() => setFocus('dob')} onBlur={() => setFocus(null)} />
-            </div>
+            )}
 
             {sectionLabel('Contact details')}
             <div>
@@ -274,39 +190,13 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} required style={inputStyle(focus === 'email')} onFocus={() => setFocus('email')} onBlur={() => setFocus(null)} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Phone</label>
-              <input value={phone} onChange={e => setPhone(e.target.value)} style={inputStyle(focus === 'phone')} onFocus={() => setFocus('phone')} onBlur={() => setFocus(null)} placeholder="Optional" />
+              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Contact Number</label>
+              <input value={contactNumber} onChange={e => setContactNumber(e.target.value)} style={inputStyle(focus === 'phone')} onFocus={() => setFocus('phone')} onBlur={() => setFocus(null)} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Address line</label>
-              <input value={addressLine} onChange={e => setAddressLine(e.target.value)} style={inputStyle(focus === 'addr')} onFocus={() => setFocus('addr')} onBlur={() => setFocus(null)} placeholder="Street, unit, barangay…" />
+              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Address</label>
+              <input value={address} onChange={e => setAddress(e.target.value)} style={inputStyle(focus === 'addr')} onFocus={() => setFocus('addr')} onBlur={() => setFocus(null)} />
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>City / region</label>
-              <input value={city} onChange={e => setCity(e.target.value)} style={inputStyle(focus === 'city')} onFocus={() => setFocus('city')} onBlur={() => setFocus(null)} />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Emergency contact</label>
-              <input value={emergencyContact} onChange={e => setEmergencyContact(e.target.value)} style={inputStyle(focus === 'em')} onFocus={() => setFocus('em')} onBlur={() => setFocus(null)} placeholder="Name and phone" />
-            </div>
-
-            {sectionLabel('Login credentials')}
-            <div>
-              <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Username (sign-in ID)</label>
-              <input value={username} onChange={e => setUsername(e.target.value)} style={inputStyle(focus === 'user')} onFocus={() => setFocus('user')} onBlur={() => setFocus(null)} placeholder="Defaults from email if empty" autoComplete="username" />
-            </div>
-            {mode === 'add' && (
-              <div>
-                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Initial password</label>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={inputStyle(focus === 'pw')} onFocus={() => setFocus('pw')} onBlur={() => setFocus(null)} placeholder="Optional — invite flow may apply" autoComplete="new-password" />
-              </div>
-            )}
-            {mode === 'edit' && (
-              <div>
-                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>New password</label>
-                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} style={inputStyle(focus === 'npw')} onFocus={() => setFocus('npw')} onBlur={() => setFocus(null)} placeholder="Leave blank to keep current password" autoComplete="new-password" />
-              </div>
-            )}
 
             {sectionLabel('User role')}
             <div>
@@ -319,7 +209,7 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
                 onBlur={() => setFocus(null)}
               >
                 {ROLES.map(r => (
-                  <option key={r} value={r}>{r}</option>
+                  <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
                 ))}
               </select>
             </div>
@@ -340,9 +230,12 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
 
 function UserViewModal({ user, onClose }) {
   if (!user) return null
-  const st = user.status === 'active'
-    ? { bg: 'rgba(52,211,153,0.12)', c: C.green, label: 'Active' }
-    : { bg: 'rgba(248,113,113,0.1)', c: C.coral, label: 'Inactive' }
+  const st = user.status === 'approved'
+    ? { bg: 'rgba(52,211,153,0.12)', c: C.green, label: 'Approved' }
+    : user.status === 'rejected'
+    ? { bg: 'rgba(248,113,113,0.1)', c: C.coral, label: 'Rejected' }
+    : { bg: 'rgba(251,191,36,0.1)', c: C.gold, label: 'Pending' }
+
   const row = (label, value) => (
     <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '10px', padding: '8px 0', borderBottom: `1px solid ${C.border}`, fontSize: '13px' }}>
       <div style={{ color: C.text3, fontWeight: 600 }}>{label}</div>
@@ -372,28 +265,21 @@ function UserViewModal({ user, onClose }) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '16px' }}>
-          <UserAvatar url={user.profilePhotoUrl} name={user.name} size={72} />
+          <UserAvatar name={user.username || user.email} size={72} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div id="um-view-title" style={{ fontFamily: C.display, fontSize: '18px', fontWeight: 700, color: C.text }}>{user.name}</div>
+            <div id="um-view-title" style={{ fontFamily: C.display, fontSize: '18px', fontWeight: 700, color: C.text }}>{user.username}</div>
             <div style={{ fontSize: '12px', color: C.text3, fontFamily: C.mono, marginTop: '4px' }}>ID {user.id}</div>
             <span style={{ display: 'inline-flex', marginTop: '8px', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, background: st.bg, color: st.c }}>{st.label}</span>
           </div>
         </div>
-        {sectionLabel('Personal information')}
-        {row('Full name', user.name)}
-        {row('Date of birth', user.dateOfBirth)}
         {sectionLabel('Contact details')}
         {row('Email', user.email)}
-        {row('Phone', user.phone)}
-        {row('Address', user.addressLine)}
-        {row('City / region', user.city)}
-        {row('Emergency contact', user.emergencyContact)}
-        {sectionLabel('Login credentials')}
-        {row('Username', user.username)}
-        {row('Password', '••••••••' + (user.lastCredentialUpdate ? ` (updated ${user.lastCredentialUpdate})` : ''))}
+        {row('Contact number', user.contact_number)}
+        {row('Address', user.address)}
         {sectionLabel('Access')}
         {row('Role', user.role)}
-        {row('Member since', user.createdAt)}
+        {row('Status', user.status)}
+        {row('Member since', user.created_at ? user.created_at.slice(0, 10) : '—')}
         <button type="button" onClick={onClose} className="um-pill" style={{ marginTop: '18px', width: '100%', padding: '10px', borderRadius: '10px', border: `1px solid ${C.border}`, background: C.bg4, color: C.text2, cursor: 'pointer', fontFamily: C.font, fontSize: '13px', fontWeight: 600 }}>
           Close
         </button>
@@ -403,15 +289,33 @@ function UserViewModal({ user, onClose }) {
 }
 
 /**
- * REQ007–REQ013: User management UI (add, view, search, filter by status/role, update, activate, deactivate).
+ * User management UI connected to backend API (add, view, search, filter by status/role, update, activate/deactivate).
  */
 function UserManagement({ isMobile = false, isTablet = false }) {
-  const [users, setUsers] = useState(() => seededUsers())
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [roleFilter, setRoleFilter] = useState('all')
   const [modal, setModal] = useState(null)
   const [viewUser, setViewUser] = useState(null)
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await usersAPI.getAll()
+      setUsers(Array.isArray(res.data) ? res.data : [])
+    } catch (err) {
+      console.error('Failed to fetch users:', err)
+      setUsers([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -420,48 +324,69 @@ function UserManagement({ isMobile = false, isTablet = false }) {
       if (roleFilter !== 'all' && u.role !== roleFilter) return false
       if (!q) return true
       return (
-        u.name.toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q) ||
-        u.phone.toLowerCase().includes(q) ||
-        u.id.includes(q) ||
-        (u.username && String(u.username).toLowerCase().includes(q)) ||
-        (u.addressLine && u.addressLine.toLowerCase().includes(q)) ||
-        (u.city && u.city.toLowerCase().includes(q)) ||
-        (u.emergencyContact && u.emergencyContact.toLowerCase().includes(q))
+        (u.username && u.username.toLowerCase().includes(q)) ||
+        (u.email && u.email.toLowerCase().includes(q)) ||
+        (u.contact_number && u.contact_number.toLowerCase().includes(q)) ||
+        String(u.id).includes(q) ||
+        (u.address && u.address.toLowerCase().includes(q))
       )
     })
   }, [users, search, statusFilter, roleFilter])
 
   const stats = useMemo(() => {
-    const active = users.filter(u => u.status === 'active').length
-    const inactive = users.length - active
-    return { total: users.length, active, inactive }
+    const approved = users.filter(u => u.status === 'approved').length
+    const pending = users.filter(u => u.status === 'pending').length
+    const rejected = users.filter(u => u.status === 'rejected').length
+    return { total: users.length, approved, pending, rejected }
   }, [users])
 
-  const addUser = row => {
-    const { tempPassword: _tp, ...rest } = row
-    setUsers(prev => [...prev, rest])
+  const addUser = async (data) => {
+    try {
+      await usersAPI.register(data)
+      await fetchUsers()
+    } catch (err) {
+      console.error('Failed to add user:', err)
+      throw err
+    }
   }
 
-  const updateUser = updated => {
-    setUsers(prev => prev.map(u => (u.id === updated.id ? updated : u)))
+  const updateUser = async (updated) => {
+    try {
+      await usersAPI.update(updated.id, {
+        username: updated.username,
+        email: updated.email,
+        contact_number: updated.contact_number,
+        address: updated.address,
+      })
+      await fetchUsers()
+    } catch (err) {
+      console.error('Failed to update user:', err)
+      throw err
+    }
   }
 
-  const setStatus = (id, status) => {
-    setUsers(prev => prev.map(u => (u.id === id ? { ...u, status } : u)))
+  const setStatus = async (id, status) => {
+    try {
+      await usersAPI.updateStatus(id, status)
+      await fetchUsers()
+    } catch (err) {
+      console.error('Failed to update user status:', err)
+    }
   }
 
   const statusStyle = s =>
-    s === 'active'
-      ? { bg: 'rgba(52,211,153,0.12)', c: C.green, dot: C.green, label: 'Active' }
-      : { bg: 'rgba(248,113,113,0.1)', c: C.coral, dot: C.coral, label: 'Inactive' }
+    s === 'approved'
+      ? { bg: 'rgba(52,211,153,0.12)', c: C.green, dot: C.green, label: 'Approved' }
+      : s === 'rejected'
+      ? { bg: 'rgba(248,113,113,0.1)', c: C.coral, dot: C.coral, label: 'Rejected' }
+      : { bg: 'rgba(251,191,36,0.1)', c: C.gold, dot: C.gold, label: 'Pending' }
 
-  const roleBadge = role => {
+  const roleBadge = (role) => {
     const map = {
-      Student: C.teal,
-      Instructor: C.accentL,
-      'Front Desk': C.gold,
-      Administrator: C.pink,
+      student: C.teal,
+      instructor: C.accentL,
+      frontdesk: C.gold,
+      admin: C.pink,
     }
     const col = map[role] || C.text2
     return { color: col, bg: `${col}14`, border: `${col}35` }
@@ -479,6 +404,19 @@ function UserManagement({ isMobile = false, isTablet = false }) {
     outline: 'none',
   }
 
+  const roleLabel = (r) => {
+    const map = { student: 'Student', instructor: 'Instructor', frontdesk: 'Front Desk', admin: 'Administrator' }
+    return map[r] || r
+  }
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: C.text3, fontFamily: C.font }}>
+        Loading users...
+      </div>
+    )
+  }
+
   return (
     <>
       <style>{css}</style>
@@ -492,8 +430,8 @@ function UserManagement({ isMobile = false, isTablet = false }) {
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '12px', marginBottom: '18px' }}>
           {[
             { label: 'Total accounts', value: stats.total, sub: 'All roles', color: C.accent },
-            { label: 'Active', value: stats.active, sub: 'Can sign in', color: C.green },
-            { label: 'Inactive', value: stats.inactive, sub: 'Access suspended', color: C.coral },
+            { label: 'Approved', value: stats.approved, sub: 'Can sign in', color: C.green },
+            { label: 'Pending', value: stats.pending, sub: 'Awaiting approval', color: C.gold },
           ].map((s, i) => (
             <div
               key={s.label}
@@ -526,7 +464,7 @@ function UserManagement({ isMobile = false, isTablet = false }) {
               <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: C.text3, fontSize: '14px' }}>⌕</span>
               <input
                 type="search"
-                placeholder="Search by name, email, phone, username, address, or ID…"
+                placeholder="Search by username, email, phone, or ID…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 aria-label="Search user accounts"
@@ -551,7 +489,7 @@ function UserManagement({ isMobile = false, isTablet = false }) {
                 <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...selectBase, minWidth: '120px' }} aria-label="Filter by account status">
                   <option value="all">All statuses</option>
                   {STATUSES.map(s => (
-                    <option key={s} value={s}>{s === 'active' ? 'Active' : 'Inactive'}</option>
+                    <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
                   ))}
                 </select>
               </div>
@@ -560,7 +498,7 @@ function UserManagement({ isMobile = false, isTablet = false }) {
                 <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} style={{ ...selectBase, minWidth: '140px' }} aria-label="Filter by role">
                   <option value="all">All roles</option>
                   {ROLES.map(r => (
-                    <option key={r} value={r}>{r}</option>
+                    <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
                   ))}
                 </select>
               </div>
@@ -594,7 +532,7 @@ function UserManagement({ isMobile = false, isTablet = false }) {
             <table style={{ width: '100%', minWidth: isTablet ? '700px' : '780px', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: C.bg4 }}>
-                  {['User', 'Email', 'Phone', 'Role', 'Status', 'Joined', 'Actions'].map(h => (
+                  {['User', 'Email', 'Contact', 'Role', 'Status', 'Joined', 'Actions'].map(h => (
                     <th
                       key={h}
                       style={{
@@ -628,16 +566,15 @@ function UserManagement({ isMobile = false, isTablet = false }) {
                       <tr key={u.id} className="um-row" style={{ borderBottom: i < filtered.length - 1 ? `1px solid ${C.border}` : 'none' }}>
                         <td style={{ padding: '12px', verticalAlign: 'middle' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <UserAvatar url={u.profilePhotoUrl} name={u.name} size={40} />
+                            <UserAvatar name={u.username} size={40} />
                             <div style={{ minWidth: 0 }}>
-                              <div style={{ fontSize: '13px', fontWeight: 600, color: C.text }}>{u.name}</div>
+                              <div style={{ fontSize: '13px', fontWeight: 600, color: C.text }}>{u.username}</div>
                               <div style={{ fontSize: '11px', color: C.text3, fontFamily: C.mono, marginTop: '2px' }}>ID {u.id}</div>
-                              <div style={{ fontSize: '10px', color: C.text3, marginTop: '2px' }}>@{u.username || '—'}</div>
                             </div>
                           </div>
                         </td>
                         <td style={{ padding: '12px', fontSize: '12px', color: C.text2, verticalAlign: 'middle' }}>{u.email}</td>
-                        <td style={{ padding: '12px', fontSize: '12px', color: C.text2, fontFamily: C.mono, verticalAlign: 'middle' }}>{u.phone}</td>
+                        <td style={{ padding: '12px', fontSize: '12px', color: C.text2, fontFamily: C.mono, verticalAlign: 'middle' }}>{u.contact_number || '—'}</td>
                         <td style={{ padding: '12px', verticalAlign: 'middle' }}>
                           <span
                             style={{
@@ -651,7 +588,7 @@ function UserManagement({ isMobile = false, isTablet = false }) {
                               border: `1px solid ${rb.border}`,
                             }}
                           >
-                            {u.role}
+                            {roleLabel(u.role)}
                           </span>
                         </td>
                         <td style={{ padding: '12px', verticalAlign: 'middle' }}>
@@ -660,7 +597,7 @@ function UserManagement({ isMobile = false, isTablet = false }) {
                             {st.label}
                           </span>
                         </td>
-                        <td style={{ padding: '12px', fontSize: '12px', color: C.text3, fontFamily: C.mono, verticalAlign: 'middle' }}>{u.createdAt}</td>
+                        <td style={{ padding: '12px', fontSize: '12px', color: C.text3, fontFamily: C.mono, verticalAlign: 'middle' }}>{u.created_at ? u.created_at.slice(0, 10) : '—'}</td>
                         <td style={{ padding: '10px 12px', textAlign: 'right', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                           <button
                             type="button"
@@ -678,22 +615,39 @@ function UserManagement({ isMobile = false, isTablet = false }) {
                           >
                             Edit
                           </button>
-                          {u.status === 'inactive' ? (
+                          {u.status === 'approved' ? (
                             <button
                               type="button"
-                              onClick={() => setStatus(u.id, 'active')}
-                              style={{ padding: '6px 11px', borderRadius: '8px', border: `1px solid rgba(52,211,153,0.35)`, background: 'rgba(52,211,153,0.1)', color: C.green, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
-                            >
-                              Activate
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setStatus(u.id, 'inactive')}
+                              onClick={() => setStatus(u.id, 'rejected')}
                               style={{ padding: '6px 11px', borderRadius: '8px', border: `1px solid rgba(248,113,113,0.35)`, background: 'rgba(248,113,113,0.08)', color: C.coral, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
                             >
-                              Deactivate
+                              Reject
                             </button>
+                          ) : u.status === 'rejected' ? (
+                            <button
+                              type="button"
+                              onClick={() => setStatus(u.id, 'approved')}
+                              style={{ padding: '6px 11px', borderRadius: '8px', border: `1px solid rgba(52,211,153,0.35)`, background: 'rgba(52,211,153,0.1)', color: C.green, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+                            >
+                              Approve
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setStatus(u.id, 'approved')}
+                                style={{ marginRight: '4px', padding: '6px 11px', borderRadius: '8px', border: `1px solid rgba(52,211,153,0.35)`, background: 'rgba(52,211,153,0.1)', color: C.green, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setStatus(u.id, 'rejected')}
+                                style={{ padding: '6px 11px', borderRadius: '8px', border: `1px solid rgba(248,113,113,0.35)`, background: 'rgba(248,113,113,0.08)', color: C.coral, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+                              >
+                                Reject
+                              </button>
+                            </>
                           )}
                         </td>
                       </tr>

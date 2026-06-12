@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ADMIN_LOGIN_PATH, FRONTDESK_LOGIN_PATH } from '../../constants/publicRoutes'
+import { usersAPI } from '../../services/api'
 
 const C = {
   bg: '#0e0f13',
@@ -256,11 +257,17 @@ function Login({ role = 'admin' }) {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  const doLogin = () => {
+  const doLogin = async () => {
     if (!username.trim()) return setError('Please enter your username.')
     if (!password.trim()) return setError('Please enter your password.')
     setError('')
-    navigate(meta.dashboardPath)
+    try {
+      await usersAPI.login({ email: username.trim(), password })
+      navigate(meta.dashboardPath)
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Login failed. Please check your credentials.'
+      setError(msg)
+    }
   }
 
   const handleOTPVerified = () => {

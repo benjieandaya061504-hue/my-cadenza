@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import PublicSectionNav from './PublicSectionNav'
 import { usePublicSite } from './PublicSiteContext'
-import axios from 'axios'
+import { usersAPI } from '../../services/api'
 
 export default function RegistrationPublicPage() {
   const { showToast } = usePublicSite()
@@ -36,7 +36,7 @@ export default function RegistrationPublicPage() {
 
     setIsSubmitting(true)
     try {
-      const response = await axios.post('http://localhost:5000/api/register', {
+      const response = await usersAPI.register({
         username: formData.username,
         email: formData.email,
         contactNumber: formData.contactNumber,
@@ -58,7 +58,7 @@ export default function RegistrationPublicPage() {
       }
     } catch (error) {
       console.error('Registration error:', error)
-      const errorMessage = error.response?.data?.error || 'Registration failed. Please try again.'
+      const errorMessage = error.response?.data?.error || error.message || 'Registration failed. Please try again.'
       showToast(errorMessage)
     } finally {
       setIsSubmitting(false)
