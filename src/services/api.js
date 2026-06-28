@@ -45,6 +45,15 @@ export const usersAPI = {
 }
 
 // ================================================================
+// STAFF AUTH API
+// ================================================================
+export const staffAuthAPI = {
+  login: (data) => api.post('/staff-auth/login', data),
+  getProfile: (staffId) => api.get(`/staff-auth/profile/${staffId}`),
+  changePassword: (staffId, data) => api.put(`/staff-auth/change-password/${staffId}`, data)
+}
+
+// ================================================================
 // STUDENTS API
 // ================================================================
 export const studentsAPI = {

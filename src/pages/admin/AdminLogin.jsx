@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ADMIN_LOGIN_PATH, FRONTDESK_LOGIN_PATH } from '../../constants/publicRoutes'
-import { usersAPI } from '../../services/api'
+import { staffAuthAPI } from '../../services/api'
 
 const C = {
   bg: '#0e0f13',
@@ -223,7 +223,7 @@ function PwdSuccessModal({ open, onClose, isMobile }) {
 const ROLE_META = {
   admin: {
     label: 'Administrator',
-    defaultUsername: 'admin@Cadenza MUsic Center',
+    defaultUsername: 'juan.cruz@cadenza.com',
     dashboardPath: '/admin/dashboard',
     alternatePath: FRONTDESK_LOGIN_PATH,
     alternateLabel: 'Front desk login',
@@ -231,7 +231,7 @@ const ROLE_META = {
   frontdesk: {
     label: 'Front Desk',
     subtitle: 'Front desk portal — enrollments, payments, and scheduling',
-    defaultUsername: 'frontdesk@cadenza.edu',
+    defaultUsername: 'maria.santos@cadenza.com',
     dashboardPath: '/admin/dashboard',
     alternatePath: ADMIN_LOGIN_PATH,
     alternateLabel: 'Admin login',
@@ -262,7 +262,7 @@ function Login({ role = 'admin' }) {
     if (!password.trim()) return setError('Please enter your password.')
     setError('')
     try {
-      await usersAPI.login({ email: username.trim(), password })
+      await staffAuthAPI.login({ email: username.trim(), password })
       navigate(meta.dashboardPath)
     } catch (err) {
       const msg = err.response?.data?.error || 'Login failed. Please check your credentials.'

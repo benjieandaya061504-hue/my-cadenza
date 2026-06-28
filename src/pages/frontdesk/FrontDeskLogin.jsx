@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ADMIN_LOGIN_PATH } from '../../constants/publicRoutes'
+import { staffAuthAPI } from '../../services/api'
 
 const C = {
   bg: '#0e0f13',
@@ -78,7 +79,7 @@ function OTPModal({ open, onClose, onVerified, isMobile }) {
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.text2, cursor: 'pointer', fontSize: '18px' }}>✕</button>
         </div>
         <div style={{ fontSize: '36px', marginBottom: '10px' }}>✉️</div>
-        <p style={{ color: C.text2, fontSize: '13px', marginBottom: '6px', fontFamily: C.font }}>OTP sent to <strong style={{ color: C.text }}>frontdesk@cadenza.edu</strong></p>
+        <p style={{ color: C.text2, fontSize: '13px', marginBottom: '6px', fontFamily: C.font }}>OTP sent to <strong style={{ color: C.text }}>maria.santos@cadenza.com</strong></p>
         <p style={{ color: C.text3, fontSize: '12px', fontFamily: C.font }}>Enter the 6-digit code below</p>
         <div style={{ display: 'flex', gap: isMobile ? '6px' : '10px', justifyContent: 'center', margin: '20px 0' }}>
           {digits.map((d, i) => (
@@ -221,7 +222,7 @@ function PwdSuccessModal({ open, onClose, isMobile }) {
 export default function FrontDeskLogin() {
   const navigate = useNavigate()
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth)
-  const [username, setUsername] = useState('frontdesk@cadenza.edu')
+  const [username, setUsername] = useState('maria.santos@cadenza.com')
   const [password, setPassword] = useState('••••••••')
   const [showOTP, setShowOTP] = useState(false)
   const [otpSession, setOtpSession] = useState(0)
@@ -236,11 +237,17 @@ export default function FrontDeskLogin() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  const doLogin = () => {
+  const doLogin = async () => {
     if (!username.trim()) return setError('Please enter your username.')
     if (!password.trim()) return setError('Please enter your password.')
     setError('')
-    navigate('/frontdesk/dashboard')
+    try {
+      await staffAuthAPI.login({ email: username.trim(), password })
+      navigate('/frontdesk/dashboard')
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Login failed. Please check your credentials.'
+      setError(msg)
+    }
   }
 
   const handleOTPVerified = () => {
