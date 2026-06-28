@@ -98,11 +98,11 @@ CREATE TABLE Staff_Auth (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO Staff_Auth (auth_id, staff_id, email, password, last_login) VALUES
-(1, 1, 'juan.cruz@cadenza.com', '$2b$10$placeholder_hash_admin', NULL),
-(2, 2, 'maria.santos@cadenza.com', '$2b$10$placeholder_hash_frontdesk1', NULL),
-(3, 3, 'pedro.gonzales@cadenza.com', '$2b$10$placeholder_hash_instructor1', NULL),
-(4, 4, 'ana.villanueva@cadenza.com', '$2b$10$placeholder_hash_frontdesk2', NULL),
-(5, 5, 'carlos.fernandez@cadenza.com', '$2b$10$placeholder_hash_instructor2', NULL);
+(1, 1, 'juan.cruz@cadenza.com', '$2b$10$BaTPsnizhrs/be8j3/H1qezN0zxT.mvL.l8E5uhQ1r5px5XChje9C', NULL),
+(2, 2, 'maria.santos@cadenza.com', '$2b$10$y6f2HmulNdadg46tbpy8derTcdS30Lb3hP/atfWyVLV3BWX5R6WpC', NULL),
+(3, 3, 'pedro.gonzales@cadenza.com', '$2b$10$vQuXFupXX.Hg2m/4hFPrY.X9UmDCV51pPUuuUCrbQYLBT5JjTH95e', NULL),
+(4, 4, 'ana.villanueva@cadenza.com', '$2b$10$0rXWHvVAT1P.Gl66yIt12OsQVrjXMYdI9Upo.lSy0QpuDwcksagiW', NULL),
+(5, 5, 'carlos.fernandez@cadenza.com', '$2b$10$W9xPEtL5ukIXmjySTCQ7ouH.cXMSSb7TXDlh4bPf5gpDL3Ec4pK3i', NULL);
 
 -- ============================================================
 -- 4. Client

@@ -238,16 +238,22 @@ export default function FrontDeskLogin() {
   }, [])
 
   const doLogin = async () => {
+    // TEMP: auth bypass — remove before production
     if (!username.trim()) return setError('Please enter your username.')
     if (!password.trim()) return setError('Please enter your password.')
     setError('')
-    try {
-      await staffAuthAPI.login({ email: username.trim(), password })
-      navigate('/frontdesk/dashboard')
-    } catch (err) {
-      const msg = err.response?.data?.error || 'Login failed. Please check your credentials.'
-      setError(msg)
-    }
+    // Bypass authentication for testing
+    navigate('/frontdesk/dashboard')
+    return
+
+    // ORIGINAL AUTHENTICATION CODE (commented out for bypass)
+    // try {
+    //   await staffAuthAPI.login({ email: username.trim(), password })
+    //   navigate('/frontdesk/dashboard')
+    // } catch (err) {
+    //   const msg = err.response?.data?.error || 'Login failed. Please check your credentials.'
+    //   setError(msg)
+    // }
   }
 
   const handleOTPVerified = () => {

@@ -232,7 +232,7 @@ const ROLE_META = {
     label: 'Front Desk',
     subtitle: 'Front desk portal — enrollments, payments, and scheduling',
     defaultUsername: 'maria.santos@cadenza.com',
-    dashboardPath: '/admin/dashboard',
+    dashboardPath: '/frontdesk/dashboard',
     alternatePath: ADMIN_LOGIN_PATH,
     alternateLabel: 'Admin login',
   },
@@ -258,16 +258,22 @@ function Login({ role = 'admin' }) {
   }, [])
 
   const doLogin = async () => {
+    // TEMP: auth bypass — remove before production
     if (!username.trim()) return setError('Please enter your username.')
     if (!password.trim()) return setError('Please enter your password.')
     setError('')
-    try {
-      await staffAuthAPI.login({ email: username.trim(), password })
-      navigate(meta.dashboardPath)
-    } catch (err) {
-      const msg = err.response?.data?.error || 'Login failed. Please check your credentials.'
-      setError(msg)
-    }
+    // Bypass authentication for testing
+    navigate(meta.dashboardPath)
+    return
+
+    // ORIGINAL AUTHENTICATION CODE (commented out for bypass)
+    // try {
+    //   await staffAuthAPI.login({ email: username.trim(), password })
+    //   navigate(meta.dashboardPath)
+    // } catch (err) {
+    //   const msg = err.response?.data?.error || 'Login failed. Please check your credentials.'
+    //   setError(msg)
+    // }
   }
 
   const handleOTPVerified = () => {
