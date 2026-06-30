@@ -75,15 +75,22 @@ router.post('/register', async (req, res) => {
 // ─── POST Login ────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body
+    const { username, email, password } = req.body
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' })
+    // Accept either username or email
+    const identifier = username || email
+    if (!identifier || !password) {
+      return res.status(400).json({ error: 'Username/email and password are required' })
     }
 
-    const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email])
+    // Query Users by username or email
+    const [rows] = await pool.query(
+      'SELECT * FROM users WHERE username = ? OR email = ?',
+      [identifier, identifier]
+    )
+
     if (rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid email or password' })
+      return res.status(401).json({ error: 'User not found' })
     }
 
     const user = rows[0]
@@ -94,20 +101,46 @@ router.post('/login', async (req, res) => {
 
     const isPasswordValid = await bcrypt.compare(password, user.password)
     if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Invalid email or password' })
+      return res.status(401).json({ error: 'Invalid password' })
+    }
+
+    // If user is staff, join with Staff table to get staff info
+    let userData = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      status: user.status
+    }
+
+    if (user.role === 'staff' && user.staff_id) {
+      const [staffRows] = await pool.query(
+        `SELECT s.*, r.role_name
+         FROM Staff s
+         JOIN Role r ON s.role_id = r.role_id
+         WHERE s.staff_id = ?`,
+        [user.staff_id]
+      )
+
+      if (staffRows.length > 0) {
+        const staff = staffRows[0]
+        userData.staff_id = staff.staff_id
+        userData.first_name = staff.f_name
+        userData.middle_name = staff.m_name
+        userData.last_name = staff.l_name
+        userData.staff_role = staff.role_name
+        userData.contact_no = staff.contact_no
+        userData.profile = staff.profile
+        userData.staff_status = staff.status
+      }
+    } else {
+      userData.contact_number = user.contact_number
+      userData.address = user.address
     }
 
     res.json({
       message: 'Login successful',
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        contact_number: user.contact_number,
-        address: user.address,
-        role: user.role,
-        status: user.status
-      }
+      user: userData
     })
   } catch (error) {
     console.error('Login error:', error)

@@ -5,9 +5,10 @@ This guide will help you set up the database connection and authentication syste
 ## Overview
 
 The system uses **MySQL** database with the following structure:
-- **Staff Authentication**: Uses `Staff` and `Staff_Auth` tables for admin, front desk, and instructor login
-- **User Authentication**: Uses `users` table for student/client registration and login
-- **Separate Systems**: Staff and students authenticate through different endpoints
+- **Unified Authentication**: Uses `users` table for all accounts (staff, students, admins)
+- **Staff Information**: Uses `Staff` table for basic staff information (name, position, contact info, etc.)
+- **Linking**: `users.staff_id` foreign key links to `Staff` table for staff accounts
+- **Single Endpoint**: All authentication goes through `/api/users/login`
 
 ## Prerequisites
 
@@ -49,8 +50,8 @@ node setup-db.js
 
 This will:
 - Create the `cadenza_music_db` database
-- Create all core tables (Staff, Staff_Auth, Client, Room, Equipment, etc.)
-- Insert sample data including staff accounts
+- Create all core tables (Staff, Client, Room, Equipment, etc.)
+- Insert sample data including staff information
 
 ### 3. Run Migration for User Tables
 
@@ -60,20 +61,33 @@ node run-migration.js
 ```
 
 This will add:
-- `users` table (for student/client accounts)
+- `users` table (for all accounts - staff, students, admins)
 - `students` table (linked to users)
 - `instructors` table (linked to users)
 - `courses`, `enrollments`, `lessons` tables
 - Other supporting tables
 
-### 4. Test Database Connection
+### 4. Run Staff Auth Migration
+
+After user tables are created, run the staff auth migration to migrate staff accounts to the unified users table:
+```bash
+node run-split-migration.js
+```
+
+This will:
+- Add `staff_id` foreign key to users table
+- Migrate existing staff accounts from Staff_Auth to users table
+- Remove email column from Staff table
+- Drop Staff_Auth table
+
+### 5. Test Database Connection
 
 Verify the database connection works:
 ```bash
 node test-connection.js
 ```
 
-### 5. Start the Server
+### 6. Start the Server
 
 Start the backend server:
 ```bash
@@ -84,10 +98,10 @@ The server will start on `http://localhost:5000`
 
 ## Staff Login Credentials
 
-After running `setup-db.js`, the following staff accounts are created:
+After running the migrations, the following staff accounts are available in the users table:
 
-| Role | Email | Password |
-|------|-------|----------|
+| Role | Username/Email | Password |
+|------|----------------|----------|
 | Admin | juan.cruz@cadenza.com | admin123 |
 | Front Desk | maria.santos@cadenza.com | front123 |
 | Front Desk | ana.villanueva@cadenza.com | front456 |
@@ -98,20 +112,22 @@ After running `setup-db.js`, the following staff accounts are created:
 
 ## API Endpoints
 
-### Staff Authentication
-- **POST** `/api/staff-auth/login` - Staff login
+### Unified Authentication
+- **POST** `/api/users/login` - Login for all users (staff, students, admins)
+  ```json
+  {
+    "username": "juan.cruz@cadenza.com",
+    "password": "admin123"
+  }
+  ```
+  or
   ```json
   {
     "email": "juan.cruz@cadenza.com",
     "password": "admin123"
   }
   ```
-- **GET** `/api/staff-auth/profile/:staffId` - Get staff profile
-- **PUT** `/api/staff-auth/change-password/:staffId` - Change staff password
-
-### User Authentication (Students/Clients)
 - **POST** `/api/users/register` - Register new user
-- **POST** `/api/users/login` - User login
 - **GET** `/api/users` - Get all users
 - **GET** `/api/users/:id` - Get user by ID
 - **PUT** `/api/users/:id` - Update user profile
@@ -131,15 +147,14 @@ After running `setup-db.js`, the following staff accounts are created:
 
 ### Core Tables (from schema.sql)
 - **Role**: Staff roles (Admin, Front Desk, Instructor)
-- **Staff**: Staff information
-- **Staff_Auth**: Staff authentication credentials
+- **Staff**: Staff information (name, position, contact info, etc.)
 - **Client**: Client information
 - **Room**: Studio rooms
 - **Equipment**: Musical instruments and equipment
 - And more...
 
 ### User Tables (from migration)
-- **users**: User accounts for students/clients
+- **users**: Unified user accounts (staff, students, admins) with staff_id FK for staff accounts
 - **students**: Student profiles (linked to users)
 - **instructors**: Instructor profiles (linked to users)
 - **courses**: Course catalog

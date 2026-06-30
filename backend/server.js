@@ -11,7 +11,6 @@ import { testConnection } from './db.js'
 
 // Import route modules
 import usersRouter from './routes/users.js'
-import staffAuthRouter from './routes/staff-auth.js'
 import studentsRouter from './routes/students.js'
 import instructorsRouter from './routes/instructors.js'
 import coursesRouter from './routes/courses.js'
@@ -36,7 +35,6 @@ app.use(express.urlencoded({ extended: true }))
 
 // ─── API Routes ────────────────────────────────────────────────
 app.use('/api/users', usersRouter)
-app.use('/api/staff-auth', staffAuthRouter)
 app.use('/api/students', studentsRouter)
 app.use('/api/instructors', instructorsRouter)
 app.use('/api/courses', coursesRouter)

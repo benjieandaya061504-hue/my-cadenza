@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ADMIN_LOGIN_PATH } from '../../constants/publicRoutes'
-import { staffAuthAPI } from '../../services/api'
+import { usersAPI } from '../../services/api'
 
 const C = {
   bg: '#0e0f13',
@@ -238,22 +238,17 @@ export default function FrontDeskLogin() {
   }, [])
 
   const doLogin = async () => {
-    // TEMP: auth bypass — remove before production
     if (!username.trim()) return setError('Please enter your username.')
     if (!password.trim()) return setError('Please enter your password.')
     setError('')
-    // Bypass authentication for testing
-    navigate('/frontdesk/dashboard')
-    return
 
-    // ORIGINAL AUTHENTICATION CODE (commented out for bypass)
-    // try {
-    //   await staffAuthAPI.login({ email: username.trim(), password })
-    //   navigate('/frontdesk/dashboard')
-    // } catch (err) {
-    //   const msg = err.response?.data?.error || 'Login failed. Please check your credentials.'
-    //   setError(msg)
-    // }
+    try {
+      await usersAPI.login({ username: username.trim(), email: username.trim(), password })
+      navigate('/frontdesk/dashboard')
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Login failed. Please check your credentials.'
+      setError(msg)
+    }
   }
 
   const handleOTPVerified = () => {
