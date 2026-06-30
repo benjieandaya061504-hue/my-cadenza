@@ -24,7 +24,7 @@ const C = {
   mono: "'Space Mono', monospace",
 }
 
-const ROLES = ['student', 'instructor', 'frontdesk', 'admin']
+const ROLES = ['admin', 'frontdesk', 'student']
 const STATUSES = ['pending', 'approved', 'rejected']
 
 const css = `
@@ -111,11 +111,22 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
   const [address, setAddress] = useState(initial?.address ?? '')
   const [role, setRole] = useState(initial?.role ?? 'student')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
   const [focus, setFocus] = useState(null)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!username.trim() || !email.trim()) return
+    setError('')
+
+    if (!username.trim() || !email.trim()) {
+      setError('Username and email are required')
+      return
+    }
+
+    if (mode === 'add' && password.length < 8) {
+      setError('Password must be at least 8 characters long')
+      return
+    }
 
     try {
       if (mode === 'add') {
@@ -139,6 +150,7 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
       onClose()
     } catch (err) {
       console.error('Save error:', err)
+      setError(err.response?.data?.error || 'Failed to save user')
     }
   }
 
@@ -170,6 +182,11 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
         <div style={{ fontSize: '12px', color: C.text3, fontFamily: C.font, marginBottom: '18px' }}>
           {mode === 'add' ? 'Create a new account for the music center.' : 'Save changes to this account.'}
         </div>
+        {error && (
+          <div style={{ padding: '10px 12px', marginBottom: '16px', borderRadius: '8px', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', color: C.coral, fontSize: '12px', fontFamily: C.font }}>
+            {error}
+          </div>
+        )}
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {sectionLabel('Login credentials')}
@@ -180,7 +197,17 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
             {mode === 'add' && (
               <div>
                 <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Password</label>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)} required={mode === 'add'} style={inputStyle(focus === 'pw')} onFocus={() => setFocus('pw')} onBlur={() => setFocus(null)} autoComplete="new-password" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Minimum 8 characters"
+                  required={mode === 'add'}
+                  style={inputStyle(focus === 'pw')}
+                  onFocus={() => setFocus('pw')}
+                  onBlur={() => setFocus(null)}
+                  autoComplete="new-password"
+                />
               </div>
             )}
 
@@ -342,7 +369,7 @@ function UserManagement({ isMobile = false, isTablet = false }) {
 
   const addUser = async (data) => {
     try {
-      await usersAPI.register(data)
+      await usersAPI.addUser(data)
       await fetchUsers()
     } catch (err) {
       console.error('Failed to add user:', err)
@@ -383,10 +410,9 @@ function UserManagement({ isMobile = false, isTablet = false }) {
 
   const roleBadge = (role) => {
     const map = {
-      student: C.teal,
-      instructor: C.accentL,
-      frontdesk: C.gold,
       admin: C.pink,
+      frontdesk: C.gold,
+      student: C.teal,
     }
     const col = map[role] || C.text2
     return { color: col, bg: `${col}14`, border: `${col}35` }
@@ -405,7 +431,7 @@ function UserManagement({ isMobile = false, isTablet = false }) {
   }
 
   const roleLabel = (r) => {
-    const map = { student: 'Student', instructor: 'Instructor', frontdesk: 'Front Desk', admin: 'Administrator' }
+    const map = { admin: 'Administrator', frontdesk: 'Front Desk', student: 'Student' }
     return map[r] || r
   }
 

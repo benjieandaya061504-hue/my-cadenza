@@ -39,6 +39,7 @@ export const usersAPI = {
   getAll: () => api.get('/users'),
   getById: (id) => api.get(`/users/${id}`),
   register: (data) => api.post('/users/register', data),
+  addUser: (data) => api.post('/users/add-user', data),
   login: (data) => api.post('/users/login', data),
   updateStatus: (id, status) => api.put(`/users/${id}/status`, { status }),
   update: (id, data) => api.put(`/users/${id}`, data)

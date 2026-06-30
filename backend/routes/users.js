@@ -72,6 +72,91 @@ router.post('/register', async (req, res) => {
   }
 })
 
+// ─── POST Add user (admin only) ────────────────────────────────────
+router.post('/add-user', async (req, res) => {
+  try {
+    const { username, email, contactNumber, address, password, role } = req.body
+
+    console.log('=== ADD-USER DEBUG ===')
+    console.log('Full request body:', req.body)
+    console.log('Parsed values:', { username, email, contactNumber, address, password: password ? '***' : null, role })
+
+    // Input validation
+    if (!username || !email || !password || !role) {
+      console.log('Validation failed: missing required fields')
+      return res.status(400).json({ error: 'Username, email, password, and role are required' })
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      console.log('Email format validation failed:', email)
+      return res.status(400).json({ error: 'Invalid email format' })
+    }
+
+    // Password requirements (minimum 8 characters)
+    if (password.length < 8) {
+      console.log('Password validation failed: length =', password.length)
+      return res.status(400).json({ error: 'Password must be at least 8 characters long' })
+    }
+
+    // Role validation
+    const validRoles = ['admin', 'frontdesk', 'student']
+    if (!validRoles.includes(role)) {
+      console.log('Role validation failed:', role)
+      return res.status(400).json({ error: 'Role must be one of: admin, frontdesk, student' })
+    }
+
+    // Uniqueness check
+    console.log('Running duplicate check query...')
+    console.log('SQL: SELECT id, username, email FROM users WHERE email = ? OR username = ?')
+    console.log('Parameters:', [email, username])
+
+    const [existing] = await pool.query(
+      'SELECT id, username, email FROM users WHERE email = ? OR username = ?',
+      [email, username]
+    )
+
+    console.log('Query result:', existing)
+    console.log('Result length:', existing.length)
+    console.log('Result type:', Array.isArray(existing) ? 'Array' : typeof existing)
+
+    if (existing.length > 0) {
+      console.log('DUPLICATE FOUND:', existing[0])
+      return res.status(400).json({ error: 'User with this email or username already exists' })
+    }
+
+    console.log('No duplicate found, proceeding with insert...')
+
+    // Hash password using the same method as login route
+    const hashedPassword = await bcrypt.hash(password, 10)
+
+    // Insert user with 'approved' status (admin-created accounts are auto-approved)
+    const [result] = await pool.query(
+      'INSERT INTO users (username, email, contact_number, address, password, role, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [username, email, contactNumber || null, address || null, hashedPassword, role, 'approved']
+    )
+
+    console.log('User created successfully:', result.insertId)
+    console.log('=== END ADD-USER DEBUG ===')
+
+    res.status(201).json({
+      message: 'User created successfully',
+      userId: result.insertId,
+      user: {
+        id: result.insertId,
+        username,
+        email,
+        role,
+        status: 'approved'
+      }
+    })
+  } catch (error) {
+    console.error('Add user error:', error)
+    res.status(500).json({ error: 'Internal server error during user creation' })
+  }
+})
+
 // ─── POST Login ────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
   try {
@@ -104,6 +189,11 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid password' })
     }
 
+    // Check role-based authorization - auto-detect from database
+    if (user.role === 'student') {
+      return res.status(403).json({ error: 'This account is not authorized to log in here. Students authenticate through a separate portal.' })
+    }
+
     // If user is staff, join with Staff table to get staff info
     let userData = {
       id: user.id,
@@ -113,7 +203,7 @@ router.post('/login', async (req, res) => {
       status: user.status
     }
 
-    if (user.role === 'staff' && user.staff_id) {
+    if (user.staff_id) {
       const [staffRows] = await pool.query(
         `SELECT s.*, r.role_name
          FROM Staff s
