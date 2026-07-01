@@ -1,0 +1,19 @@
+{
+  "services": [
+    {
+      "name": "backend",
+      "root": "backend",
+      "entrypoint": "server.js"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/backend/server.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/src/index.html"
+    }
+  ]
+}
