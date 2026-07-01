@@ -1,19 +1,10 @@
 {
-  "services": [
-    {
-      "name": "backend",
-      "root": "backend",
-      "entrypoint": "server.js"
-    }
+  "builds": [
+    { "src": "backend/server.js", "use": "@vercel/node" },
+    { "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "dist" } }
   ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/backend/server.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/src/index.html"
-    }
+    { "src": "/api/(.*)", "dest": "backend/server.js" },
+    { "src": "/(.*)", "dest": "/$1" }
   ]
 }
