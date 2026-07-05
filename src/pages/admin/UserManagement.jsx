@@ -24,7 +24,7 @@ const C = {
   mono: "'Space Mono', monospace",
 }
 
-const ROLES = ['admin', 'frontdesk', 'student']
+const ROLES = ['admin', 'frontdesk']
 const STATUSES = ['pending', 'approved', 'rejected']
 
 const css = `
@@ -106,10 +106,14 @@ function inputStyle(focused) {
 
 function UserFormModal({ mode, initial, onClose, onSave }) {
   const [username, setUsername] = useState(initial?.username ?? '')
+  const [firstName, setFirstName] = useState(initial?.first_name ?? '')
+  const [middleName, setMiddleName] = useState(initial?.middle_name ?? '')
+  const [lastName, setLastName] = useState(initial?.last_name ?? '')
+  const [suffix, setSuffix] = useState(initial?.suffix ?? '')
   const [email, setEmail] = useState(initial?.email ?? '')
   const [contactNumber, setContactNumber] = useState(initial?.contact_number ?? '')
   const [address, setAddress] = useState(initial?.address ?? '')
-  const [role, setRole] = useState(initial?.role ?? 'student')
+  const [role, setRole] = useState(initial?.role ?? 'admin')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [focus, setFocus] = useState(null)
@@ -123,6 +127,16 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
       return
     }
 
+    if (mode === 'add' && (role === 'admin' || role === 'frontdesk') && (!firstName.trim() || !lastName.trim())) {
+      setError('First name and last name are required for admin and frontdesk roles')
+      return
+    }
+
+    if (contactNumber && !/^[+]?[0-9]+$/.test(contactNumber)) {
+      setError('Contact number can only contain digits and an optional + prefix')
+      return
+    }
+
     if (mode === 'add' && password.length < 8) {
       setError('Password must be at least 8 characters long')
       return
@@ -132,11 +146,15 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
       if (mode === 'add') {
       await onSave({
   username: username.trim(),
+  firstName: firstName.trim(),
+  middleName: middleName.trim(),
+  lastName: lastName.trim(),
+  suffix: suffix.trim(),
   email: email.trim(),
-  contactNumber: contactNumber.trim(),  // ✅ camelCase - matches backend
+  contactNumber: contactNumber.trim(),
   address: address.trim(),
   password,
-  role,
+  role: role.trim(),
 })
       } else {
         await onSave({
@@ -189,6 +207,41 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
         )}
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {sectionLabel('Name')}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>First Name</label>
+                <input value={firstName} onChange={e => setFirstName(e.target.value)} style={inputStyle(focus === 'fname')} onFocus={() => setFocus('fname')} onBlur={() => setFocus(null)} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Middle Name</label>
+                <input value={middleName} onChange={e => setMiddleName(e.target.value)} style={inputStyle(focus === 'mname')} onFocus={() => setFocus('mname')} onBlur={() => setFocus(null)} />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Last Name</label>
+                <input value={lastName} onChange={e => setLastName(e.target.value)} style={inputStyle(focus === 'lname')} onFocus={() => setFocus('lname')} onBlur={() => setFocus(null)} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Suffix</label>
+                <select
+                  value={suffix}
+                  onChange={e => setSuffix(e.target.value)}
+                  style={{ ...inputStyle(focus === 'suffix'), cursor: 'pointer', appearance: 'auto' }}
+                  onFocus={() => setFocus('suffix')}
+                  onBlur={() => setFocus(null)}
+                >
+                  <option value="">-- Select --</option>
+                  <option value="Jr.">Jr.</option>
+                  <option value="Sr.">Sr.</option>
+                  <option value="II">II</option>
+                  <option value="III">III</option>
+                  <option value="IV">IV</option>
+                </select>
+              </div>
+            </div>
+
             {sectionLabel('Login credentials')}
             <div>
               <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Username</label>
@@ -218,7 +271,19 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Contact Number</label>
-              <input value={contactNumber} onChange={e => setContactNumber(e.target.value)} style={inputStyle(focus === 'phone')} onFocus={() => setFocus('phone')} onBlur={() => setFocus(null)} />
+              <input 
+                value={contactNumber} 
+                onChange={e => {
+                  const value = e.target.value
+                  // Allow only digits and + as first character
+                  const validValue = value.replace(/[^+0-9]/g, '').replace(/(.+)\+/, '$1')
+                  setContactNumber(validValue)
+                }} 
+                style={inputStyle(focus === 'phone')} 
+                onFocus={() => setFocus('phone')} 
+                onBlur={() => setFocus(null)} 
+                placeholder="+639123456789"
+              />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Address</label>

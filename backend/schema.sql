@@ -59,6 +59,7 @@ CREATE TABLE Staff (
     f_name VARCHAR(50) NOT NULL,
     m_name VARCHAR(50) DEFAULT NULL,
     l_name VARCHAR(50) NOT NULL,
+    suffix VARCHAR(10) DEFAULT NULL,
     address VARCHAR(255) NOT NULL,
     age INT NOT NULL,
     gender ENUM('Male', 'Female', 'Other') NOT NULL,
@@ -70,6 +71,7 @@ CREATE TABLE Staff (
     CONSTRAINT pk_staff PRIMARY KEY (staff_id),
     CONSTRAINT uq_staff_email UNIQUE (email),
     CONSTRAINT chk_staff_age CHECK (age > 0),
+    CONSTRAINT chk_contact_no_format CHECK (contact_no REGEXP '^[+]?[0-9]+$'),
     CONSTRAINT fk_staff_role FOREIGN KEY (role_id) REFERENCES Role(role_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

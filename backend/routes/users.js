@@ -75,16 +75,22 @@ router.post('/register', async (req, res) => {
 // ─── POST Add user (admin only) ────────────────────────────────────
 router.post('/add-user', async (req, res) => {
   try {
-    const { username, email, contactNumber, address, password, role } = req.body
+    const { username, email, contactNumber, address, password, role, firstName, middleName, lastName, suffix, age, gender } = req.body
 
     console.log('=== ADD-USER DEBUG ===')
     console.log('Full request body:', req.body)
-    console.log('Parsed values:', { username, email, contactNumber, address, password: password ? '***' : null, role })
+    console.log('Parsed values:', { username, email, contactNumber, address, password: password ? '***' : null, role, firstName, middleName, lastName, suffix, age, gender })
 
     // Input validation
     if (!username || !email || !password || !role) {
       console.log('Validation failed: missing required fields')
       return res.status(400).json({ error: 'Username, email, password, and role are required' })
+    }
+
+    // Name validation for admin/frontdesk roles
+    if ((role === 'admin' || role === 'frontdesk') && (!firstName || !lastName)) {
+      console.log('Validation failed: missing name fields for staff role')
+      return res.status(400).json({ error: 'First name and last name are required for admin and frontdesk roles' })
     }
 
     // Email format validation
@@ -94,6 +100,15 @@ router.post('/add-user', async (req, res) => {
       return res.status(400).json({ error: 'Invalid email format' })
     }
 
+    // Contact number validation (only digits and optional + prefix)
+    if (contactNumber) {
+      const contactRegex = /^[+]?[0-9]+$/
+      if (!contactRegex.test(contactNumber)) {
+        console.log('Contact number validation failed:', contactNumber)
+        return res.status(400).json({ error: 'Contact number can only contain digits and an optional + prefix' })
+      }
+    }
+
     // Password requirements (minimum 8 characters)
     if (password.length < 8) {
       console.log('Password validation failed: length =', password.length)
@@ -101,28 +116,19 @@ router.post('/add-user', async (req, res) => {
     }
 
     // Role validation
-    const validRoles = ['admin', 'frontdesk', 'student']
+    const validRoles = ['admin', 'frontdesk']
     if (!validRoles.includes(role)) {
       console.log('Role validation failed:', role)
-      return res.status(400).json({ error: 'Role must be one of: admin, frontdesk, student' })
+      return res.status(400).json({ error: 'Role must be one of: admin, frontdesk' })
     }
 
     // Uniqueness check
-    console.log('Running duplicate check query...')
-    console.log('SQL: SELECT id, username, email FROM users WHERE email = ? OR username = ?')
-    console.log('Parameters:', [email, username])
-
     const [existing] = await pool.query(
       'SELECT id, username, email FROM users WHERE email = ? OR username = ?',
       [email, username]
     )
 
-    console.log('Query result:', existing)
-    console.log('Result length:', existing.length)
-    console.log('Result type:', Array.isArray(existing) ? 'Array' : typeof existing)
-
     if (existing.length > 0) {
-      console.log('DUPLICATE FOUND:', existing[0])
       return res.status(400).json({ error: 'User with this email or username already exists' })
     }
 
@@ -138,6 +144,54 @@ router.post('/add-user', async (req, res) => {
     )
 
     console.log('User created successfully:', result.insertId)
+
+    // If admin or frontdesk, also create Staff record with name fields
+    if (role === 'admin' || role === 'frontdesk') {
+      console.log('Creating/Updating Staff record for role:', role)
+      // Map role to role_id
+      const roleIdMap = { admin: 1, frontdesk: 2 }
+      const roleId = roleIdMap[role]
+
+      // Check if Staff record with this email already exists
+      const [existingStaff] = await pool.query(
+        'SELECT staff_id FROM Staff WHERE email = ?',
+        [email]
+      )
+
+      if (existingStaff.length > 0) {
+        console.log('Found existing Staff record, updating...')
+        // Update existing Staff record with name fields
+        await pool.query(
+          'UPDATE Staff SET f_name = ?, m_name = ?, l_name = ?, suffix = ? WHERE staff_id = ?',
+          [firstName, middleName || null, lastName, suffix || null, existingStaff[0].staff_id]
+        )
+        console.log('Updated existing Staff record with name fields:', existingStaff[0].staff_id)
+      } else {
+        console.log('No existing Staff record, inserting new one...')
+        // Insert new Staff record with name fields
+        await pool.query(
+          'INSERT INTO Staff (f_name, m_name, l_name, suffix, address, age, gender, contact_no, email, profile, status, role_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            firstName,
+            middleName || null,
+            lastName,
+            suffix || null,
+            address || 'TBD',
+            age || 25,
+            gender || 'Other',
+            contactNumber || '00000000000',
+            email,
+            null,
+            'active',
+            roleId
+          ]
+        )
+        console.log('Created new Staff record with name fields')
+      }
+    } else {
+      console.log('Skipping Staff creation - role is:', role)
+    }
+
     console.log('=== END ADD-USER DEBUG ===')
 
     res.status(201).json({
