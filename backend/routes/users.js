@@ -137,10 +137,10 @@ router.post('/add-user', async (req, res) => {
     // Hash password using the same method as login route
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // Insert user with 'approved' status (admin-created accounts are auto-approved)
+    // Insert user with 'pending' status (admin-created accounts start as pending)
     const [result] = await pool.query(
       'INSERT INTO users (username, email, contact_number, address, password, role, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [username, email, contactNumber || null, address || null, hashedPassword, role, 'approved']
+      [username, email, contactNumber || null, address || null, hashedPassword, role, 'pending']
     )
 
     console.log('User created successfully:', result.insertId)

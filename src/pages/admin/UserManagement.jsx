@@ -323,9 +323,9 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
 function UserViewModal({ user, onClose }) {
   if (!user) return null
   const st = user.status === 'approved'
-    ? { bg: 'rgba(52,211,153,0.12)', c: C.green, label: 'Approved' }
+    ? { bg: 'rgba(52,211,153,0.12)', c: C.green, label: 'Active' }
     : user.status === 'rejected'
-    ? { bg: 'rgba(248,113,113,0.1)', c: C.coral, label: 'Rejected' }
+    ? { bg: 'rgba(248,113,113,0.1)', c: C.coral, label: 'Inactive' }
     : { bg: 'rgba(251,191,36,0.1)', c: C.gold, label: 'Pending' }
 
   const row = (label, value) => (
@@ -468,9 +468,9 @@ function UserManagement({ isMobile = false, isTablet = false }) {
 
   const statusStyle = s =>
     s === 'approved'
-      ? { bg: 'rgba(52,211,153,0.12)', c: C.green, dot: C.green, label: 'Approved' }
+      ? { bg: 'rgba(52,211,153,0.12)', c: C.green, dot: C.green, label: 'Active' }
       : s === 'rejected'
-      ? { bg: 'rgba(248,113,113,0.1)', c: C.coral, dot: C.coral, label: 'Rejected' }
+      ? { bg: 'rgba(248,113,113,0.1)', c: C.coral, dot: C.coral, label: 'Inactive' }
       : { bg: 'rgba(251,191,36,0.1)', c: C.gold, dot: C.gold, label: 'Pending' }
 
   const roleBadge = (role) => {
@@ -521,7 +521,7 @@ function UserManagement({ isMobile = false, isTablet = false }) {
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '12px', marginBottom: '18px' }}>
           {[
             { label: 'Total accounts', value: stats.total, sub: 'All roles', color: C.accent },
-            { label: 'Approved', value: stats.approved, sub: 'Can sign in', color: C.green },
+            { label: 'Active', value: stats.approved, sub: 'Can sign in', color: C.green },
             { label: 'Pending', value: stats.pending, sub: 'Awaiting approval', color: C.gold },
           ].map((s, i) => (
             <div
@@ -712,7 +712,7 @@ function UserManagement({ isMobile = false, isTablet = false }) {
                               onClick={() => setStatus(u.id, 'rejected')}
                               style={{ padding: '6px 11px', borderRadius: '8px', border: `1px solid rgba(248,113,113,0.35)`, background: 'rgba(248,113,113,0.08)', color: C.coral, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
                             >
-                              Reject
+                              Deactivate
                             </button>
                           ) : u.status === 'rejected' ? (
                             <button
@@ -720,7 +720,7 @@ function UserManagement({ isMobile = false, isTablet = false }) {
                               onClick={() => setStatus(u.id, 'approved')}
                               style={{ padding: '6px 11px', borderRadius: '8px', border: `1px solid rgba(52,211,153,0.35)`, background: 'rgba(52,211,153,0.1)', color: C.green, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
                             >
-                              Approve
+                              Activate
                             </button>
                           ) : (
                             <>
@@ -729,14 +729,14 @@ function UserManagement({ isMobile = false, isTablet = false }) {
                                 onClick={() => setStatus(u.id, 'approved')}
                                 style={{ marginRight: '4px', padding: '6px 11px', borderRadius: '8px', border: `1px solid rgba(52,211,153,0.35)`, background: 'rgba(52,211,153,0.1)', color: C.green, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
                               >
-                                Approve
+                                Activate
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setStatus(u.id, 'rejected')}
                                 style={{ padding: '6px 11px', borderRadius: '8px', border: `1px solid rgba(248,113,113,0.35)`, background: 'rgba(248,113,113,0.08)', color: C.coral, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
                               >
-                                Reject
+                                Deactivate
                               </button>
                             </>
                           )}
