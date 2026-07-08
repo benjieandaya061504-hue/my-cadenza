@@ -229,7 +229,7 @@ export default function StudioBookingPublicPage() {
               <label>Contact Number</label>
               <input
                 value={bkForm.contact}
-                onChange={(e) => setBkForm((f) => ({ ...f, contact: e.target.value }))}
+                onChange={(e) => setBkForm((f) => ({ ...f, contact: e.target.value.replace(/[^0-9+]/g, '') }))}
                 placeholder="+63 9XX XXX XXXX"
               />
             </div>
@@ -257,11 +257,11 @@ export default function StudioBookingPublicPage() {
             <div className="form-row cols2">
               <div>
                 <label>GCash Number</label>
-                <input
-                  value={bkForm.gcashNum}
-                  onChange={(e) => setBkForm((f) => ({ ...f, gcashNum: e.target.value }))}
-                  placeholder="+63 9XX XXX XXXX"
-                />
+                  <input
+                    value={bkForm.gcashNum}
+                    onChange={(e) => setBkForm((f) => ({ ...f, gcashNum: e.target.value.replace(/[^0-9+]/g, '') }))}
+                    placeholder="+63 9XX XXX XXXX"
+                  />
               </div>
               <div>
                 <label>Reference #</label>

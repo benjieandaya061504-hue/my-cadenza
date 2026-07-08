@@ -172,7 +172,7 @@ export default function PublicModals() {
                   id="sg-phone"
                   type="tel"
                   value={signupFields?.phone || ''}
-                  onChange={(e) => setSignupFields((f) => ({ ...f, phone: e.target.value }))}
+                  onChange={(e) => setSignupFields((f) => ({ ...f, phone: e.target.value.replace(/[^0-9+]/g, '') }))}
                   placeholder="+63 9XX XXX XXXX"
                   autoComplete="tel"
                 />

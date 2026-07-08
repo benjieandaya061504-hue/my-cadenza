@@ -52,6 +52,27 @@ router.get('/pending', async (req, res) => {
   }
 })
 
+// ─── GET approved enrollments (admin view) ────────────────────
+router.get('/approved', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT e.*,
+              u.id as user_id,
+              u.email,
+              u.contact_number as user_contact,
+              u.status as user_status
+       FROM enrollments e
+       LEFT JOIN users u ON e.student_id = u.id
+       WHERE e.status = 'approved'
+       ORDER BY e.enrollment_date DESC`
+    )
+    res.json(rows)
+  } catch (error) {
+    console.error('Error fetching approved enrollments:', error)
+    res.status(500).json({ error: 'Failed to fetch approved enrollments' })
+  }
+})
+
 // ─── GET single enrollment by ID ───────────────────────────────
 router.get('/:id', async (req, res) => {
   try {

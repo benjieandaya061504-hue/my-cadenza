@@ -524,7 +524,7 @@ export default function EnrollmentPage() {
               </label>
               <input
                 value={form.phone}
-                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/[^0-9+]/g, '') }))}
                 placeholder="+63 9XX XXX XXXX"
               />
             </div>

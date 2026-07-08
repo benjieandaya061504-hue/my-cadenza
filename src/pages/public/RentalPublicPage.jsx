@@ -236,7 +236,7 @@ export default function RentalPublicPage() {
                   <label>Contact Number</label>
                   <input
                     value={form.contact}
-                    onChange={(e) => setForm((f) => ({ ...f, contact: e.target.value }))}
+                    onChange={(e) => setForm((f) => ({ ...f, contact: e.target.value.replace(/[^0-9+]/g, '') }))}
                     placeholder="+63 9XX XXX XXXX"
                   />
                 </div>
@@ -331,7 +331,7 @@ export default function RentalPublicPage() {
                     <label>GCash Number</label>
                     <input
                       value={form.gcashNum}
-                      onChange={(e) => setForm((f) => ({ ...f, gcashNum: e.target.value }))}
+                      onChange={(e) => setForm((f) => ({ ...f, gcashNum: e.target.value.replace(/[^0-9+]/g, '') }))}
                       placeholder="+63 9XX XXX XXXX"
                     />
                   </div>

@@ -192,6 +192,8 @@ export const enrollmentsAPI = {
 
   getAll: () => api.get('/enrollments'),
 
+  getApproved: () => api.get('/enrollments/approved'),
+
   getById: (id) => api.get(`/enrollments/${id}`),
 
   getByStudent: (studentId) => api.get(`/enrollments/student/${studentId}`),
