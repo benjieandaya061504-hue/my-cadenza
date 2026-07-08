@@ -67,7 +67,7 @@ function statusBadge(status) {
 }
 
 export default function RentalPublicPage() {
-  const { openSignupGate, openSuccessModal, showToast } = usePublicSite()
+  const { openSignupGate, openSuccessModal, showToast, isLoggedIn } = usePublicSite()
   const [modalOpen, setModalOpen] = useState(false)
   const [selected, setSelected] = useState(null)
   const [payMethod, setPayMethod] = useState('')
@@ -92,6 +92,13 @@ export default function RentalPublicPage() {
 
   const openRental = (item) => {
     if (item.status !== 'Available') return
+    // If user is already logged in, skip signup and proceed directly
+    if (isLoggedIn) {
+      setSelected(item)
+      setPayMethod('')
+      setModalOpen(true)
+      return
+    }
     openSignupGate({
       icon: item.icon,
       title: 'Instrument Rental',

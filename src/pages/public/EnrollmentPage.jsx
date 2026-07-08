@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { PUBLIC_ROUTES } from '../../constants/publicRoutes'
 import { usePublicSite } from './PublicSiteContext'
+import { studentAPI } from '../../services/api'
 import {
   MIN_ENROLL_SLOTS,
   TOTAL_SLOT_POOL,
@@ -75,7 +76,7 @@ function slotTimesForDay(dateKey) {
 
 export default function EnrollmentPage() {
   const navigate = useNavigate()
-  const { openSignupGate, showToast, openSuccessModal } = usePublicSite()
+  const { openSignupGate, showToast, openSuccessModal, signedUpUser, isLoggedIn, user } = usePublicSite()
 
   const [step, setStep] = useState(1)
   const [lesson, setLesson] = useState(null)
@@ -93,6 +94,7 @@ export default function EnrollmentPage() {
     notes: '',
     refnum: '',
     paymethod: '',
+    address: '',
   })
 
   const monthLabel = useMemo(
@@ -113,11 +115,18 @@ export default function EnrollmentPage() {
   const fillPct = Math.min(100, Math.round(((TOTAL_SLOT_POOL - slotsRemaining) / TOTAL_SLOT_POOL) * 100))
 
   const selectLesson = (L) => {
+    // If user is already logged in, skip signup and proceed directly
+    if (isLoggedIn) {
+      setLesson(L)
+      return
+    }
     openSignupGate({
       icon: L.icon,
       title: 'Student Enrollment',
       subtitle: `Sign up to enroll in ${L.name} lessons.`,
-      onContinue: () => setLesson(L),
+      onContinue: () => {
+        setLesson(L)
+      },
     })
   }
 
@@ -151,17 +160,51 @@ export default function EnrollmentPage() {
 
   const totalAmount = lesson ? lesson.rate * selectedSlots.length : 0
 
-  const submitEnrollment = () => {
+  const [submitting, setSubmitting] = useState(false)
+
+  const submitEnrollment = async () => {
     if (!form.refnum.trim()) {
       showToast('Please enter your payment reference number.')
       return
     }
-    openSuccessModal({
-      title: 'Enrollment Submitted!',
-      message:
-        'Thank you! Your request has been received. Our front desk team will verify your payment and confirm your enrollment.',
-    })
-    setStep(5)
+    setSubmitting(true)
+    try {
+      // Use the signed up user's ID directly (student_id references users.id in enrollments table)
+      const userId = signedUpUser?.userId || user?.id
+      if (!userId) {
+        showToast('Please sign up first before submitting an enrollment request.')
+        setSubmitting(false)
+        return
+      }
+
+      const payload = {
+        student_id: userId,
+        course: lesson?.name || null,
+        schedule: scheduleText !== '—' ? scheduleText : null,
+        program: form.level || null,
+        notes: form.notes || null,
+        contact_number: form.phone || null,
+        student_address: form.address || null,
+        payment_reference: form.refnum.trim(),
+        payment_method: form.paymethod || null,
+        total_amount: totalAmount || null
+      }
+      await studentAPI.enroll(payload)
+      setSubmitting(false)
+      openSuccessModal({
+        title: 'Enrollment Submitted!',
+        message:
+          'Thank you! Your request has been received. Our front desk team will verify your payment and confirm your enrollment.',
+      })
+      setStep(5)
+    } catch (err) {
+      setSubmitting(false)
+      const msg =
+        err.response?.data?.error ||
+        err.message ||
+        'Enrollment submission failed. Please try later.'
+      showToast(msg)
+    }
   }
 
   const resetAll = () => {
@@ -180,6 +223,7 @@ export default function EnrollmentPage() {
       notes: '',
       refnum: '',
       paymethod: '',
+      address: '',
     })
     navigate(PUBLIC_ROUTES.home)
   }
@@ -482,6 +526,17 @@ export default function EnrollmentPage() {
                 value={form.phone}
                 onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                 placeholder="+63 9XX XXX XXXX"
+              />
+            </div>
+            <div className="he-fg he-fg-full">
+              <label>
+                Student Address <span style={{ color: 'var(--gold)' }}>*</span>
+              </label>
+              <textarea
+                rows={2}
+                value={form.address}
+                onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                placeholder="e.g. 123 Rizal St., Barangay San Antonio, Makati City"
               />
             </div>
             <div className="he-fg">

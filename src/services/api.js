@@ -322,4 +322,25 @@ export const healthAPI = {
 
 
 
+// ================================================================
+// AUTH API (student signup, login, session)
+// ================================================================
+
+export const studentAPI = {
+  signup: (data) => api.post('/auth/signup', data),
+  login: (data) => api.post('/auth/login', data),
+  getMe: (id) => api.get(`/auth/me?id=${id}`),
+  enroll: (data) => api.post('/enrollment-requests', data)
+}
+
+// ================================================================
+// FRONTDESK API (student approval workflow)
+// ================================================================
+
+export const frontdeskAPI = {
+  getPendingEnrollments: () => api.get('/enrollments/pending'),
+  approveEnrollment: (id) => api.put(`/enrollments/${id}/approve`),
+  rejectEnrollment: (id) => api.put(`/enrollments/${id}/reject`)
+}
+
 export default api

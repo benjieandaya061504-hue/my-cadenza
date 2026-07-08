@@ -1089,6 +1089,11 @@
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+#pub-site-light .pub-signup-modal .sg-row.sg-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
 @media (max-width: 480px) {
   #pub-site-light .pub-signup-modal .sg-row {
     grid-template-columns: 1fr;
