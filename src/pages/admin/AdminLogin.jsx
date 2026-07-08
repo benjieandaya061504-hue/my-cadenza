@@ -365,8 +365,17 @@ function Login({ role = 'admin' }) {
           </div>
           <p style={{ textAlign: 'center', marginTop: '12px', fontSize: '12px', fontFamily: C.font }}>
             <Link
+              to="/"
+              style={{ color: C.text3, textDecoration: 'none', transition: 'color .15s', marginRight: '12px' }}
+              onMouseEnter={e => { e.currentTarget.style.color = C.accentL }}
+              onMouseLeave={e => { e.currentTarget.style.color = C.text3 }}
+            >
+              ← Home
+            </Link>
+            <span style={{ color: C.border2 }}>|</span>
+            <Link
               to={meta.alternatePath}
-              style={{ color: C.text3, textDecoration: 'none', transition: 'color .15s' }}
+              style={{ color: C.text3, textDecoration: 'none', transition: 'color .15s', marginLeft: '12px' }}
               onMouseEnter={e => { e.currentTarget.style.color = C.accentL }}
               onMouseLeave={e => { e.currentTarget.style.color = C.text3 }}
             >
