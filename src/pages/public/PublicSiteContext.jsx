@@ -101,7 +101,9 @@ export function PublicSiteProvider({ children }) {
     setLoginError('')
     setSignupFields({
       fname: '',
+      mname: '',
       lname: '',
+      suffix: '',
       email: '',
       phone: '',
       password: '',
@@ -114,6 +116,63 @@ export function PublicSiteProvider({ children }) {
       subtitle: subtitle || 'Please sign up to continue.',
     })
     setLoginModal({ open: true, mode: 'signup' })
+  }, [])
+
+  const openLoginModal = useCallback(({ icon, title, subtitle, onContinue } = {}) => {
+    signupContinueRef.current = typeof onContinue === 'function' ? onContinue : null
+    setSignupError('')
+    setLoginError('')
+    setSignupFields({
+      fname: '',
+      mname: '',
+      lname: '',
+      suffix: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirm: '',
+    })
+    setSignup({
+      open: true,
+      icon: icon || '🔐',
+      title: title || 'Welcome Back',
+      subtitle: subtitle || 'Please log in to continue.',
+    })
+    setLoginModal({ open: true, mode: 'login' })
+  }, [])
+
+  const switchToSignup = useCallback(() => {
+    setSignupError('')
+    setLoginError('')
+    setSignupFields({
+      fname: '',
+      mname: '',
+      lname: '',
+      suffix: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirm: '',
+    })
+    setSignup((s) => ({ ...s, open: true }))
+    setLoginModal({ open: true, mode: 'signup' })
+  }, [])
+
+  const switchToLogin = useCallback(() => {
+    setSignupError('')
+    setLoginError('')
+    setSignupFields({
+      fname: '',
+      mname: '',
+      lname: '',
+      suffix: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirm: '',
+    })
+    setSignup((s) => ({ ...s, open: true }))
+    setLoginModal({ open: true, mode: 'login' })
   }, [])
 
   const closeSignupGate = useCallback(() => {
@@ -285,6 +344,9 @@ export function PublicSiteProvider({ children }) {
       loginSubmitting,
       submitLogin,
       openSignupGate,
+      openLoginModal,
+      switchToSignup,
+      switchToLogin,
       closeSignupGate,
       submitSignupGate,
       signup,
@@ -311,6 +373,9 @@ export function PublicSiteProvider({ children }) {
       loginSubmitting,
       submitLogin,
       openSignupGate,
+      openLoginModal,
+      switchToSignup,
+      switchToLogin,
       closeSignupGate,
       submitSignupGate,
       signup,
