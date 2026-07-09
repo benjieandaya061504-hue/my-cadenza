@@ -38,7 +38,7 @@ const css = `
   .glow-ring { animation: glowPulse 2.4s ease-in-out infinite; }
 `
 
-function OTPModal({ open, onClose, onVerified, isMobile }) {
+function OTPModal({ open, onClose, onVerified, isMobile, email }) {
   const [digits, setDigits] = useState(['', '', '', '', '', ''])
   const [timer, setTimer] = useState(59)
   const refs = [useRef(), useRef(), useRef(), useRef(), useRef(), useRef()]
@@ -79,7 +79,7 @@ function OTPModal({ open, onClose, onVerified, isMobile }) {
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.text2, cursor: 'pointer', fontSize: '18px' }}>✕</button>
         </div>
         <div style={{ fontSize: '36px', marginBottom: '10px' }}>✉️</div>
-        <p style={{ color: C.text2, fontSize: '13px', marginBottom: '6px', fontFamily: C.font }}>OTP sent to <strong style={{ color: C.text }}>maria.santos@cadenza.com</strong></p>
+        <p style={{ color: C.text2, fontSize: '13px', marginBottom: '6px', fontFamily: C.font }}>OTP sent to <strong style={{ color: C.text }}>{email || 'your email'}</strong></p>
         <p style={{ color: C.text3, fontSize: '12px', fontFamily: C.font }}>Enter the 6-digit code below</p>
         <div style={{ display: 'flex', gap: isMobile ? '6px' : '10px', justifyContent: 'center', margin: '20px 0' }}>
           {digits.map((d, i) => (
@@ -362,7 +362,7 @@ export default function FrontDeskLogin() {
         </div>
       </div>
 
-      <OTPModal key={otpSession} open={showOTP} onClose={() => setShowOTP(false)} onVerified={handleOTPVerified} isMobile={isMobile} />
+      <OTPModal key={otpSession} open={showOTP} onClose={() => setShowOTP(false)} onVerified={handleOTPVerified} isMobile={isMobile} email={username} />
       <ChangePasswordModal open={showChangePwd} onClose={() => setShowChangePwd(false)} onSuccess={handlePwdSuccess} isMobile={isMobile} />
       <PwdSuccessModal open={showPwdSuccess} onClose={() => setShowPwdSuccess(false)} isMobile={isMobile} />
     </>

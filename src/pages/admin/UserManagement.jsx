@@ -25,7 +25,19 @@ const C = {
 }
 
 const ROLES = ['admin', 'frontdesk']
-const STATUSES = ['pending', 'approved', 'rejected']
+const STATUSES = ['active', 'inactive', 'pending']
+
+const STATUS_DISPLAY = {
+  active: 'Active',
+  inactive: 'Inactive',
+  pending: 'Pending'
+}
+
+const STATUS_VALUE_MAP = {
+  active: 'approved',
+  inactive: 'rejected',
+  pending: 'pending'
+}
 
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
@@ -173,16 +185,15 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
   }
 
   return (
-    <div
-      role="presentation"
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 200,
-        background: 'rgba(0,0,0,0.65)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '20px', animation: 'umFadeUp 0.25s ease both',
-      }}
-    >
+      <div
+        role="presentation"
+        style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(0,0,0,0.65)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px', animation: 'umFadeUp 0.25s ease both',
+        }}
+      >
       <div
         role="dialog"
         aria-labelledby="um-modal-title"
@@ -412,7 +423,10 @@ function UserManagement({ isMobile = false, isTablet = false }) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return users.filter(u => {
-      if (statusFilter !== 'all' && u.status !== statusFilter) return false
+      if (statusFilter !== 'all') {
+        const mappedStatus = STATUS_VALUE_MAP[statusFilter] || statusFilter
+        if (u.status !== mappedStatus) return false
+      }
       if (roleFilter !== 'all' && u.role !== roleFilter) return false
       if (!q) return true
       return (

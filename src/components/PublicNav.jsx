@@ -102,7 +102,7 @@ export default function PublicNav({ onDownloadApp }) {
                 </span>
                 <button
                   type="button"
-                  onClick={() => { close(); logout() }}
+                  onClick={() => { if (window.confirm('Are you sure you want to log out?')) { close(); logout() } }}
                   style={{
                     padding: '5px 10px',
                     borderRadius: 8,

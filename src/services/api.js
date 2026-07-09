@@ -332,7 +332,8 @@ export const studentAPI = {
   signup: (data) => api.post('/auth/signup', data),
   login: (data) => api.post('/auth/login', data),
   getMe: (id) => api.get(`/auth/me?id=${id}`),
-  enroll: (data) => api.post('/enrollment-requests', data)
+  enroll: (data) => api.post('/enrollment-requests', data),
+  getEnrollments: (studentId) => api.get(`/enrollment-requests/student/${studentId}`)
 }
 
 // ================================================================

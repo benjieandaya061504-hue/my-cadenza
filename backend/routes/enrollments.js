@@ -42,7 +42,7 @@ router.get('/pending', async (req, res) => {
               u.status as user_status
        FROM enrollments e
        LEFT JOIN users u ON e.student_id = u.id
-       WHERE u.role = 'student'
+       WHERE e.status = 'pending'
        ORDER BY e.enrollment_date DESC`
     )
     res.json(rows)

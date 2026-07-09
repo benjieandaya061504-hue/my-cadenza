@@ -10,17 +10,25 @@ import pool from '../db.js'
 const router = Router()
 
 // ─── GET all users ─────────────────────────────────────────────
-router.get('/', async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      'SELECT id, username, email, contact_number, address, role, status, created_at, updated_at FROM users ORDER BY created_at DESC'
-    )
-    res.json(rows)
-  } catch (error) {
-    console.error('Error fetching users:', error)
-    res.status(500).json({ error: 'Failed to fetch users' })
-  }
-})
+  router.get('/', async (req, res) => {
+    try {
+      const [rows] = await pool.query(
+        `SELECT u.id, u.username, u.email, u.contact_number, u.address, u.role, u.status, u.created_at, u.updated_at,
+                COALESCE(staff.f_name, stu.first_name) AS first_name,
+                COALESCE(staff.m_name, stu.middle_name) AS middle_name,
+                COALESCE(staff.l_name, stu.last_name) AS last_name,
+                COALESCE(staff.suffix, stu.suffix) AS suffix
+         FROM users u
+         LEFT JOIN Staff staff ON u.email = staff.email
+         LEFT JOIN students stu ON u.id = stu.user_id
+         ORDER BY u.created_at DESC`
+      )
+      res.json(rows)
+    } catch (error) {
+      console.error('Error fetching users:', error)
+      res.status(500).json({ error: 'Failed to fetch users' })
+    }
+  })
 
 // ─── GET single user by ID ─────────────────────────────────────
 router.get('/:id', async (req, res) => {

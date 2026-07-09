@@ -12,6 +12,9 @@ router.post('/', async (req, res) => {
   try {
     const {
       student_id,
+      first_name,
+      last_name,
+      email,
       course,
       schedule,
       program,
@@ -41,7 +44,7 @@ router.post('/', async (req, res) => {
     )
 
     if (existing.length > 0) {
-      // Update the existing enrollment with all fields
+      // Update the existing enrollment with all fields, including refreshed enrollment_date
       await pool.query(
         `UPDATE enrollments SET
            course_requested = ?,
@@ -52,7 +55,11 @@ router.post('/', async (req, res) => {
            student_address = ?,
            payment_reference = ?,
            payment_method = ?,
-           total_amount = ?
+           total_amount = ?,
+           first_name = ?,
+           last_name = ?,
+           email = ?,
+           enrollment_date = NOW()
          WHERE id = ?`,
         [
           course || null,
@@ -64,6 +71,9 @@ router.post('/', async (req, res) => {
           payment_reference || null,
           payment_method || null,
           total_amount || null,
+          first_name || null,
+          last_name || null,
+          email || null,
           existing[0].id
         ]
       )
@@ -81,8 +91,9 @@ router.post('/', async (req, res) => {
     const [result] = await pool.query(
       `INSERT INTO enrollments
          (student_id, enrollment_date, status, course_requested, schedule_requested, program_requested,
-          notes, contact_number, student_address, payment_reference, payment_method, total_amount)
-       VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          notes, contact_number, student_address, payment_reference, payment_method, total_amount,
+          first_name, last_name, email)
+       VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         student_id,
         'pending',
@@ -94,7 +105,10 @@ router.post('/', async (req, res) => {
         student_address || null,
         payment_reference || null,
         payment_method || null,
-        total_amount || null
+        total_amount || null,
+        first_name || null,
+        last_name || null,
+        email || null
       ]
     )
 

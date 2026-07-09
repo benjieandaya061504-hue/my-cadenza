@@ -48,13 +48,26 @@ export default function EnrolledStudents({ isMobile, isTablet }) {
     }
   }
 
+  const getStudentName = (e) => {
+    if (e.student_name) return e.student_name
+    const parts = [e.first_name, e.last_name].filter(Boolean)
+    return parts.length > 0 ? parts.join(' ') : '—'
+  }
+
   const filtered = searchTerm
     ? enrollments.filter((e) => {
-        const name = e.student_name || e.first_name || ''
-        const email = e.email || ''
-        const course = e.course_requested || ''
+        const fullName = getStudentName(e).toLowerCase()
+        const email = (e.email || '').toLowerCase()
+        const course = (e.course_requested || '').toLowerCase()
+        const schedule = (e.schedule_requested || '').toLowerCase()
+        const program = (e.program_requested || '').toLowerCase()
+        const paymentMethod = (e.payment_method || '').toLowerCase()
+        const address = (e.student_address || '').toLowerCase()
+        const contact = (e.contact_number || '').toLowerCase()
         const q = searchTerm.toLowerCase()
-        return name.toLowerCase().includes(q) || email.toLowerCase().includes(q) || course.toLowerCase().includes(q)
+        return fullName.includes(q) || email.includes(q) || course.includes(q) ||
+               schedule.includes(q) || program.includes(q) || paymentMethod.includes(q) ||
+               address.includes(q) || contact.includes(q)
       })
     : enrollments
 
@@ -67,12 +80,6 @@ export default function EnrolledStudents({ isMobile, isTablet }) {
   const formatAmount = (amount) => {
     if (amount === null || amount === undefined) return '—'
     return '₱' + Number(amount).toLocaleString()
-  }
-
-  const getStudentName = (e) => {
-    if (e.student_name) return e.student_name
-    const parts = [e.first_name, e.last_name].filter(Boolean)
-    return parts.length > 0 ? parts.join(' ') : '—'
   }
 
   const getStudentContact = (e) => {
