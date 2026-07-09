@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import PublicNav from '../components/PublicNav'
+import PublicModals from '../components/PublicModals'
+import { PublicSiteProvider, usePublicSite } from './public/PublicSiteContext'
 import { PUBLIC_ROUTES } from '../constants/publicRoutes'
 import '../styles/publicSiteTheme.css'
 import '../styles/landingPage.css'
@@ -138,18 +140,20 @@ export default function LandingPage() {
   const downloadHref = MOBILE_APP_DOWNLOAD_URL || '/mobile-application'
 
   return (
-    <div
-      id="public-site"
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: '100vh',
-        background: 'var(--bg)',
-        overflowY: 'auto',
-        overflowX: 'hidden',
-      }}
-    >
-      <PublicNav onDownloadApp={scrollToAppDownload} />
+    <PublicSiteProvider>
+      <div
+        id="public-site"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: '100vh',
+          background: 'var(--bg)',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+        }}
+      >
+        <PublicNav onDownloadApp={scrollToAppDownload} />
+        <PublicModals />
 
         <div className="pub-section active" id="pub-home" style={{ padding: 0 }}>
           <div className="pub-hero">
@@ -325,6 +329,7 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
-    </div>
+      </div>
+    </PublicSiteProvider>
   )
 }

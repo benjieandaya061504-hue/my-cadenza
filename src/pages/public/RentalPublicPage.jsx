@@ -67,7 +67,7 @@ function statusBadge(status) {
 }
 
 export default function RentalPublicPage() {
-  const { openSignupGate, openSuccessModal, showToast } = usePublicSite()
+  const { openSignupGate, openSuccessModal, showToast, isLoggedIn } = usePublicSite()
   const [modalOpen, setModalOpen] = useState(false)
   const [selected, setSelected] = useState(null)
   const [payMethod, setPayMethod] = useState('')
@@ -92,6 +92,13 @@ export default function RentalPublicPage() {
 
   const openRental = (item) => {
     if (item.status !== 'Available') return
+    // If user is already logged in, skip signup and proceed directly
+    if (isLoggedIn) {
+      setSelected(item)
+      setPayMethod('')
+      setModalOpen(true)
+      return
+    }
     openSignupGate({
       icon: item.icon,
       title: 'Instrument Rental',
@@ -229,7 +236,7 @@ export default function RentalPublicPage() {
                   <label>Contact Number</label>
                   <input
                     value={form.contact}
-                    onChange={(e) => setForm((f) => ({ ...f, contact: e.target.value }))}
+                    onChange={(e) => setForm((f) => ({ ...f, contact: e.target.value.replace(/[^0-9+]/g, '') }))}
                     placeholder="+63 9XX XXX XXXX"
                   />
                 </div>
@@ -324,7 +331,7 @@ export default function RentalPublicPage() {
                     <label>GCash Number</label>
                     <input
                       value={form.gcashNum}
-                      onChange={(e) => setForm((f) => ({ ...f, gcashNum: e.target.value }))}
+                      onChange={(e) => setForm((f) => ({ ...f, gcashNum: e.target.value.replace(/[^0-9+]/g, '') }))}
                       placeholder="+63 9XX XXX XXXX"
                     />
                   </div>

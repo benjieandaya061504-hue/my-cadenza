@@ -17,7 +17,8 @@ export default function RegistrationPublicPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
+    const value = e.target.name === 'contactNumber' ? e.target.value.replace(/[^0-9+]/g, '') : e.target.value
+    setFormData({ ...formData, [e.target.name]: value })
     if (e.target.name === 'password' || e.target.name === 'confirmPassword') {
       setPasswordError('')
     }

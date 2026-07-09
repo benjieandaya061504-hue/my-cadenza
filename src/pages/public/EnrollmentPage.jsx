@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { PUBLIC_ROUTES } from '../../constants/publicRoutes'
 import { usePublicSite } from './PublicSiteContext'
+import { studentAPI } from '../../services/api'
 import {
   MIN_ENROLL_SLOTS,
   TOTAL_SLOT_POOL,
@@ -73,27 +74,91 @@ function slotTimesForDay(dateKey) {
   })
 }
 
+function loadSaved(key, fallback) {
+  try {
+    const saved = localStorage.getItem(key)
+    return saved ? JSON.parse(saved) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+function saveState(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch { /* ignore */ }
+}
+
+function removeSaved(key) {
+  try { localStorage.removeItem(key) } catch { /* ignore */ }
+}
+
 export default function EnrollmentPage() {
   const navigate = useNavigate()
-  const { openSignupGate, showToast, openSuccessModal } = usePublicSite()
+  const { openSignupGate, showToast, openSuccessModal, signedUpUser, isLoggedIn, user } = usePublicSite()
 
-  const [step, setStep] = useState(1)
-  const [lesson, setLesson] = useState(null)
-  const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()))
-  const [pickedDay, setPickedDay] = useState(null)
-  const [selectedSlots, setSelectedSlots] = useState([])
-
-  const [form, setForm] = useState({
-    fname: '',
-    lname: '',
-    email: '',
-    phone: '',
-    age: '',
-    level: '',
-    notes: '',
-    refnum: '',
-    paymethod: '',
+  // ── Restore state from localStorage on mount ────────────────
+  const [step, setStep] = useState(() => loadSaved('cz_en_step', 1))
+  const [lesson, setLesson] = useState(() => loadSaved('cz_en_lesson', null))
+  const [monthCursor, setMonthCursor] = useState(() => {
+    const saved = loadSaved('cz_en_month', null)
+    return saved ? new Date(saved) : startOfMonth(new Date())
   })
+  const [pickedDay, setPickedDay] = useState(() => {
+    const saved = loadSaved('cz_en_picked', null)
+    return saved ? new Date(saved) : null
+  })
+  const [selectedSlots, setSelectedSlots] = useState(() => loadSaved('cz_en_slots', []))
+  const [form, setForm] = useState(() => loadSaved('cz_en_form', {
+    fname: '', lname: '', email: '', phone: '', age: '',
+    level: '', notes: '', refnum: '', paymethod: '', address: '',
+  }))
+
+  // ── Persist state changes to localStorage ───────────────────
+  useEffect(() => { saveState('cz_en_step', step) }, [step])
+  useEffect(() => { saveState('cz_en_lesson', lesson) }, [lesson])
+  useEffect(() => { saveState('cz_en_month', monthCursor) }, [monthCursor])
+  useEffect(() => { saveState('cz_en_picked', pickedDay) }, [pickedDay])
+  useEffect(() => { saveState('cz_en_slots', selectedSlots) }, [selectedSlots])
+  useEffect(() => { saveState('cz_en_form', form) }, [form])
+
+  // Pre-fill form with existing enrollment data when a logged-in user visits
+  useEffect(() => {
+    if (!isLoggedIn || !user) return
+
+    // Only pre-fill name/email from session if the form fields are empty
+    // (user might have data restored from localStorage already)
+    setForm((f) => ({
+      ...f,
+      fname: f.fname || user.firstName || '',
+      lname: f.lname || user.lastName || '',
+      email: f.email || user.email || '',
+    }))
+
+    // Fetch existing enrollment data
+    studentAPI.getEnrollments(user.id)
+      .then((res) => {
+        const enrollments = res.data
+        // Find the most recent pending enrollment
+        const pendingEnrollment = Array.isArray(enrollments)
+          ? enrollments.find((e) => e.status === 'pending')
+          : null
+        if (pendingEnrollment) {
+          setForm((f) => ({
+            ...f,
+            phone: f.phone || pendingEnrollment.contact_number || '',
+            address: f.address || pendingEnrollment.student_address || '',
+            level: f.level || pendingEnrollment.program_requested || '',
+            notes: f.notes || pendingEnrollment.notes || '',
+            refnum: f.refnum || pendingEnrollment.payment_reference || '',
+            paymethod: f.paymethod || pendingEnrollment.payment_method || '',
+          }))
+        }
+      })
+      .catch(() => {
+        // No existing enrollment found, just keep the form as-is with user data
+      })
+  }, [isLoggedIn, user])
 
   const monthLabel = useMemo(
     () =>
@@ -113,11 +178,17 @@ export default function EnrollmentPage() {
   const fillPct = Math.min(100, Math.round(((TOTAL_SLOT_POOL - slotsRemaining) / TOTAL_SLOT_POOL) * 100))
 
   const selectLesson = (L) => {
+    if (isLoggedIn) {
+      setLesson(L)
+      return
+    }
     openSignupGate({
       icon: L.icon,
       title: 'Student Enrollment',
       subtitle: `Sign up to enroll in ${L.name} lessons.`,
-      onContinue: () => setLesson(L),
+      onContinue: () => {
+        setLesson(L)
+      },
     })
   }
 
@@ -151,17 +222,53 @@ export default function EnrollmentPage() {
 
   const totalAmount = lesson ? lesson.rate * selectedSlots.length : 0
 
-  const submitEnrollment = () => {
+  const [submitting, setSubmitting] = useState(false)
+
+  const submitEnrollment = async () => {
     if (!form.refnum.trim()) {
       showToast('Please enter your payment reference number.')
       return
     }
-    openSuccessModal({
-      title: 'Enrollment Submitted!',
-      message:
-        'Thank you! Your request has been received. Our front desk team will verify your payment and confirm your enrollment.',
-    })
-    setStep(5)
+    setSubmitting(true)
+    try {
+      const userId = signedUpUser?.userId || user?.id
+      if (!userId) {
+        showToast('Please sign up first before submitting an enrollment request.')
+        setSubmitting(false)
+        return
+      }
+
+      const payload = {
+        student_id: userId,
+        first_name: form.fname || null,
+        last_name: form.lname || null,
+        email: form.email || null,
+        course: lesson?.name || null,
+        schedule: scheduleText !== '—' ? scheduleText : null,
+        program: form.level || null,
+        notes: form.notes || null,
+        contact_number: form.phone || null,
+        student_address: form.address || null,
+        payment_reference: form.refnum.trim(),
+        payment_method: form.paymethod || null,
+        total_amount: totalAmount || null
+      }
+      await studentAPI.enroll(payload)
+      setSubmitting(false)
+      openSuccessModal({
+        title: 'Enrollment Submitted!',
+        message:
+          'Thank you! Your request has been received. Our front desk team will verify your payment and confirm your enrollment.',
+      })
+      setStep(5)
+    } catch (err) {
+      setSubmitting(false)
+      const msg =
+        err.response?.data?.error ||
+        err.message ||
+        'Enrollment submission failed. Please try later.'
+      showToast(msg)
+    }
   }
 
   const resetAll = () => {
@@ -180,7 +287,15 @@ export default function EnrollmentPage() {
       notes: '',
       refnum: '',
       paymethod: '',
+      address: '',
     })
+    // Clear all saved state
+    removeSaved('cz_en_step')
+    removeSaved('cz_en_lesson')
+    removeSaved('cz_en_month')
+    removeSaved('cz_en_picked')
+    removeSaved('cz_en_slots')
+    removeSaved('cz_en_form')
     navigate(PUBLIC_ROUTES.home)
   }
 
@@ -232,7 +347,7 @@ export default function EnrollmentPage() {
         <div className="he-wrap">
           <h1 className="he-title">Choose Your Instrument</h1>
           <p className="he-desc">
-            Select the instrument lesson you&apos;d like to enroll in. Each lesson is 1 hour per slot.
+            Select the instrument lesson you'd like to enroll in. Each lesson is 1 hour per slot.
           </p>
           <div className="he-lesson-grid">
             {LESSONS.map((L) => (
@@ -480,8 +595,19 @@ export default function EnrollmentPage() {
               </label>
               <input
                 value={form.phone}
-                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/[^0-9+]/g, '') }))}
                 placeholder="+63 9XX XXX XXXX"
+              />
+            </div>
+            <div className="he-fg he-fg-full">
+              <label>
+                Student Address <span style={{ color: 'var(--gold)' }}>*</span>
+              </label>
+              <textarea
+                rows={2}
+                value={form.address}
+                onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                placeholder="e.g. 123 Rizal St., Barangay San Antonio, Makati City"
               />
             </div>
             <div className="he-fg">
@@ -658,7 +784,7 @@ export default function EnrollmentPage() {
             </span>
             <span>
               Your enrollment request will be marked <strong>Pending</strong> until our front desk verifies your
-              payment. You&apos;ll receive confirmation once approved.
+              payment. You'll receive confirmation once approved.
             </span>
           </div>
           <div className="he-actions">

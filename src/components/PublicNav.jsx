@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { ADMIN_LOGIN_PATH, FRONTDESK_LOGIN_PATH, PUBLIC_ROUTES } from '../constants/publicRoutes'
+import { usePublicSite } from '../pages/public/PublicSiteContext'
 
 function NavPhoneIcon() {
   return (
@@ -28,6 +29,7 @@ const linkClass = ({ isActive }) => `pub-nav-link${isActive ? ' active' : ''}`
 export default function PublicNav({ onDownloadApp }) {
   const location = useLocation()
   const [navOpen, setNavOpen] = useState(false)
+  const { user, isLoggedIn, authLoading, logout } = usePublicSite() ?? {}
 
   useEffect(() => {
     const id = window.requestAnimationFrame(() => setNavOpen(false))
@@ -82,12 +84,49 @@ export default function PublicNav({ onDownloadApp }) {
 
         <div className="pub-nav-right">
           <div className="pub-login-group">
-            <Link className="pub-login-btn admin" to={ADMIN_LOGIN_PATH} onClick={close}>
-              Admin Login
-            </Link>
-            <Link className="pub-login-btn frontdesk" to={FRONTDESK_LOGIN_PATH} onClick={close}>
-              Front Desk Login
-            </Link>
+            {!authLoading && isLoggedIn && user ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: 'var(--accent)',
+                    whiteSpace: 'nowrap',
+                    maxWidth: 130,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                  title={`${user.firstName} ${user.lastName}`}
+                >
+                  👤 {user.firstName} {user.lastName}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { if (window.confirm('Are you sure you want to log out?')) { close(); logout() } }}
+                  style={{
+                    padding: '5px 10px',
+                    borderRadius: 8,
+                    border: '1px solid rgba(248,113,113,0.3)',
+                    background: 'rgba(248,113,113,0.1)',
+                    color: 'var(--coral)',
+                    cursor: 'pointer',
+                    fontSize: 11,
+                    fontWeight: 600,
+                  }}
+                >
+                  Log Out
+                </button>
+              </div>
+            ) : (
+              <>
+                <Link className="pub-login-btn admin" to={ADMIN_LOGIN_PATH} onClick={close}>
+                  Admin Login
+                </Link>
+                <Link className="pub-login-btn frontdesk" to={FRONTDESK_LOGIN_PATH} onClick={close}>
+                  Front Desk Login
+                </Link>
+              </>
+            )}
           </div>
         </div>
 

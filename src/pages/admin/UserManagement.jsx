@@ -24,8 +24,20 @@ const C = {
   mono: "'Space Mono', monospace",
 }
 
-const ROLES = ['admin', 'frontdesk', 'student']
-const STATUSES = ['pending', 'approved', 'rejected']
+const ROLES = ['admin', 'frontdesk']
+const STATUSES = ['active', 'inactive', 'pending']
+
+const STATUS_DISPLAY = {
+  active: 'Active',
+  inactive: 'Inactive',
+  pending: 'Pending'
+}
+
+const STATUS_VALUE_MAP = {
+  active: 'approved',
+  inactive: 'rejected',
+  pending: 'pending'
+}
 
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
@@ -106,10 +118,14 @@ function inputStyle(focused) {
 
 function UserFormModal({ mode, initial, onClose, onSave }) {
   const [username, setUsername] = useState(initial?.username ?? '')
+  const [firstName, setFirstName] = useState(initial?.first_name ?? '')
+  const [middleName, setMiddleName] = useState(initial?.middle_name ?? '')
+  const [lastName, setLastName] = useState(initial?.last_name ?? '')
+  const [suffix, setSuffix] = useState(initial?.suffix ?? '')
   const [email, setEmail] = useState(initial?.email ?? '')
   const [contactNumber, setContactNumber] = useState(initial?.contact_number ?? '')
   const [address, setAddress] = useState(initial?.address ?? '')
-  const [role, setRole] = useState(initial?.role ?? 'student')
+  const [role, setRole] = useState(initial?.role ?? 'admin')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [focus, setFocus] = useState(null)
@@ -123,6 +139,16 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
       return
     }
 
+    if (mode === 'add' && (role === 'admin' || role === 'frontdesk') && (!firstName.trim() || !lastName.trim())) {
+      setError('First name and last name are required for admin and frontdesk roles')
+      return
+    }
+
+    if (contactNumber && !/^[+]?[0-9]+$/.test(contactNumber)) {
+      setError('Contact number can only contain digits and an optional + prefix')
+      return
+    }
+
     if (mode === 'add' && password.length < 8) {
       setError('Password must be at least 8 characters long')
       return
@@ -132,11 +158,15 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
       if (mode === 'add') {
       await onSave({
   username: username.trim(),
+  firstName: firstName.trim(),
+  middleName: middleName.trim(),
+  lastName: lastName.trim(),
+  suffix: suffix.trim(),
   email: email.trim(),
-  contactNumber: contactNumber.trim(),  // ✅ camelCase - matches backend
+  contactNumber: contactNumber.trim(),
   address: address.trim(),
   password,
-  role,
+  role: role.trim(),
 })
       } else {
         await onSave({
@@ -155,16 +185,15 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
   }
 
   return (
-    <div
-      role="presentation"
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 200,
-        background: 'rgba(0,0,0,0.65)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '20px', animation: 'umFadeUp 0.25s ease both',
-      }}
-    >
+      <div
+        role="presentation"
+        style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(0,0,0,0.65)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px', animation: 'umFadeUp 0.25s ease both',
+        }}
+      >
       <div
         role="dialog"
         aria-labelledby="um-modal-title"
@@ -189,6 +218,41 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
         )}
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {sectionLabel('Name')}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>First Name</label>
+                <input value={firstName} onChange={e => setFirstName(e.target.value)} style={inputStyle(focus === 'fname')} onFocus={() => setFocus('fname')} onBlur={() => setFocus(null)} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Middle Name</label>
+                <input value={middleName} onChange={e => setMiddleName(e.target.value)} style={inputStyle(focus === 'mname')} onFocus={() => setFocus('mname')} onBlur={() => setFocus(null)} />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Last Name</label>
+                <input value={lastName} onChange={e => setLastName(e.target.value)} style={inputStyle(focus === 'lname')} onFocus={() => setFocus('lname')} onBlur={() => setFocus(null)} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Suffix</label>
+                <select
+                  value={suffix}
+                  onChange={e => setSuffix(e.target.value)}
+                  style={{ ...inputStyle(focus === 'suffix'), cursor: 'pointer', appearance: 'auto' }}
+                  onFocus={() => setFocus('suffix')}
+                  onBlur={() => setFocus(null)}
+                >
+                  <option value="">-- Select --</option>
+                  <option value="Jr.">Jr.</option>
+                  <option value="Sr.">Sr.</option>
+                  <option value="II">II</option>
+                  <option value="III">III</option>
+                  <option value="IV">IV</option>
+                </select>
+              </div>
+            </div>
+
             {sectionLabel('Login credentials')}
             <div>
               <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Username</label>
@@ -218,7 +282,19 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Contact Number</label>
-              <input value={contactNumber} onChange={e => setContactNumber(e.target.value)} style={inputStyle(focus === 'phone')} onFocus={() => setFocus('phone')} onBlur={() => setFocus(null)} />
+              <input 
+                value={contactNumber} 
+                onChange={e => {
+                  const value = e.target.value
+                  // Allow only digits and + as first character
+                  const validValue = value.replace(/[^+0-9]/g, '').replace(/(.+)\+/, '$1')
+                  setContactNumber(validValue)
+                }} 
+                style={inputStyle(focus === 'phone')} 
+                onFocus={() => setFocus('phone')} 
+                onBlur={() => setFocus(null)} 
+                placeholder="+639123456789"
+              />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: '6px', fontFamily: C.font }}>Address</label>
@@ -258,9 +334,9 @@ function UserFormModal({ mode, initial, onClose, onSave }) {
 function UserViewModal({ user, onClose }) {
   if (!user) return null
   const st = user.status === 'approved'
-    ? { bg: 'rgba(52,211,153,0.12)', c: C.green, label: 'Approved' }
+    ? { bg: 'rgba(52,211,153,0.12)', c: C.green, label: 'Active' }
     : user.status === 'rejected'
-    ? { bg: 'rgba(248,113,113,0.1)', c: C.coral, label: 'Rejected' }
+    ? { bg: 'rgba(248,113,113,0.1)', c: C.coral, label: 'Inactive' }
     : { bg: 'rgba(251,191,36,0.1)', c: C.gold, label: 'Pending' }
 
   const row = (label, value) => (
@@ -347,7 +423,10 @@ function UserManagement({ isMobile = false, isTablet = false }) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return users.filter(u => {
-      if (statusFilter !== 'all' && u.status !== statusFilter) return false
+      if (statusFilter !== 'all') {
+        const mappedStatus = STATUS_VALUE_MAP[statusFilter] || statusFilter
+        if (u.status !== mappedStatus) return false
+      }
       if (roleFilter !== 'all' && u.role !== roleFilter) return false
       if (!q) return true
       return (
@@ -403,9 +482,9 @@ function UserManagement({ isMobile = false, isTablet = false }) {
 
   const statusStyle = s =>
     s === 'approved'
-      ? { bg: 'rgba(52,211,153,0.12)', c: C.green, dot: C.green, label: 'Approved' }
+      ? { bg: 'rgba(52,211,153,0.12)', c: C.green, dot: C.green, label: 'Active' }
       : s === 'rejected'
-      ? { bg: 'rgba(248,113,113,0.1)', c: C.coral, dot: C.coral, label: 'Rejected' }
+      ? { bg: 'rgba(248,113,113,0.1)', c: C.coral, dot: C.coral, label: 'Inactive' }
       : { bg: 'rgba(251,191,36,0.1)', c: C.gold, dot: C.gold, label: 'Pending' }
 
   const roleBadge = (role) => {
@@ -456,7 +535,7 @@ function UserManagement({ isMobile = false, isTablet = false }) {
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '12px', marginBottom: '18px' }}>
           {[
             { label: 'Total accounts', value: stats.total, sub: 'All roles', color: C.accent },
-            { label: 'Approved', value: stats.approved, sub: 'Can sign in', color: C.green },
+            { label: 'Active', value: stats.approved, sub: 'Can sign in', color: C.green },
             { label: 'Pending', value: stats.pending, sub: 'Awaiting approval', color: C.gold },
           ].map((s, i) => (
             <div
@@ -647,7 +726,7 @@ function UserManagement({ isMobile = false, isTablet = false }) {
                               onClick={() => setStatus(u.id, 'rejected')}
                               style={{ padding: '6px 11px', borderRadius: '8px', border: `1px solid rgba(248,113,113,0.35)`, background: 'rgba(248,113,113,0.08)', color: C.coral, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
                             >
-                              Reject
+                              Deactivate
                             </button>
                           ) : u.status === 'rejected' ? (
                             <button
@@ -655,7 +734,7 @@ function UserManagement({ isMobile = false, isTablet = false }) {
                               onClick={() => setStatus(u.id, 'approved')}
                               style={{ padding: '6px 11px', borderRadius: '8px', border: `1px solid rgba(52,211,153,0.35)`, background: 'rgba(52,211,153,0.1)', color: C.green, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
                             >
-                              Approve
+                              Activate
                             </button>
                           ) : (
                             <>
@@ -664,14 +743,14 @@ function UserManagement({ isMobile = false, isTablet = false }) {
                                 onClick={() => setStatus(u.id, 'approved')}
                                 style={{ marginRight: '4px', padding: '6px 11px', borderRadius: '8px', border: `1px solid rgba(52,211,153,0.35)`, background: 'rgba(52,211,153,0.1)', color: C.green, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
                               >
-                                Approve
+                                Activate
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setStatus(u.id, 'rejected')}
                                 style={{ padding: '6px 11px', borderRadius: '8px', border: `1px solid rgba(248,113,113,0.35)`, background: 'rgba(248,113,113,0.08)', color: C.coral, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
                               >
-                                Reject
+                                Deactivate
                               </button>
                             </>
                           )}

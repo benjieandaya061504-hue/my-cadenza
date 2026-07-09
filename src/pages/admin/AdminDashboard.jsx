@@ -7,6 +7,7 @@ import StudioRoomManagement from './StudioRoomManagement'
 import InstrumentManagement from './InstrumentManagement'
 import AnnouncementManagement from './AnnouncementManagement'
 import Reports from './Reports'
+import EnrolledStudents from './EnrolledStudents'
 
 const C = {
   bg:       '#0e0f13',
@@ -36,6 +37,7 @@ const ADMIN_NAV = [
     { id: 'dashboard', icon: '⊞', label: 'Dashboard' },
   ]},
   { section: 'Management', items: [
+    { id: 'enrolled',      icon: '🎓', label: 'Enrolled Students' },
     { id: 'users',         icon: '◈', label: 'Users' },
     { id: 'lessons',       icon: '♫', label: 'Lessons' },
     { id: 'scheduling',    icon: '▦', label: 'Schedules' },
@@ -50,6 +52,7 @@ const ADMIN_NAV = [
 
 const PAGE_LABELS = {
   dashboard: 'Dashboard',
+  enrolled: 'Enrolled Students',
   users: 'Users',
   lessons: 'Lessons',
   scheduling: 'Schedules',
@@ -239,7 +242,7 @@ function Sidebar({ activePage, onNavigate, onLogout, isMobile, isOpen, onClose }
       {/* Logout */}
       <div style={{ padding: '12px 8px', borderTop: `1px solid ${C.border}` }}>
         <button
-          onClick={() => { onLogout?.(); onClose?.() }}
+          onClick={() => { if (window.confirm('Are you sure you want to log out?')) { onLogout?.(); onClose?.() } }}
           style={{
             width: '100%', padding: '9px 12px', borderRadius: '10px',
             border: `1px solid rgba(248,113,113,0.2)`,
@@ -599,7 +602,17 @@ function DashboardContent({ onNavigate, isMobile, isTablet }) {
 // ── Main Layout ───────────────────────────────────────────────
 function Dashboard({ onLogout }) {
   const navigate = useNavigate()
-  const [activePage, setActivePage] = useState('dashboard')
+  const [activePage, setActivePage] = useState(() => {
+    try {
+      return localStorage.getItem('adminActivePage') || 'dashboard'
+    } catch {
+      return 'dashboard'
+    }
+  })
+  // Persist active nav to localStorage
+  useEffect(() => {
+    try { localStorage.setItem('adminActivePage', activePage) } catch { /* ignore */ }
+  }, [activePage])
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const isMobile = viewportWidth < 900
@@ -629,27 +642,29 @@ function Dashboard({ onLogout }) {
           <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '24px 28px', background: C.bg }}>
             {activePage === 'dashboard'
               ? <DashboardContent onNavigate={setActivePage} isMobile={isMobile} isTablet={isTablet} />
-              : activePage === 'users'
-                ? <UserManagement isMobile={isMobile} isTablet={isTablet} />
-                : activePage === 'lessons'
-                  ? <LessonManagement isMobile={isMobile} isTablet={isTablet} />
-                  : activePage === 'scheduling'
-                    ? <ScheduleManagement isMobile={isMobile} isTablet={isTablet} />
-                    : activePage === 'studio'
-                      ? <StudioRoomManagement isMobile={isMobile} isTablet={isTablet} />
-                      : activePage === 'instruments'
-                        ? <InstrumentManagement isMobile={isMobile} isTablet={isTablet} />
-              : activePage === 'announcements'
-                          ? <AnnouncementManagement isMobile={isMobile} isTablet={isTablet} />
-              : activePage === 'reports'
-                            ? <Reports isMobile={isMobile} isTablet={isTablet} />
-                        : (
-                          <div style={{ textAlign: 'center', paddingTop: '80px', color: C.text3, fontFamily: C.font, animation: 'fadeUp 0.4s ease both' }}>
-                            <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}>◎</div>
-                            <div style={{ fontFamily: C.display, fontSize: '26px', fontWeight: 700, color: C.text, marginBottom: '8px' }}>{pageLabel}</div>
-                            <div style={{ fontSize: '13px' }}>This module is not yet built. Navigate to another page.</div>
-                          </div>
-                        )
+              : activePage === 'enrolled'
+                ? <EnrolledStudents isMobile={isMobile} isTablet={isTablet} />
+                : activePage === 'users'
+                  ? <UserManagement isMobile={isMobile} isTablet={isTablet} />
+                  : activePage === 'lessons'
+                    ? <LessonManagement isMobile={isMobile} isTablet={isTablet} />
+                    : activePage === 'scheduling'
+                      ? <ScheduleManagement isMobile={isMobile} isTablet={isTablet} />
+                      : activePage === 'studio'
+                        ? <StudioRoomManagement isMobile={isMobile} isTablet={isTablet} />
+                        : activePage === 'instruments'
+                          ? <InstrumentManagement isMobile={isMobile} isTablet={isTablet} />
+                          : activePage === 'announcements'
+                            ? <AnnouncementManagement isMobile={isMobile} isTablet={isTablet} />
+                            : activePage === 'reports'
+                              ? <Reports isMobile={isMobile} isTablet={isTablet} />
+                              : (
+                                <div style={{ textAlign: 'center', paddingTop: '80px', color: C.text3, fontFamily: C.font, animation: 'fadeUp 0.4s ease both' }}>
+                                  <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}>◎</div>
+                                  <div style={{ fontFamily: C.display, fontSize: '26px', fontWeight: 700, color: C.text, marginBottom: '8px' }}>{pageLabel}</div>
+                                  <div style={{ fontSize: '13px' }}>This module is not yet built. Navigate to another page.</div>
+                                </div>
+                              )
             }
           </div>
         </div>

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { frontdeskAPI } from '../../services/api'
 
 const C = {
   bg: '#0e0f13',
@@ -108,24 +109,71 @@ function StudentCard({ student, onApprove, onReject, onView }) {
 
 export default function StudentApproval({ isMobile, isTablet }) {
   const [filter, setFilter] = useState('all')
-  const [students, setStudents] = useState([
-    { id: 1, name: 'Maria Santos', email: 'maria.s@email.com', phone: '0917-123-4567', course: 'Guitar', level: 'Beginner', package: 'Monthly (8 sessions)', status: 'pending', submitted: '2 hours ago', address: '123 Main St, Manila', age: 25, emergencyContact: 'Juan Santos - 0917-111-2222' },
-    { id: 2, name: 'John Reyes', email: 'john.reyes@email.com', phone: '0928-234-5678', course: 'Piano', level: 'Intermediate', package: 'Quarterly (24 sessions)', status: 'pending', submitted: '5 hours ago', address: '456 Oak Ave, Quezon City', age: 30, emergencyContact: 'Maria Reyes - 0928-333-4444' },
-    { id: 3, name: 'Ana Cruz', email: 'ana.cruz@email.com', phone: '0935-345-6789', course: 'Voice', level: 'Beginner', package: 'Monthly (8 sessions)', status: 'approved', submitted: 'Yesterday', address: '789 Pine Rd, Makati', age: 22, emergencyContact: 'Pedro Cruz - 0935-555-6666' },
-    { id: 4, name: 'Carlos Tan', email: 'carlos.tan@email.com', phone: '0912-456-7890', course: 'Drums', level: 'Beginner', package: 'Monthly (8 sessions)', status: 'pending', submitted: 'Yesterday', address: '321 Elm St, Pasig', age: 28, emergencyContact: 'Linda Tan - 0912-777-8888' },
-    { id: 5, name: 'Sofia Del', email: 'sofia.del@email.com', phone: '0945-567-8901', course: 'Violin', level: 'Advanced', package: 'Quarterly (24 sessions)', status: 'rejected', submitted: '2 days ago', address: '654 Maple Dr, Taguig', age: 35, emergencyContact: 'Rico Del - 0945-999-0000' },
-  ])
+  const [students, setStudents] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [actionMsg, setActionMsg] = useState('')
   const [selectedStudent, setSelectedStudent] = useState(null)
   const [showModal, setShowModal] = useState(false)
 
-  const filteredStudents = filter === 'all' ? students : students.filter(s => s.status === filter)
-
-  const handleApprove = (id) => {
-    setStudents(students.map(s => s.id === id ? { ...s, status: 'approved' } : s))
+  const fetchPending = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await frontdeskAPI.getPendingEnrollments()
+      const mapped = res.data.map(e => ({
+        id: e.id,
+        name: [e.first_name, e.middle_name, e.last_name, e.suffix].filter(Boolean).join(' '),
+        email: e.email || e.user_email || 'N/A',
+        phone: e.contact_number || e.user_contact || 'N/A',
+        course: e.course_requested || 'N/A',
+        level: e.program_requested || 'N/A',
+        package: 'Standard',
+        status: e.status,
+        submitted: new Date(e.enrollment_date).toLocaleDateString(),
+        address: e.student_address || 'N/A',
+        age: 'N/A',
+        emergencyContact: 'N/A',
+      }))
+      setStudents(mapped)
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Failed to load pending enrollments.'
+      setError(msg)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleReject = (id) => {
-    setStudents(students.map(s => s.id === id ? { ...s, status: 'rejected' } : s))
+  useEffect(() => {
+    fetchPending()
+  }, [])
+
+  const filteredStudents = filter === 'all' ? students : students.filter(s => s.status === filter)
+
+  const handleApprove = async (id) => {
+    try {
+      await frontdeskAPI.approveEnrollment(id)
+      setActionMsg('Enrollment approved successfully')
+      setTimeout(() => setActionMsg(''), 3000)
+      fetchPending()
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Failed to approve enrollment.'
+      setError(msg)
+      setTimeout(() => setError(''), 3000)
+    }
+  }
+
+  const handleReject = async (id) => {
+    try {
+      await frontdeskAPI.rejectEnrollment(id)
+      setActionMsg('Enrollment rejected successfully')
+      setTimeout(() => setActionMsg(''), 3000)
+      fetchPending()
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Failed to reject enrollment.'
+      setError(msg)
+      setTimeout(() => setError(''), 3000)
+    }
   }
 
   const handleView = (student) => {
@@ -149,6 +197,16 @@ export default function StudentApproval({ isMobile, isTablet }) {
           <p style={{ color: C.text3, fontSize: '13px' }}>Review student registration requests and enrollment data</p>
         </div>
 
+        {actionMsg && (
+          <div style={{ padding: '10px 16px', marginBottom: '16px', borderRadius: '10px', background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.3)', color: C.green, fontSize: '13px', fontFamily: C.font, fontWeight: 500 }}>
+            {actionMsg}
+          </div>
+        )}
+        {error && (
+          <div style={{ padding: '10px 16px', marginBottom: '16px', borderRadius: '10px', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.3)', color: C.coral, fontSize: '13px', fontFamily: C.font, fontWeight: 500 }}>
+            {error}
+          </div>
+        )}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
           {['all', 'pending', 'approved', 'rejected'].map(f => (
             <button
@@ -167,6 +225,15 @@ export default function StudentApproval({ isMobile, isTablet }) {
           ))}
         </div>
 
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: C.text2, fontSize: '14px', fontFamily: C.font }}>
+            Loading pending enrollment requests...
+          </div>
+        ) : filteredStudents.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: C.text3, fontSize: '14px', fontFamily: C.font }}>
+            No enrollment requests found.
+          </div>
+        ) : (
         <div style={{ display: 'grid', gridTemplateColumns: cols, gap: '14px' }}>
           {filteredStudents.map(student => (
             <StudentCard
@@ -178,6 +245,7 @@ export default function StudentApproval({ isMobile, isTablet }) {
             />
           ))}
         </div>
+        )}
 
         {showModal && selectedStudent && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>

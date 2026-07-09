@@ -30,6 +30,9 @@ DROP TABLE IF EXISTS Client;
 DROP TABLE IF EXISTS Staff_Auth;
 DROP TABLE IF EXISTS Staff;
 DROP TABLE IF EXISTS Role;
+DROP TABLE IF EXISTS enrollments;
+DROP TABLE IF EXISTS students;
+DROP TABLE IF EXISTS Users;
 
 -- ============================================================
 -- Re-enable foreign key checks
@@ -59,6 +62,7 @@ CREATE TABLE Staff (
     f_name VARCHAR(50) NOT NULL,
     m_name VARCHAR(50) DEFAULT NULL,
     l_name VARCHAR(50) NOT NULL,
+    suffix VARCHAR(10) DEFAULT NULL,
     address VARCHAR(255) NOT NULL,
     age INT NOT NULL,
     gender ENUM('Male', 'Female', 'Other') NOT NULL,
@@ -70,6 +74,7 @@ CREATE TABLE Staff (
     CONSTRAINT pk_staff PRIMARY KEY (staff_id),
     CONSTRAINT uq_staff_email UNIQUE (email),
     CONSTRAINT chk_staff_age CHECK (age > 0),
+    CONSTRAINT chk_contact_no_format CHECK (contact_no REGEXP '^[+]?[0-9]+$'),
     CONSTRAINT fk_staff_role FOREIGN KEY (role_id) REFERENCES Role(role_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -363,6 +368,70 @@ INSERT INTO Room_Schedule (room_sched_id, sched_datetime, sched_type, status, ro
 (5, '2026-06-17 08:00:00', 'lesson', 'active', 5, NULL, 2);
 
 -- ============================================================
+-- 16. Users
+-- ============================================================
+CREATE TABLE Users (
+    user_id INT AUTO_INCREMENT,
+    email VARCHAR(100) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'front_desk', 'instructor', 'student') NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_users PRIMARY KEY (user_id),
+    CONSTRAINT uq_users_email UNIQUE (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- 17. students
+-- ============================================================
+CREATE TABLE students (
+    student_id INT AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    first_name VARCHAR(50) NOT NULL,
+    middle_name VARCHAR(50) DEFAULT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    suffix VARCHAR(10) DEFAULT NULL,
+    contact_number VARCHAR(15) NOT NULL,
+    address VARCHAR(255) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_students PRIMARY KEY (student_id),
+    CONSTRAINT fk_students_user FOREIGN KEY (user_id) REFERENCES Users(user_id),
+    CONSTRAINT chk_students_contact CHECK (contact_number REGEXP '^[+]?[0-9]+$')
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- 18. enrollments (enrollment requests / approval workflow)
+-- ============================================================
+-- This table serves as the enrollment request list.
+-- When a student signs up, their info is stored here with status 'pending'.
+-- Upon approval, the data is copied to the students table.
+-- Students table only contains approved/enrolled students.
+-- ============================================================
+CREATE TABLE enrollments (
+    enrollment_id INT AUTO_INCREMENT,
+    student_id INT NOT NULL,
+    course_id INT DEFAULT NULL,
+    enrollment_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('pending', 'approved', 'rejected', 'active', 'completed', 'cancelled') NOT NULL DEFAULT 'pending',
+    notes TEXT DEFAULT NULL,
+    first_name VARCHAR(50) DEFAULT NULL,
+    middle_name VARCHAR(50) DEFAULT NULL,
+    last_name VARCHAR(50) DEFAULT NULL,
+    suffix VARCHAR(10) DEFAULT NULL,
+    email VARCHAR(100) DEFAULT NULL,
+    contact_number VARCHAR(15) DEFAULT NULL,
+    student_address VARCHAR(255) DEFAULT NULL,
+    course_requested VARCHAR(100) DEFAULT NULL,
+    schedule_requested TEXT DEFAULT NULL,
+    program_requested VARCHAR(100) DEFAULT NULL,
+    payment_reference VARCHAR(100) DEFAULT NULL,
+    payment_method VARCHAR(50) DEFAULT NULL,
+    total_amount DECIMAL(10,2) DEFAULT NULL,
+    progress_percentage INT DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_enrollments PRIMARY KEY (enrollment_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
 -- FOREIGN KEY RELATIONSHIPS SUMMARY
 -- ============================================================
 -- 1. Staff.role_id → Role.role_id
@@ -380,4 +449,6 @@ INSERT INTO Room_Schedule (room_sched_id, sched_datetime, sched_type, status, ro
 -- 13. Payment.billing_id → Billing.billing_id
 -- 14. Room_Schedule.room_id → Room.room_id
 -- 15. Room_Schedule.booking_id → Booking.booking_id
+-- 16. students.user_id → Users.user_id
+-- 17. enrollments.student_id → (references users.id, no FK constraint to allow pending enrollment before student record exists)
 -- ============================================================
