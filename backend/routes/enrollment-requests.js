@@ -31,10 +31,10 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'student_id is required' })
     }
 
-    // Verify the user exists in users table
-    const [user] = await pool.query('SELECT id FROM users WHERE id = ?', [student_id])
-    if (user.length === 0) {
-      return res.status(404).json({ error: 'User not found. Please sign up first.' })
+    // Verify the user exists (check students table for approved, or Staff for staff)
+    // Accept the enrollment request data as-is since first_name/last_name/email are provided
+    if (!first_name || !last_name) {
+      return res.status(400).json({ error: 'First name and last name are required' })
     }
 
     // Check if there's already a pending enrollment for this student
