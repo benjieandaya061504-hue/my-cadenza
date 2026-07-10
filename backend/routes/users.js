@@ -5,7 +5,7 @@
  */
 
 import { Router } from 'express'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import pool from '../db.js'
 
 const router = Router()

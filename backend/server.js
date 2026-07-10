@@ -61,8 +61,13 @@ const app = express()
 const PORT = process.env.PORT || 5000
 
 // ─── Middleware ─────────────────────────────────────────────────
+// Parse CORS_ORIGIN - supports comma-separated list or single origin
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(s => s.trim())
+  : ['http://localhost:5173']
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: corsOrigins,
   credentials: true
 }))
 app.use(express.json())

@@ -5,20 +5,45 @@
 
 import mysql from 'mysql2/promise'
 import dotenv from 'dotenv'
+import { URL } from 'url'
 
 dotenv.config()
 
+// Parse Railway's MYSQL_PUBLIC_URL or MYSQL_URL into individual params
+// This allows the user to simply copy the Railway connection URL
+const dbUrl = process.env.MYSQL_PUBLIC_URL || process.env.MYSQL_URL
+let dbConfig = {}
+
+if (dbUrl) {
+  try {
+    const parsed = new URL(dbUrl)
+    dbConfig = {
+      host: parsed.hostname,
+      port: parseInt(parsed.port, 10) || 3306,
+      user: decodeURIComponent(parsed.username),
+      password: decodeURIComponent(parsed.password),
+      database: parsed.pathname.replace(/^\//, ''),
+    }
+  } catch (e) {
+    console.warn('⚠️  Failed to parse MYSQL_URL, falling back to individual env vars')
+  }
+}
+
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || '127.0.0.1',
-  port: parseInt(process.env.DB_PORT, 10) || 3306,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'cadenza_music_db',
+  host: dbConfig.host || process.env.DB_HOST || '127.0.0.1',
+  port: dbConfig.port || parseInt(process.env.DB_PORT, 10) || 3306,
+  user: dbConfig.user || process.env.DB_USER || 'root',
+  password: dbConfig.password || process.env.DB_PASSWORD || '',
+  database: dbConfig.database || process.env.DB_NAME || 'cadenza_music_db',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
   enableKeepAlive: true,
-  keepAliveInitialDelay: 0
+  keepAliveInitialDelay: 0,
+  // Enable SSL for cloud-hosted databases (Railway, Aiven, etc.)
+  ssl: (process.env.DB_SSL === 'true' || dbConfig.host?.includes('railway') || dbConfig.host?.includes('rlwy') || process.env.DB_HOST?.includes('railway') || process.env.DB_HOST?.includes('rlwy'))
+    ? { rejectUnauthorized: false }
+    : undefined
 })
 
 /**
