@@ -36,12 +36,11 @@ router.get('/pending', async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT e.*,
-              u.id as user_id,
-              u.email,
-              u.contact_number as user_contact,
-              u.status as user_status
+              e.student_id as user_id,
+              e.email,
+              e.contact_number as user_contact,
+              e.status as user_status
        FROM enrollments e
-       LEFT JOIN users u ON e.student_id = u.id
        WHERE e.status = 'pending'
        ORDER BY e.enrollment_date DESC`
     )
@@ -57,12 +56,11 @@ router.get('/approved', async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT e.*,
-              u.id as user_id,
-              u.email,
-              u.contact_number as user_contact,
-              u.status as user_status
+              e.student_id as user_id,
+              e.email,
+              e.contact_number as user_contact,
+              e.status as user_status
        FROM enrollments e
-       LEFT JOIN users u ON e.student_id = u.id
        WHERE e.status = 'approved'
        ORDER BY e.enrollment_date DESC`
     )
@@ -204,15 +202,6 @@ router.put('/:id/approve', async (req, res) => {
       return res.status(404).json({ error: 'Enrollment not found' })
     }
 
-    // Update the user's status to 'approved' to officially accept the student
-    if (userId) {
-      await pool.query(
-        'UPDATE users SET status = ? WHERE id = ?',
-        ['approved', userId]
-      )
-      console.log(`✅ User ${userId} status updated to 'approved'`)
-    }
-
     console.log('✅ Enrollment approved:', { enrollmentId: parseInt(req.params.id), student_id: userId })
 
     res.json({ message: 'Enrollment approved successfully. Student has been accepted.', enrollmentId: parseInt(req.params.id) })
@@ -245,16 +234,6 @@ router.put('/:id/reject', async (req, res) => {
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Enrollment not found' })
-    }
-
-    // Also update the user's status to 'rejected' to match
-    const userId = enrollment[0].student_id
-    if (userId) {
-      await pool.query(
-        'UPDATE users SET status = ? WHERE id = ?',
-        ['rejected', userId]
-      )
-      console.log(`✅ User ${userId} status updated to 'rejected'`)
     }
 
     console.log('✅ Enrollment rejected:', { enrollmentId: parseInt(req.params.id), student_id: enrollment[0].student_id })
