@@ -1,0 +1,1 @@
+Fix auth: use Staff_Auth + bcrypt for login, remove users table dependency
