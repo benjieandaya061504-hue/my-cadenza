@@ -39,20 +39,11 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   enableKeepAlive: true,
-  keepAliveInitialDelay: 10000,
-  connectTimeout: 15000,
-  acquireTimeout: 15000,
+  keepAliveInitialDelay: 0,
   // Enable SSL for cloud-hosted databases (Railway, Aiven, etc.)
   ssl: (process.env.DB_SSL === 'true' || dbConfig.host?.includes('railway') || dbConfig.host?.includes('rlwy') || process.env.DB_HOST?.includes('railway') || process.env.DB_HOST?.includes('rlwy'))
     ? { rejectUnauthorized: false }
     : undefined
-})
-
-// Handle connection errors to prevent crashes when MySQL drops idle connections
-pool.on('connection', (connection) => {
-  connection.on('error', (err) => {
-    console.error('❌ MySQL connection error:', err.message)
-  })
 })
 
 /**
