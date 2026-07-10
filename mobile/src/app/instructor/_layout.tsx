@@ -8,11 +8,12 @@ import {
 import { useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
 
+import { fonts } from "../../../themes/fonts";
+
 const INSTRUCTOR_NAME = "Terter";
 
 function CustomDrawerContent(props: any) {
   const handleLogout = () => {
-    // TODO: clear auth/session state here if you have any (tokens, context, etc.)
     router.replace("/auth/login");
   };
 
@@ -30,17 +31,27 @@ function CustomDrawerContent(props: any) {
           }}
         >
           <Ionicons name="person-circle-outline" size={56} color="#333" />
+
           <Text
             style={{
               marginTop: 8,
+              fontFamily: fonts.bold,
               fontSize: 16,
-              fontWeight: "700",
               color: "#222",
             }}
           >
             {INSTRUCTOR_NAME}
           </Text>
-          <Text style={{ fontSize: 13, color: "#888" }}>Instructor</Text>
+
+          <Text
+            style={{
+              fontFamily: fonts.regular,
+              fontSize: 13,
+              color: "#888",
+            }}
+          >
+            Instructor
+          </Text>
         </View>
 
         <View
@@ -55,11 +66,30 @@ function CustomDrawerContent(props: any) {
         <DrawerItemList {...props} />
       </DrawerContentScrollView>
 
-      <View style={{ padding: 20, borderTopWidth: 1, borderColor: "#ddd" }}>
+      <View
+        style={{
+          padding: 20,
+          borderTopWidth: 1,
+          borderColor: "#ddd",
+        }}
+      >
         <Pressable onPress={handleLogout}>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
             <Ionicons name="log-out-outline" size={20} color="red" />
-            <Text style={{ marginLeft: 10, color: "red", fontWeight: "600" }}>
+
+            <Text
+              style={{
+                marginLeft: 10,
+                fontFamily: fonts.bold,
+                color: "red",
+                fontSize: 14,
+              }}
+            >
               Logout
             </Text>
           </View>
@@ -87,7 +117,11 @@ export default function InstructorLayout() {
               onPress={() => setVisible(true)}
               style={{ marginRight: 15 }}
             >
-              <Ionicons name="notifications-outline" size={24} color="#000" />
+              <Ionicons
+                name="notifications-outline"
+                size={24}
+                color="#000"
+              />
             </Pressable>
           ),
         }}
@@ -98,7 +132,11 @@ export default function InstructorLayout() {
           options={{
             title: "Instructor Profile",
             drawerIcon: ({ size, color }) => (
-              <Ionicons name="person-circle-outline" size={20} color={color} />
+              <Ionicons
+                name="person-circle-outline"
+                size={20}
+                color={color}
+              />
             ),
             drawerItemStyle: { display: "none" },
           }}
@@ -108,7 +146,7 @@ export default function InstructorLayout() {
           name="dashboard"
           options={{
             title: "Dashboard",
-            drawerIcon: ({ size, color }) => (
+            drawerIcon: ({ color }) => (
               <Ionicons name="grid-outline" size={20} color={color} />
             ),
           }}
@@ -118,7 +156,7 @@ export default function InstructorLayout() {
           name="availability"
           options={{
             title: "Availability",
-            drawerIcon: ({ size, color }) => (
+            drawerIcon: ({ color }) => (
               <Ionicons name="time-outline" size={20} color={color} />
             ),
           }}
@@ -128,7 +166,7 @@ export default function InstructorLayout() {
           name="attendance"
           options={{
             title: "Attendance",
-            drawerIcon: ({ size, color }) => (
+            drawerIcon: ({ color }) => (
               <Ionicons
                 name="checkmark-circle-outline"
                 size={20}
@@ -142,7 +180,7 @@ export default function InstructorLayout() {
           name="progress"
           options={{
             title: "Progress Tracking",
-            drawerIcon: ({ size, color }) => (
+            drawerIcon: ({ color }) => (
               <Ionicons name="bar-chart-outline" size={20} color={color} />
             ),
           }}
@@ -152,7 +190,7 @@ export default function InstructorLayout() {
           name="schedule"
           options={{
             title: "Schedule",
-            drawerIcon: ({ size, color }) => (
+            drawerIcon: ({ color }) => (
               <Ionicons name="calendar-outline" size={20} color={color} />
             ),
           }}
@@ -165,7 +203,10 @@ export default function InstructorLayout() {
         animationType="fade"
         onRequestClose={() => setVisible(false)}
       >
-        <Pressable onPress={() => setVisible(false)} style={{ flex: 1 }}>
+        <Pressable
+          onPress={() => setVisible(false)}
+          style={{ flex: 1 }}
+        >
           <Pressable
             style={{
               position: "absolute",
@@ -184,7 +225,11 @@ export default function InstructorLayout() {
             }}
           >
             <Text
-              style={{ fontSize: 16, fontWeight: "bold", marginBottom: 10 }}
+              style={{
+                fontFamily: fonts.bold,
+                fontSize: 16,
+                marginBottom: 10,
+              }}
             >
               Notifications
             </Text>
@@ -200,7 +245,15 @@ export default function InstructorLayout() {
                   borderColor: "#f0f0f0",
                 }}
               >
-                <Text style={{ flexShrink: 1 }}>{item.text}</Text>
+                <Text
+                  style={{
+                    fontFamily: fonts.regular,
+                    fontSize: 14,
+                    flexShrink: 1,
+                  }}
+                >
+                  {item.text}
+                </Text>
               </View>
             ))}
           </Pressable>

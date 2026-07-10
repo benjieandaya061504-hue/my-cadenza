@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { fonts } from '../../../themes/fonts';
 
 import Loader from '../../components/ui/Loader';
 import ErrorMessage from '../../components/common/ErrorMessage';
@@ -89,19 +90,11 @@ export default function InstructorDashboardScreen() {
             value={data.stats.todaySessions}
             icon={null}
           />
-          <StatCard
-            label="PENDING PROGRESS NOTES"
-            value={data.stats.pendingProgressNotes}
-            icon={null}
-          />
         </View>
 
         {/* Today's Lessons */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>TODAY'S LESSONS</Text>
-          <TouchableOpacity style={styles.markAttendanceBtn}>
-            <Text style={styles.markAttendanceBtnText}>Mark Attendance</Text>
-          </TouchableOpacity>
         </View>
         {data.todaySchedule.length === 0 ? (
           <Text style={styles.emptyText}>No lessons scheduled for today.</Text>
@@ -141,59 +134,71 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F7F7FB',
   },
+
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F7F7FB',
   },
+
   content: {
     padding: 16,
     paddingBottom: 32,
   },
+
   greeting: {
+    fontFamily: fonts.regular,
     fontSize: 14,
     color: '#8A8A8A',
   },
+
   instructorName: {
+    fontFamily: fonts.bold,
     fontSize: 22,
-    fontWeight: '700',
     color: '#1A1A1A',
     marginBottom: 16,
   },
+
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginBottom: 20,
     marginHorizontal: -6,
   },
+
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
+
   sectionTitle: {
+    fontFamily: fonts.bold,
     fontSize: 12,
-    fontWeight: '700',
     color: '#1A1A1A',
     marginTop: 16,
     marginBottom: 10,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+
   markAttendanceBtn: {
-    backgroundColor: '#FF5722',
+    backgroundColor: '#667ef9',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
   },
+
   markAttendanceBtnText: {
+    fontFamily: fonts.bold,
     color: '#FFF',
     fontSize: 12,
-    fontWeight: '600',
   },
+
   emptyText: {
+    fontFamily: fonts.regular,
     fontSize: 13,
     color: '#8A8A8A',
     marginBottom: 8,
