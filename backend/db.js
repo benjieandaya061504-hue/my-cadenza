@@ -1,6 +1,8 @@
 /**
  * Database connection pool module for Cadenza Music School Management System.
  * Provides a centralized MySQL connection pool using mysql2/promise.
+ * 
+ * Supports both local development (WAMP/XAMPP) and production (Railway MySQL).
  */
 
 import mysql from 'mysql2/promise'
@@ -18,7 +20,14 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   enableKeepAlive: true,
-  keepAliveInitialDelay: 0
+  keepAliveInitialDelay: 0,
+  // Railway MySQL requires SSL/TLS connection
+  // In local dev (WAMP), this is ignored if the MySQL server doesn't support SSL
+  ...(process.env.DB_SSL === 'true' || process.env.RAILWAY ? {
+    ssl: {
+      rejectUnauthorized: false
+    }
+  } : {})
 })
 
 /**
@@ -30,6 +39,9 @@ export async function testConnection() {
     console.log('✅ MySQL database connected successfully')
     console.log(`   Host: ${process.env.DB_HOST || '127.0.0.1'}:${process.env.DB_PORT || 3306}`)
     console.log(`   Database: ${process.env.DB_NAME || 'cadenza_music_db'}`)
+    if (process.env.DB_SSL === 'true' || process.env.RAILWAY) {
+      console.log('   SSL: enabled (Railway MySQL)')
+    }
     connection.release()
     return true
   } catch (err) {
