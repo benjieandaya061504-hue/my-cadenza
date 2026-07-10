@@ -17,8 +17,8 @@ router.get('/', async (req, res) => {
       `SELECT s.staff_id AS id, s.email, s.f_name AS first_name, s.m_name AS middle_name,
               s.l_name AS last_name, s.contact_no AS contact_number,
               s.address, s.status, r.role_name AS role
-       FROM Staff s
-       JOIN Role r ON s.role_id = r.role_id
+       FROM staff s
+       JOIN role r ON s.role_id = r.role_id
        ORDER BY s.staff_id DESC`
     )
     // Map role_name to the format expected by frontend
@@ -45,8 +45,8 @@ router.get('/:id', async (req, res) => {
       `SELECT s.staff_id AS id, s.email, s.f_name AS first_name, s.m_name AS middle_name,
               s.l_name AS last_name, s.contact_no AS contact_number,
               s.address, s.status, r.role_name AS role, s.created_at
-       FROM Staff s
-       JOIN Role r ON s.role_id = r.role_id
+       FROM staff s
+       JOIN role r ON s.role_id = r.role_id
        WHERE s.staff_id = ?`,
       [req.params.id]
     )
@@ -75,9 +75,9 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'All required fields must be filled' })
     }
 
-    // Check if already exists in Staff table
+    // Check if already exists in staff table
     const [existing] = await pool.query(
-      'SELECT staff_id FROM Staff WHERE email = ?',
+      'SELECT staff_id FROM staff WHERE email = ?',
       [email]
     )
     if (existing.length > 0) {
@@ -90,9 +90,9 @@ router.post('/register', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // Insert into Staff table
+    // Insert into staff table
     const [staffResult] = await pool.query(
-      `INSERT INTO Staff (f_name, m_name, l_name, address, age, gender, contact_no, email, profile, status, role_id)
+      `INSERT INTO staff (f_name, m_name, l_name, address, age, gender, contact_no, email, profile, status, role_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         username || email.split('@')[0],
@@ -109,10 +109,11 @@ router.post('/register', async (req, res) => {
       ]
     )
 
-    // Insert into Staff_Auth table with bcrypt password
+    // Insert into users table with bcrypt password
+    const usernameFromEmail = email.split('@')[0]
     await pool.query(
-      'INSERT INTO Staff_Auth (staff_id, email, password) VALUES (?, ?, ?)',
-      [staffResult.insertId, email, hashedPassword]
+      'INSERT INTO users (username, email, password, role, status, staff_id) VALUES (?, ?, ?, ?, ?, ?)',
+      [usernameFromEmail, email, hashedPassword, 'frontdesk', 'approved', staffResult.insertId]
     )
 
     console.log('✅ User registered:', { staffId: staffResult.insertId, email })
@@ -172,7 +173,7 @@ router.post('/add-user', async (req, res) => {
 
     // Uniqueness check
     const [existing] = await pool.query(
-      'SELECT staff_id, email FROM Staff WHERE email = ?',
+      'SELECT id, email FROM users WHERE email = ?',
       [email]
     )
 
@@ -189,9 +190,9 @@ router.post('/add-user', async (req, res) => {
     // Hash password using bcrypt
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // Insert into Staff table
+    // Insert into staff table
     const [staffResult] = await pool.query(
-      `INSERT INTO Staff (f_name, m_name, l_name, address, age, gender, contact_no, email, profile, status, role_id)
+      `INSERT INTO staff (f_name, m_name, l_name, address, age, gender, contact_no, email, profile, status, role_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         firstName,
@@ -210,13 +211,14 @@ router.post('/add-user', async (req, res) => {
 
     console.log('Staff record created:', staffResult.insertId)
 
-    // Insert into Staff_Auth table with bcrypt password
+    // Insert into users table with bcrypt password
+    const roleMapping = { admin: 'admin', frontdesk: 'frontdesk' }
     await pool.query(
-      'INSERT INTO Staff_Auth (staff_id, email, password) VALUES (?, ?, ?)',
-      [staffResult.insertId, email, hashedPassword]
+      'INSERT INTO users (username, email, password, role, status, staff_id, contact_number, address) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [username, email, hashedPassword, roleMapping[role] || 'frontdesk', 'approved', staffResult.insertId, contactNumber || null, address || null]
     )
 
-    console.log('Staff_Auth record created for staff_id:', staffResult.insertId)
+    console.log('User record created for staff_id:', staffResult.insertId)
 
     console.log('=== END ADD-USER DEBUG ===')
 
@@ -237,7 +239,9 @@ router.post('/add-user', async (req, res) => {
   }
 })
 
-// ─── POST Login (authenticate against Staff_Auth with bcrypt) ──
+// ─── POST Login (authenticate against users table with bcrypt) ──
+// Uses the new schema: users table (username, email, password, role, status)
+// staff_id links to Staff table for extended profile info
 router.post('/login', async (req, res) => {
   try {
     const { username, email, password } = req.body
@@ -248,60 +252,52 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Username/email and password are required' })
     }
 
-    // Query Staff_Auth joined with Staff by email
+    // Query the users table by email OR username
     const [rows] = await pool.query(
-      `SELECT sa.*, s.f_name, s.m_name, s.l_name, s.contact_no,
-              s.address, s.profile, s.status AS staff_status, s.role_id,
-              r.role_name
-       FROM Staff_Auth sa
-       JOIN Staff s ON sa.staff_id = s.staff_id
-       JOIN Role r ON s.role_id = r.role_id
-       WHERE sa.email = ?`,
-      [identifier]
+      `SELECT u.*, s.f_name, s.m_name, s.l_name, s.contact_no,
+              s.address, s.profile, s.status AS staff_status, r.role_name
+       FROM users u
+       LEFT JOIN staff s ON u.staff_id = s.staff_id
+       LEFT JOIN role r ON s.role_id = r.role_id
+       WHERE u.email = ? OR u.username = ?`,
+      [identifier, identifier]
     )
 
     if (rows.length === 0) {
       return res.status(401).json({ error: 'No account found with this email address' })
     }
 
-    const staff = rows[0]
+    const user = rows[0]
 
     // Verify password using bcrypt
-    const isPasswordValid = await bcrypt.compare(password, staff.password)
+    const isPasswordValid = await bcrypt.compare(password, user.password)
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid password' })
     }
 
-    // Map role_name to role string expected by frontend
-    const roleMap = { 'Admin': 'admin', 'Front Desk': 'frontdesk', 'Instructor': 'instructor' }
-    const userRole = roleMap[staff.role_name] || 'staff'
+    // Determine role from users table, fall back to staff role_name
+    const userRole = user.role || (user.role_name ? user.role_name.toLowerCase().replace(' ', '') : 'staff')
 
-    console.log('✅ Login successful:', { staffId: staff.staff_id, email: staff.email, role: userRole })
-
-    // Update last_login
-    await pool.query(
-      'UPDATE Staff_Auth SET last_login = NOW() WHERE auth_id = ?',
-      [staff.auth_id]
-    )
+    console.log('✅ Login successful:', { userId: user.id, email: user.email, role: userRole })
 
     res.json({
       message: 'Login successful',
       user: {
-        id: staff.staff_id,
-        staff_id: staff.staff_id,
-        username: staff.email?.split('@')[0] || staff.email,
-        email: staff.email,
-        first_name: staff.f_name,
-        middle_name: staff.m_name,
-        last_name: staff.l_name,
-        contact_number: staff.contact_no,
-        address: staff.address,
+        id: user.id,
+        user_id: user.id,
+        staff_id: user.staff_id,
+        username: user.username || user.email?.split('@')[0],
+        email: user.email,
+        first_name: user.f_name || user.username,
+        middle_name: user.m_name,
+        last_name: user.l_name || user.username,
+        contact_number: user.contact_number || user.contact_no,
+        address: user.address,
         role: userRole,
-        staff_role: staff.role_name,
-        status: 'approved',
-        staff_status: staff.staff_status,
-        profile: staff.profile,
-        contact_no: staff.contact_no
+        staff_role: user.role_name,
+        status: user.status === 'approved' ? 'approved' : 'active',
+        staff_status: user.staff_status,
+        profile: user.profile
       }
     })
   } catch (error) {
@@ -323,7 +319,7 @@ router.put('/:id/status', async (req, res) => {
     }
 
     const [result] = await pool.query(
-      'UPDATE Staff SET status = ? WHERE staff_id = ?',
+      'UPDATE staff SET status = ? WHERE staff_id = ?',
       [dbStatus, req.params.id]
     )
     if (result.affectedRows === 0) {
@@ -342,7 +338,7 @@ router.put('/:id', async (req, res) => {
   try {
     const { contact_number, address } = req.body
     const [result] = await pool.query(
-      'UPDATE Staff SET contact_no = ?, address = ? WHERE staff_id = ?',
+      'UPDATE staff SET contact_no = ?, address = ? WHERE staff_id = ?',
       [contact_number, address, req.params.id]
     )
     if (result.affectedRows === 0) {
