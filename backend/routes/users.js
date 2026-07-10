@@ -16,10 +16,10 @@ router.get('/', async (req, res) => {
     const [rows] = await pool.query(
       `SELECT s.staff_id AS id, s.email, s.f_name AS first_name, s.m_name AS middle_name,
               s.l_name AS last_name, s.contact_no AS contact_number,
-              s.address, s.status, r.role_name AS role, s.created_at
+              s.address, s.status, r.role_name AS role
        FROM Staff s
        JOIN Role r ON s.role_id = r.role_id
-       ORDER BY s.created_at DESC`
+       ORDER BY s.staff_id DESC`
     )
     // Map role_name to the format expected by frontend
     const mapped = rows.map(u => ({
@@ -27,7 +27,9 @@ router.get('/', async (req, res) => {
       role: u.role?.toLowerCase().replace(' ', '') || 'staff',
       username: u.email?.split('@')[0] || u.email,
       contact_number: u.contact_number,
-      created_at: u.created_at?.toISOString?.() || u.created_at,
+      created_at: null,
+      // Map 'active'/'inactive' status to what frontend expects ('approved'/'rejected')
+      status: u.status === 'active' ? 'approved' : u.status === 'inactive' ? 'rejected' : u.status,
     }))
     res.json(mapped)
   } catch (error) {
@@ -309,16 +311,20 @@ router.post('/login', async (req, res) => {
 })
 
 // ─── PUT Update user status ────────────────────────────────────
+// Accepts both frontend format ('approved'/'rejected') and DB format ('active'/'inactive')
 router.put('/:id/status', async (req, res) => {
   try {
     const { status } = req.body
-    if (!['active', 'inactive'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status value. Use active or inactive.' })
+    // Map frontend status values to DB status values
+    const statusMap = { 'approved': 'active', 'rejected': 'inactive', 'active': 'active', 'inactive': 'inactive' }
+    const dbStatus = statusMap[status]
+    if (!dbStatus) {
+      return res.status(400).json({ error: 'Invalid status value. Use approved/rejected or active/inactive.' })
     }
 
     const [result] = await pool.query(
       'UPDATE Staff SET status = ? WHERE staff_id = ?',
-      [status, req.params.id]
+      [dbStatus, req.params.id]
     )
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'User not found' })
