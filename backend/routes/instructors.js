@@ -12,7 +12,7 @@ const router = Router()
 router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT i.* FROM instructors i ORDER BY i.created_at DESC'
+      'SELECT i.*, u.username as user_username FROM instructors i LEFT JOIN users u ON i.user_id = u.id ORDER BY i.created_at DESC'
     )
     res.json(rows)
   } catch (error) {
@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT i.* FROM instructors i WHERE i.id = ?',
+      'SELECT i.*, u.username as user_username FROM instructors i LEFT JOIN users u ON i.user_id = u.id WHERE i.id = ?',
       [req.params.id]
     )
     if (rows.length === 0) {

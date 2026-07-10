@@ -1,7 +1,6 @@
 /**
  * Auth API Routes
  * Handles student signup, login, and session management
- * Uses enrollments + a simple auth key store (no separate users table)
  */
 import { Router } from 'express'
 import bcrypt from 'bcrypt'
@@ -30,9 +29,9 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 8 characters long' })
     }
 
-    // Check if email already exists in enrollments
+    // Check if email already exists
     const [existing] = await pool.query(
-      'SELECT enrollment_id FROM enrollments WHERE email = ?',
+      'SELECT id FROM users WHERE email = ?',
       [email]
     )
 
@@ -40,37 +39,51 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'Email already exists' })
     }
 
+    // Generate username from email prefix
+    let username = email.split('@')[0]
+
+    // Ensure username uniqueness by appending a number if needed
+    const [existingUsername] = await pool.query(
+      'SELECT id FROM users WHERE username = ?',
+      [username]
+    )
+
+    if (existingUsername.length > 0) {
+      const timestamp = Date.now().toString().slice(-4)
+      username = `${username}_${timestamp}`
+    }
+
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // Create a pending enrollment record with student info and password hash
-    // Insert with student_id = 0 first, then update it to match enrollment_id
+    // Insert into Users table with role 'student' and status 'pending'
+    const [result] = await pool.query(
+      'INSERT INTO users (username, email, password, contact_number, address, role, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [username, email, hashedPassword, contact_number || null, address || null, 'student', 'pending']
+    )
+
+    // Create a pending enrollment record (NO students table insert until approved)
+    // Store all student info directly in the enrollment record
     const [enrollmentResult] = await pool.query(
-      `INSERT INTO enrollments (student_id, enrollment_date, status, first_name, middle_name, last_name, suffix, email, contact_number, student_address, notes)
-       VALUES (0, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ['pending', first_name, middle_name || null, last_name, suffix || null, email, contact_number || null, address || null, hashedPassword]
+      `INSERT INTO enrollments (student_id, enrollment_date, status, first_name, middle_name, last_name, suffix, email, contact_number, student_address)
+       VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [result.insertId, 'pending', first_name, middle_name || null, last_name, suffix || null, email, contact_number || null, address || null]
     )
 
-    // Update student_id to match enrollment_id
-    await pool.query(
-      'UPDATE enrollments SET student_id = ? WHERE enrollment_id = ?',
-      [enrollmentResult.insertId, enrollmentResult.insertId]
-    )
-
-    console.log('✅ Student signup successful:', { enrollmentId: enrollmentResult.insertId, email })
+    console.log('✅ Student signup successful:', { userId: result.insertId, email, username, enrollmentId: enrollmentResult.insertId })
 
     // Return user data so they can be immediately recognized
     res.status(201).json({
       message: 'Signup successful',
       user: {
-        id: enrollmentResult.insertId,
+        id: result.insertId,
         email,
         firstName: first_name,
         lastName: last_name,
         role: 'student',
         status: 'pending'
       },
-      userId: enrollmentResult.insertId,
+      userId: result.insertId,
       email,
       role: 'student',
       status: 'pending',
@@ -92,9 +105,9 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' })
     }
 
-    // Find enrollment by email
+    // Find user by email
     const [rows] = await pool.query(
-      'SELECT enrollment_id, email, first_name, last_name, status, notes FROM enrollments WHERE email = ?',
+      'SELECT * FROM users WHERE email = ?',
       [email]
     )
 
@@ -102,26 +115,51 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'No account found with this email address' })
     }
 
-    const enrollment = rows[0]
+    const user = rows[0]
 
-    // Verify password against stored hash in notes field
-    const storedHash = enrollment.notes || ''
-    const isPasswordValid = await bcrypt.compare(password, storedHash)
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password)
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid password' })
     }
 
-    console.log('✅ Public login successful:', { enrollmentId: enrollment.enrollment_id, email })
+    // Get student name if they are a student
+    let firstName = user.username
+    let lastName = ''
+
+    if (user.role === 'student') {
+      // First try to get from students table (approved students)
+      const [studentRows] = await pool.query(
+        'SELECT first_name, last_name FROM students WHERE user_id = ?',
+        [user.id]
+      )
+      if (studentRows.length > 0) {
+        firstName = studentRows[0].first_name
+        lastName = studentRows[0].last_name
+      } else {
+        // Fallback: get from enrollments table (pending students)
+        const [enrollmentRows] = await pool.query(
+          'SELECT first_name, last_name FROM enrollments WHERE student_id = ? AND status = ? ORDER BY enrollment_date DESC LIMIT 1',
+          [user.id, 'pending']
+        )
+        if (enrollmentRows.length > 0) {
+          firstName = enrollmentRows[0].first_name
+          lastName = enrollmentRows[0].last_name
+        }
+      }
+    }
+
+    console.log('✅ Public login successful:', { userId: user.id, email, role: user.role })
 
     res.json({
       message: 'Login successful',
       user: {
-        id: enrollment.enrollment_id,
-        email: enrollment.email,
-        firstName: enrollment.first_name,
-        lastName: enrollment.last_name,
-        role: 'student',
-        status: enrollment.status
+        id: user.id,
+        email: user.email,
+        firstName,
+        lastName,
+        role: user.role,
+        status: user.status
       }
     })
   } catch (error) {
@@ -140,7 +178,7 @@ router.get('/me', async (req, res) => {
     }
 
     const [rows] = await pool.query(
-      'SELECT enrollment_id, email, first_name, last_name, status FROM enrollments WHERE enrollment_id = ?',
+      'SELECT id, email, username, role, status FROM users WHERE id = ?',
       [id]
     )
 
@@ -148,16 +186,42 @@ router.get('/me', async (req, res) => {
       return res.status(404).json({ error: 'User not found' })
     }
 
-    const enrollment = rows[0]
+    const user = rows[0]
+
+    // Get student name if applicable
+    let firstName = user.username
+    let lastName = ''
+
+    if (user.role === 'student') {
+      // First try to get from students table (approved students)
+      const [studentRows] = await pool.query(
+        'SELECT first_name, last_name FROM students WHERE user_id = ?',
+        [user.id]
+      )
+      if (studentRows.length > 0) {
+        firstName = studentRows[0].first_name
+        lastName = studentRows[0].last_name
+      } else {
+        // Fallback: get from enrollments table (pending students)
+        const [enrollmentRows] = await pool.query(
+          'SELECT first_name, last_name FROM enrollments WHERE student_id = ? AND status = ? ORDER BY enrollment_date DESC LIMIT 1',
+          [user.id, 'pending']
+        )
+        if (enrollmentRows.length > 0) {
+          firstName = enrollmentRows[0].first_name
+          lastName = enrollmentRows[0].last_name
+        }
+      }
+    }
 
     res.json({
       user: {
-        id: enrollment.enrollment_id,
-        email: enrollment.email,
-        firstName: enrollment.first_name,
-        lastName: enrollment.last_name,
-        role: 'student',
-        status: enrollment.status
+        id: user.id,
+        email: user.email,
+        firstName,
+        lastName,
+        role: user.role,
+        status: user.status
       }
     })
   } catch (error) {
