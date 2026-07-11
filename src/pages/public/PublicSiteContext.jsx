@@ -70,6 +70,13 @@ export function PublicSiteProvider({ children }) {
   const logout = useCallback(() => {
     setUser(null)
     localStorage.removeItem(SESSION_KEY)
+    // Clear all enrollment form data from localStorage to protect privacy
+    localStorage.removeItem('cz_en_step')
+    localStorage.removeItem('cz_en_lesson')
+    localStorage.removeItem('cz_en_month')
+    localStorage.removeItem('cz_en_picked')
+    localStorage.removeItem('cz_en_slots')
+    localStorage.removeItem('cz_en_form')
     showToast('You have been logged out.')
   }, [showToast])
 
