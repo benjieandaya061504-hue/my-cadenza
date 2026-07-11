@@ -8,7 +8,7 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import nodemailer from 'nodemailer'
 
-import { testConnection } from './db.js'
+import { initializeDatabase, testConnection } from './db.js'
 
 // Import route modules
 import authRouter from './routes/auth.js'
@@ -122,12 +122,19 @@ if (!isVercel) {
     console.log('╚══════════════════════════════════════════════╝')
     console.log('')
 
-    // Test database connection on startup
+    // Test database connection on startup and ensure core schema is present
     const connected = await testConnection()
     if (!connected) {
       console.warn('⚠️  Server started but database connection failed.')
       console.warn('   Make sure WAMP MySQL is running and the database exists.')
       console.warn('   Run the schema.sql file to create the database and tables.')
+    } else {
+      try {
+        await initializeDatabase()
+        console.log('✅ Core auth schema verified')
+      } catch (err) {
+        console.warn('⚠️  Core auth schema initialization warning:', err.message)
+      }
     }
   })
 }
