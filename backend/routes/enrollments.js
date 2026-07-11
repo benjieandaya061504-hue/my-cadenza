@@ -47,7 +47,7 @@ router.get('/pending', async (req, res) => {
 router.get('/approved', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT enrollment_id AS id, e.*,
+      `SELECT e.*,
               e.student_id as user_id,
               e.email,
               e.contact_number as user_contact
