@@ -39,7 +39,7 @@ router.post('/', async (req, res) => {
 
     // Check if there's already a pending enrollment for this student
     const [existing] = await pool.query(
-      'SELECT id FROM enrollments WHERE student_id = ? AND status = ?',
+      'SELECT enrollment_id FROM enrollments WHERE student_id = ? AND status = ?',
       [student_id, 'pending']
     )
 
@@ -60,7 +60,7 @@ router.post('/', async (req, res) => {
            last_name = ?,
            email = ?,
            enrollment_date = NOW()
-         WHERE id = ?`,
+         WHERE enrollment_id = ?`,
         [
           course || null,
           schedule || null,
@@ -74,15 +74,15 @@ router.post('/', async (req, res) => {
           first_name || null,
           last_name || null,
           email || null,
-          existing[0].id
+          existing[0].enrollment_id
         ]
       )
 
-      console.log('✅ Enrollment request updated:', { enrollmentId: existing[0].id, student_id })
+      console.log('✅ Enrollment request updated:', { enrollmentId: existing[0].enrollment_id, student_id })
 
       return res.json({
         message: 'Enrollment request updated successfully',
-        enrollmentId: existing[0].id,
+        enrollmentId: existing[0].enrollment_id,
         status: 'pending'
       })
     }
