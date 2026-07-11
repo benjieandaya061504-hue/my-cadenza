@@ -1,6 +1,6 @@
 /**
  * Billing API Routes
- * Handles charges, invoices, and payments
+ * Handles billing and invoice management (CRUD operations)
  */
 
 import { Router } from 'express'
@@ -8,133 +8,78 @@ import pool from '../db.js'
 
 const router = Router()
 
-// ─── GET all charges ───────────────────────────────────────────
-router.get('/charges', async (req, res) => {
+// ─── GET all billing records ───────────────────────────────────
+router.get('/', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM charges ORDER BY created_at DESC')
+    const [rows] = await pool.query('SELECT * FROM Billing ORDER BY created_at DESC')
     res.json(rows)
   } catch (error) {
-    console.error('Error fetching charges:', error)
-    res.status(500).json({ error: 'Failed to fetch charges' })
+    console.error('Error fetching billing records:', error)
+    res.status(500).json({ error: 'Failed to fetch billing records' })
   }
 })
 
-// ─── POST Create charge ────────────────────────────────────────
-router.post('/charges', async (req, res) => {
+// ─── GET single billing record by ID ───────────────────────────
+router.get('/:id', async (req, res) => {
   try {
-    const { ref_type, ref_id, student_id, customer_name, service_type, description, amount } = req.body
-
-    if (!ref_type || !ref_id || !customer_name || !service_type || !amount) {
-      return res.status(400).json({ error: 'Reference type, reference ID, customer name, service type, and amount are required' })
+    const [rows] = await pool.query('SELECT * FROM Billing WHERE billing_id = ?', [req.params.id])
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Billing record not found' })
     }
+    res.json(rows[0])
+  } catch (error) {
+    console.error('Error fetching billing record:', error)
+    res.status(500).json({ error: 'Failed to fetch billing record' })
+  }
+})
 
+// ─── POST create a new billing record ──────────────────────────
+router.post('/', async (req, res) => {
+  try {
+    const { student_id, amount, due_date, status, description } = req.body
+    if (!student_id || !amount) {
+      return res.status(400).json({ error: 'Student ID and amount are required' })
+    }
     const [result] = await pool.query(
-      `INSERT INTO charges (ref_type, ref_id, student_id, customer_name, service_type, description, amount)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [ref_type, ref_id, student_id || null, customer_name, service_type, description || null, amount]
+      'INSERT INTO Billing (student_id, amount, due_date, status, description) VALUES (?, ?, ?, ?, ?)',
+      [student_id, amount, due_date || null, status || 'pending', description || null]
     )
-
-    res.status(201).json({ message: 'Charge created successfully', chargeId: result.insertId })
+    res.status(201).json({ message: 'Billing record created successfully', billingId: result.insertId })
   } catch (error) {
-    console.error('Error creating charge:', error)
-    res.status(500).json({ error: 'Failed to create charge' })
+    console.error('Error creating billing record:', error)
+    res.status(500).json({ error: 'Failed to create billing record' })
   }
 })
 
-// ─── GET all invoices ──────────────────────────────────────────
-router.get('/invoices', async (req, res) => {
+// ─── PUT update a billing record ───────────────────────────────
+router.put('/:id', async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      'SELECT i.*, c.ref_type, c.ref_id, c.service_type FROM invoices i LEFT JOIN charges c ON i.charge_id = c.id ORDER BY i.issued_at DESC'
-    )
-    res.json(rows)
-  } catch (error) {
-    console.error('Error fetching invoices:', error)
-    res.status(500).json({ error: 'Failed to fetch invoices' })
-  }
-})
-
-// ─── POST Create invoice from charge ───────────────────────────
-router.post('/invoices', async (req, res) => {
-  try {
-    const { charge_id, student_id, customer_name, amount, due_date } = req.body
-
-    if (!charge_id || !customer_name || !amount) {
-      return res.status(400).json({ error: 'Charge ID, customer name, and amount are required' })
-    }
-
-    // Generate invoice number
-    const year = new Date().getFullYear()
-    const [count] = await pool.query("SELECT COUNT(*) as cnt FROM invoices WHERE YEAR(issued_at) = ?", [year])
-    const seq = String(Number(count[0].cnt) + 1).padStart(3, '0')
-    const invoiceNo = `SI-${year}-${seq}`
-
+    const { amount, due_date, status, description } = req.body
     const [result] = await pool.query(
-      `INSERT INTO invoices (invoice_no, charge_id, student_id, customer_name, amount, balance, status, due_date)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [invoiceNo, charge_id, student_id || null, customer_name, amount, amount, 'unpaid', due_date || null]
+      'UPDATE Billing SET amount = ?, due_date = ?, status = ?, description = ? WHERE billing_id = ?',
+      [amount, due_date, status, description, req.params.id]
     )
-
-    // Update charge status to invoiced
-    await pool.query('UPDATE charges SET status = ? WHERE id = ?', ['invoiced', charge_id])
-
-    res.status(201).json({ message: 'Invoice created successfully', invoiceId: result.insertId, invoiceNo })
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Billing record not found' })
+    }
+    res.json({ message: 'Billing record updated successfully' })
   } catch (error) {
-    console.error('Error creating invoice:', error)
-    res.status(500).json({ error: 'Failed to create invoice' })
+    console.error('Error updating billing record:', error)
+    res.status(500).json({ error: 'Failed to update billing record' })
   }
 })
 
-// ─── GET all payments ──────────────────────────────────────────
-router.get('/payments', async (req, res) => {
+// ─── DELETE a billing record ───────────────────────────────────
+router.delete('/:id', async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      `SELECT p.*, i.invoice_no FROM payments p
-       LEFT JOIN invoices i ON p.invoice_id = i.id
-       ORDER BY p.paid_at DESC`
-    )
-    res.json(rows)
-  } catch (error) {
-    console.error('Error fetching payments:', error)
-    res.status(500).json({ error: 'Failed to fetch payments' })
-  }
-})
-
-// ─── POST Record payment ───────────────────────────────────────
-router.post('/payments', async (req, res) => {
-  try {
-    const { invoice_id, student_id, payer_name, amount, method, reference_number, payment_type, service_type, notes, received_by } = req.body
-
-    if (!invoice_id || !payer_name || !amount || !method) {
-      return res.status(400).json({ error: 'Invoice ID, payer name, amount, and payment method are required' })
+    const [result] = await pool.query('DELETE FROM Billing WHERE billing_id = ?', [req.params.id])
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Billing record not found' })
     }
-
-    const [result] = await pool.query(
-      `INSERT INTO payments (invoice_id, student_id, payer_name, amount, method, reference_number, payment_type, service_type, notes, received_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [invoice_id, student_id || null, payer_name, amount, method, reference_number || null, payment_type || 'full', service_type || null, notes || null, received_by || null]
-    )
-
-    // Update invoice balance
-    const [invoice] = await pool.query('SELECT amount, balance FROM invoices WHERE id = ?', [invoice_id])
-    if (invoice.length > 0) {
-      const newBalance = Number(invoice[0].balance) - Number(amount)
-      let newStatus = 'unpaid'
-      if (newBalance <= 0) {
-        newStatus = 'paid'
-      } else if (newBalance < Number(invoice[0].amount)) {
-        newStatus = 'partially_paid'
-      }
-      await pool.query(
-        'UPDATE invoices SET balance = ?, status = ?, paid_at = IF(? = "paid", NOW(), paid_at) WHERE id = ?',
-        [Math.max(0, newBalance), newStatus, newStatus, invoice_id]
-      )
-    }
-
-    res.status(201).json({ message: 'Payment recorded successfully', paymentId: result.insertId })
+    res.json({ message: 'Billing record deleted successfully' })
   } catch (error) {
-    console.error('Error recording payment:', error)
-    res.status(500).json({ error: 'Failed to record payment' })
+    console.error('Error deleting billing record:', error)
+    res.status(500).json({ error: 'Failed to delete billing record' })
   }
 })
 
