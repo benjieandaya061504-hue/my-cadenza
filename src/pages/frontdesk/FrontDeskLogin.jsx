@@ -222,8 +222,8 @@ function PwdSuccessModal({ open, onClose, isMobile }) {
 export default function FrontDeskLogin() {
   const navigate = useNavigate()
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth)
-  const [username, setUsername] = useState('maria.santos@cadenza.com')
-  const [password, setPassword] = useState('••••••••')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [showOTP, setShowOTP] = useState(false)
   const [otpSession, setOtpSession] = useState(0)
   const [showChangePwd, setShowChangePwd] = useState(false)

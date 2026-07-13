@@ -12,7 +12,7 @@ const router = Router()
 router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT enrollment_id AS id, e.*,
+      `SELECT id AS id, e.*,
               CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, '')) as student_name
        FROM enrollments e
        ORDER BY e.created_at DESC`
@@ -63,10 +63,10 @@ router.get('/approved', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT enrollment_id AS id, e.*,
+      `SELECT id AS id, e.*,
               CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, '')) as student_name
        FROM enrollments e
-       WHERE e.enrollment_id = ?`,
+       WHERE e.id = ?`,
       [req.params.id]
     )
     if (rows.length === 0) {
@@ -83,7 +83,7 @@ router.get('/:id', async (req, res) => {
 router.get('/student/:studentId', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT enrollment_id AS id, e.*
+      `SELECT id AS id, e.*
        FROM enrollments e
        WHERE e.student_id = ?
        ORDER BY e.created_at DESC`,
@@ -123,7 +123,7 @@ router.put('/:id/approve', async (req, res) => {
   try {
     // Check enrollment exists and is pending
     const [enrollment] = await pool.query(
-      'SELECT * FROM enrollments WHERE enrollment_id = ?',
+      'SELECT * FROM enrollments WHERE id = ?',
       [req.params.id]
     )
 
@@ -137,7 +137,7 @@ router.put('/:id/approve', async (req, res) => {
 
     // Update enrollment status to approved
     const [result] = await pool.query(
-      'UPDATE enrollments SET status = ? WHERE enrollment_id = ?',
+      'UPDATE enrollments SET status = ? WHERE id = ?',
       ['approved', req.params.id]
     )
 
@@ -158,7 +158,7 @@ router.put('/:id/approve', async (req, res) => {
 router.put('/:id/reject', async (req, res) => {
   try {
     const [enrollment] = await pool.query(
-      'SELECT * FROM enrollments WHERE enrollment_id = ?',
+      'SELECT * FROM enrollments WHERE id = ?',
       [req.params.id]
     )
 
@@ -171,7 +171,7 @@ router.put('/:id/reject', async (req, res) => {
     }
 
     const [result] = await pool.query(
-      'UPDATE enrollments SET status = ? WHERE enrollment_id = ?',
+      'UPDATE enrollments SET status = ? WHERE id = ?',
       ['rejected', req.params.id]
     )
 
@@ -194,7 +194,7 @@ router.put('/:id', async (req, res) => {
     const { course_id, status, notes } = req.body
 
     const [result] = await pool.query(
-      `UPDATE enrollments SET course_id = ?, status = ?, notes = ? WHERE enrollment_id = ?`,
+      `UPDATE enrollments SET course_id = ?, status = ?, notes = ? WHERE id = ?`,
       [course_id, status || 'pending', notes, req.params.id]
     )
 
@@ -211,7 +211,7 @@ router.put('/:id', async (req, res) => {
 // ─── DELETE enrollment ─────────────────────────────────────────
 router.delete('/:id', async (req, res) => {
   try {
-    const [result] = await pool.query('DELETE FROM enrollments WHERE enrollment_id = ?', [req.params.id])
+    const [result] = await pool.query('DELETE FROM enrollments WHERE id = ?', [req.params.id])
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Enrollment not found' })
     }

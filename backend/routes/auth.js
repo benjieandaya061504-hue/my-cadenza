@@ -32,7 +32,7 @@ router.post('/signup', async (req, res) => {
 
     // Check if email already exists in enrollments
     const [existing] = await pool.query(
-      'SELECT enrollment_id FROM enrollments WHERE email = ?',
+      'SELECT id FROM enrollments WHERE email = ?',
       [email]
     )
 
@@ -44,16 +44,16 @@ router.post('/signup', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     // Create a pending enrollment record with student info and password hash
-    // Insert with student_id = 0 first, then update it to match enrollment_id
+    // Insert with student_id = 0 first, then update it to match id
     const [enrollmentResult] = await pool.query(
       `INSERT INTO enrollments (student_id, enrollment_date, status, first_name, middle_name, last_name, suffix, email, contact_number, student_address, notes)
        VALUES (0, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ['pending', first_name, middle_name || null, last_name, suffix || null, email, contact_number || null, address || null, hashedPassword]
     )
 
-    // Update student_id to match enrollment_id
+    // Update student_id to match id
     await pool.query(
-      'UPDATE enrollments SET student_id = ? WHERE enrollment_id = ?',
+      'UPDATE enrollments SET student_id = ? WHERE id = ?',
       [enrollmentResult.insertId, enrollmentResult.insertId]
     )
 
@@ -94,7 +94,7 @@ router.post('/login', async (req, res) => {
 
     // Find enrollment by email
     const [rows] = await pool.query(
-      'SELECT enrollment_id, email, first_name, last_name, status, notes FROM enrollments WHERE email = ?',
+      'SELECT id, email, first_name, last_name, status, notes FROM enrollments WHERE email = ?',
       [email]
     )
 
@@ -115,12 +115,12 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid password' })
     }
 
-    console.log('✅ Public login successful:', { enrollmentId: enrollment.enrollment_id, email })
+    console.log('✅ Public login successful:', { enrollmentId: enrollment.id, email })
 
     res.json({
       message: 'Login successful',
       user: {
-        id: enrollment.enrollment_id,
+        id: enrollment.id,
         email: enrollment.email,
         firstName: enrollment.first_name,
         lastName: enrollment.last_name,
@@ -144,7 +144,7 @@ router.get('/me', async (req, res) => {
     }
 
     const [rows] = await pool.query(
-      'SELECT enrollment_id, email, first_name, last_name, status FROM enrollments WHERE enrollment_id = ?',
+      'SELECT id, email, first_name, last_name, status FROM enrollments WHERE id = ?',
       [id]
     )
 
@@ -156,7 +156,7 @@ router.get('/me', async (req, res) => {
 
     res.json({
       user: {
-        id: enrollment.enrollment_id,
+        id: enrollment.id,
         email: enrollment.email,
         firstName: enrollment.first_name,
         lastName: enrollment.last_name,

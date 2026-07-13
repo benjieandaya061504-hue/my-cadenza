@@ -210,7 +210,7 @@ export default function EnrolledStudents({ isMobile, isTablet }) {
                   </tr>
                 ) : (
                   filtered.map((enrollment, i) => (
-                    <tr key={enrollment.enrollment_id || i} style={{
+                    <tr key={enrollment.id || i} style={{
                       borderBottom: i < filtered.length - 1 ? `1px solid ${C.border}` : 'none',
                       transition: 'background 0.15s',
                     }}

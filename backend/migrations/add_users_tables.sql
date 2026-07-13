@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS enrollments (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS lessons (
     id INT AUTO_INCREMENT,
-    enrollment_id INT NOT NULL,
+    id INT NOT NULL,
     instructor_id INT NOT NULL,
     scheduled_date DATETIME NOT NULL,
     duration_minutes INT NOT NULL,
@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS lessons (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT pk_lessons PRIMARY KEY (id),
-    CONSTRAINT fk_lessons_enrollment FOREIGN KEY (enrollment_id) REFERENCES enrollments(id),
+    CONSTRAINT fk_lessons_enrollment FOREIGN KEY (id) REFERENCES enrollments(id),
     CONSTRAINT fk_lessons_instructor FOREIGN KEY (instructor_id) REFERENCES instructors(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -141,7 +141,7 @@ CREATE TABLE IF NOT EXISTS equipment_rentals (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS session_schedule (
     session_sched_id INT AUTO_INCREMENT,
-    enrollment_id INT DEFAULT NULL,
+    id INT DEFAULT NULL,
     instructor_id INT NOT NULL,
     scheduled_date DATETIME NOT NULL,
     duration_minutes INT NOT NULL,
@@ -150,7 +150,7 @@ CREATE TABLE IF NOT EXISTS session_schedule (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT pk_session_schedule PRIMARY KEY (session_sched_id),
-    CONSTRAINT fk_session_schedule_enrollment FOREIGN KEY (enrollment_id) REFERENCES enrollments(id) ON DELETE SET NULL,
+    CONSTRAINT fk_session_schedule_enrollment FOREIGN KEY (id) REFERENCES enrollments(id) ON DELETE SET NULL,
     CONSTRAINT fk_session_schedule_instructor FOREIGN KEY (instructor_id) REFERENCES instructors(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

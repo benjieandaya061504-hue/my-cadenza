@@ -407,7 +407,7 @@ CREATE TABLE students (
 -- Students table only contains approved/enrolled students.
 -- ============================================================
 CREATE TABLE enrollments (
-    enrollment_id INT AUTO_INCREMENT,
+    id INT AUTO_INCREMENT,
     student_id INT NOT NULL,
     course_id INT DEFAULT NULL,
     enrollment_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -428,7 +428,7 @@ CREATE TABLE enrollments (
     total_amount DECIMAL(10,2) DEFAULT NULL,
     progress_percentage INT DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT pk_enrollments PRIMARY KEY (enrollment_id)
+    CONSTRAINT pk_enrollments PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================================

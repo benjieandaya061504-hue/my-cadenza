@@ -223,7 +223,7 @@ function PwdSuccessModal({ open, onClose, isMobile }) {
 const ROLE_META = {
   admin: {
     label: 'Administrator',
-    defaultUsername: 'juan.cruz@cadenza.com',
+    defaultUsername: '',
     dashboardPath: '/admin/dashboard',
     alternatePath: FRONTDESK_LOGIN_PATH,
     alternateLabel: 'Front desk login',
@@ -231,7 +231,7 @@ const ROLE_META = {
   frontdesk: {
     label: 'Front Desk',
     subtitle: 'Front desk portal — enrollments, payments, and scheduling',
-    defaultUsername: 'maria.santos@cadenza.com',
+    defaultUsername: '',
     dashboardPath: '/frontdesk/dashboard',
     alternatePath: ADMIN_LOGIN_PATH,
     alternateLabel: 'Admin login',
@@ -243,7 +243,7 @@ function Login({ role = 'admin' }) {
   const meta = ROLE_META[role] ?? ROLE_META.admin
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth)
   const [username, setUsername] = useState(meta.defaultUsername)
-  const [password, setPassword] = useState('••••••••')
+  const [password, setPassword] = useState('')
   const [showOTP, setShowOTP] = useState(false)
   const [otpSession, setOtpSession] = useState(0)
   const [showChangePwd, setShowChangePwd] = useState(false)
