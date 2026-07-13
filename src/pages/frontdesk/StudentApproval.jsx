@@ -120,7 +120,7 @@ export default function StudentApproval({ isMobile, isTablet }) {
     setLoading(true)
     setError('')
     try {
-      const res = await frontdeskAPI.getPendingEnrollments()
+      const res = await frontdeskAPI.getAllEnrollments()
       const mapped = res.data.map(e => ({
         id: e.id,
         name: [e.first_name, e.middle_name, e.last_name, e.suffix].filter(Boolean).join(' '),
@@ -137,7 +137,7 @@ export default function StudentApproval({ isMobile, isTablet }) {
       }))
       setStudents(mapped)
     } catch (err) {
-      const msg = err.response?.data?.error || 'Failed to load pending enrollments.'
+      const msg = err.response?.data?.error || 'Failed to load enrollments.'
       setError(msg)
     } finally {
       setLoading(false)
