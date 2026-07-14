@@ -9,12 +9,11 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fonts } from '../../../themes/fonts';
+import { fonts } from '../../themes/fonts';
 
 import Loader from '../../components/ui/Loader';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import StatCard from '../../components/instructor/StatCard';
-import TodayLessonCard from '../../components/instructor/TodayLessonCard';
 import StudentProgressCard from '../../components/instructor/StudentProgressCard';
 
 import { getInstructorDashboard } from '../../sevices/instructor.service';
@@ -92,24 +91,6 @@ export default function InstructorDashboardScreen() {
           />
         </View>
 
-        {/* Today's Lessons */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>TODAY'S LESSONS</Text>
-        </View>
-        {data.todaySchedule.length === 0 ? (
-          <Text style={styles.emptyText}>No lessons scheduled for today.</Text>
-        ) : (
-          data.todaySchedule.map((lesson) => (
-            <TodayLessonCard
-              key={lesson.id}
-              studentName={lesson.studentName}
-              studentLevel={lesson.studentLevel}
-              time={lesson.time}
-              location={lesson.location}
-              onAttend={() => console.log('Attend:', lesson.id)}
-            />
-          ))
-        )}
 
         {/* Student Progress Overview */}
         <Text style={styles.sectionTitle}>STUDENT PROGRESS OVERVIEW</Text>
