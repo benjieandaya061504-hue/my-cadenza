@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
       `SELECT id AS id, e.*,
               CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, '')) as student_name
        FROM enrollments e
-       ORDER BY e.created_at DESC`
+       ORDER BY e.enrollment_date DESC`
     )
     res.json(rows)
   } catch (error) {
@@ -86,7 +86,7 @@ router.get('/student/:studentId', async (req, res) => {
       `SELECT id AS id, e.*
        FROM enrollments e
        WHERE e.student_id = ?
-       ORDER BY e.created_at DESC`,
+       ORDER BY e.enrollment_date DESC`,
       [req.params.studentId]
     )
     res.json(rows)
