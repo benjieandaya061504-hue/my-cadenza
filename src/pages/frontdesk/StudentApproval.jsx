@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { frontdeskAPI } from '../../services/api'
+import { frontdeskAPI, enrollmentsAPI } from '../../services/api'
 
 const C = {
   bg: '#0e0f13',
@@ -120,7 +120,7 @@ export default function StudentApproval({ isMobile, isTablet }) {
     setLoading(true)
     setError('')
     try {
-      const res = await frontdeskAPI.getAllEnrollments()
+      const res = await enrollmentsAPI.getAll()
       const mapped = res.data.map(e => ({
         id: e.id,
         name: [e.first_name, e.middle_name, e.last_name, e.suffix].filter(Boolean).join(' '),
