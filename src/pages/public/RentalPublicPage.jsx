@@ -67,7 +67,7 @@ function statusBadge(status) {
 }
 
 export default function RentalPublicPage() {
-  const { openSignupGate, openSuccessModal, showToast, isLoggedIn } = usePublicSite()
+  const { openSignupGate, openSuccessModal, showToast, isLoggedIn, user } = usePublicSite()
   const [modalOpen, setModalOpen] = useState(false)
   const [selected, setSelected] = useState(null)
   const [payMethod, setPayMethod] = useState('')
@@ -122,15 +122,24 @@ export default function RentalPublicPage() {
       return
     }
     try {
-      await instrumentsAPI.createRental({
+      // Build payload with student_id if user is logged in
+      const payload = {
         instrument_id: selected.id,
         renter_name: form.name.trim(),
+        contact_number: form.contact.trim(),
+        email: form.email.trim() || null,
+        address: form.address.trim() || null,
         rental_start_date: form.start || new Date().toISOString().slice(0, 10),
-        rental_type: 'monthly',
-        rate_at_time_of_rental: selected.rate,
+        duration_months: parseInt(form.duration, 10) || 1,
+        monthly_rate: selected.rate,
         deposit_amount: selected.deposit,
-        notes: `Contact: ${form.contact}, Email: ${form.email}, Address: ${form.address}`,
-      })
+        total_amount: monthsCost,
+        notes: null,
+      }
+      if (isLoggedIn && user?.id) {
+        payload.student_id = user.id
+      }
+      await instrumentsAPI.createRental(payload)
       openSuccessModal({
         title: 'Rental Request Submitted!',
         message: 'Your request has been received. Our team will review and contact you within 24 hours.',

@@ -134,6 +134,8 @@ export default function StudentApproval({ isMobile, isTablet }) {
         address: e.student_address || 'N/A',
         age: 'N/A',
         emergencyContact: 'N/A',
+        instructor: e.instructor_requested || 'N/A',
+        schedule: e.schedule_requested || 'N/A',
       }))
       setStudents(mapped)
     } catch (err) {
@@ -299,6 +301,24 @@ export default function StudentApproval({ isMobile, isTablet }) {
                   <div style={{ padding: '12px', borderRadius: '10px', background: C.bg4, border: `1px solid ${C.border}` }}>
                     <span style={{ fontSize: '11px', color: C.text3, fontFamily: C.font }}>Submitted:</span>
                     <span style={{ fontSize: '13px', color: C.text, fontFamily: C.font, marginLeft: '4px' }}>{selectedStudent.submitted}</span>
+                  </div>
+                  <div style={{ padding: '12px', borderRadius: '10px', background: C.bg4, border: `1px solid ${C.border}` }}>
+                    <span style={{ fontSize: '11px', color: C.text3, fontFamily: C.font }}>Instructor:</span>
+                    <span style={{ fontSize: '13px', color: C.text, fontFamily: C.font, marginLeft: '4px' }}>{selectedStudent.instructor}</span>
+                  </div>
+                  <div style={{ padding: '12px', borderRadius: '10px', background: C.bg4, border: `1px solid ${C.border}` }}>
+                    <span style={{ fontSize: '11px', color: C.text3, fontFamily: C.font }}>Schedule:</span>
+                    <span
+                      style={{
+                        fontSize: '13px',
+                        color: C.text,
+                        fontFamily: C.font,
+                        marginLeft: '4px',
+                        whiteSpace: 'pre-line',
+                      }}
+                    >
+                      {selectedStudent.schedule}
+                    </span>
                   </div>
                 </div>
               </div>

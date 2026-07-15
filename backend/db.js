@@ -123,10 +123,103 @@ async function ensureCoreSchema(connection) {
   `)
 }
 
+async function ensureColumn(connection, tableName, columnName, definition) {
+  const [columns] = await connection.query(
+    'SELECT COUNT(*) AS count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?',
+    [tableName, columnName]
+  )
+
+  if (columns[0].count > 0) return
+
+  await connection.query(`ALTER TABLE \`${tableName}\` ADD COLUMN \`${columnName}\` ${definition}`)
+}
+
+async function ensureRentalStatusColumn(connection) {
+  const [statusColumns] = await connection.query(
+    "SHOW COLUMNS FROM instrument_rentals LIKE 'status'"
+  )
+
+  if (statusColumns.length === 0) return
+
+  const currentType = statusColumns[0].Type
+  if (currentType.includes('pending') && currentType.includes('approved') && currentType.includes('rejected')) {
+    return
+  }
+
+  await connection.query(
+    "ALTER TABLE instrument_rentals MODIFY COLUMN status ENUM('pending','approved','rejected','active','returned','overdue') NOT NULL DEFAULT 'pending'"
+  )
+}
+
+async function ensureInstrumentRentalsTable(connection) {
+  const [rentalTables] = await connection.query(
+    'SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ? ',
+    ['instrument_rentals']
+  )
+
+  if (rentalTables.length === 0) {
+    await connection.query(`
+      CREATE TABLE instrument_rentals (
+        id INT AUTO_INCREMENT,
+        student_id INT NOT NULL,
+        instrument_id VARCHAR(10) DEFAULT NULL,
+        renter_name VARCHAR(100) NOT NULL,
+        contact_number VARCHAR(15) DEFAULT NULL,
+        email VARCHAR(100) DEFAULT NULL,
+        address VARCHAR(255) DEFAULT NULL,
+        rental_start_date DATE NOT NULL,
+        rental_end_date DATE DEFAULT NULL,
+        duration_months INT DEFAULT 1,
+        monthly_rate DECIMAL(10,2) NOT NULL DEFAULT 0,
+        deposit_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+        total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+        payment_method VARCHAR(50) DEFAULT NULL,
+        payment_reference VARCHAR(100) DEFAULT NULL,
+        status ENUM('pending','approved','rejected','active','returned') NOT NULL DEFAULT 'pending',
+        notes TEXT DEFAULT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY idx_rental_student (student_id),
+        KEY idx_rental_status (status)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `)
+  } else {
+    await ensureColumn(connection, 'instrument_rentals', 'student_id', 'INT NOT NULL DEFAULT 0')
+    await ensureColumn(connection, 'instrument_rentals', 'instrument_id', 'VARCHAR(10) DEFAULT NULL')
+    await ensureColumn(connection, 'instrument_rentals', 'renter_name', 'VARCHAR(100) NOT NULL DEFAULT ""')
+    await ensureColumn(connection, 'instrument_rentals', 'contact_number', 'VARCHAR(15) DEFAULT NULL')
+    await ensureColumn(connection, 'instrument_rentals', 'email', 'VARCHAR(100) DEFAULT NULL')
+    await ensureColumn(connection, 'instrument_rentals', 'address', 'VARCHAR(255) DEFAULT NULL')
+    await ensureColumn(connection, 'instrument_rentals', 'rental_start_date', 'DATE NOT NULL')
+    await ensureColumn(connection, 'instrument_rentals', 'rental_end_date', 'DATE DEFAULT NULL')
+    await ensureColumn(connection, 'instrument_rentals', 'duration_months', 'INT DEFAULT 1')
+    await ensureColumn(connection, 'instrument_rentals', 'monthly_rate', 'DECIMAL(10,2) NOT NULL DEFAULT 0')
+    await ensureColumn(connection, 'instrument_rentals', 'deposit_amount', 'DECIMAL(10,2) NOT NULL DEFAULT 0')
+    await ensureColumn(connection, 'instrument_rentals', 'total_amount', 'DECIMAL(10,2) NOT NULL DEFAULT 0')
+    await ensureColumn(connection, 'instrument_rentals', 'payment_method', 'VARCHAR(50) DEFAULT NULL')
+    await ensureColumn(connection, 'instrument_rentals', 'payment_reference', 'VARCHAR(100) DEFAULT NULL')
+    await ensureColumn(connection, 'instrument_rentals', 'status', "ENUM('pending','approved','rejected','active','returned','overdue') NOT NULL DEFAULT 'pending'")
+    await ensureColumn(connection, 'instrument_rentals', 'notes', 'TEXT DEFAULT NULL')
+    await ensureColumn(connection, 'instrument_rentals', 'created_at', 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP')
+    await ensureColumn(connection, 'instrument_rentals', 'updated_at', 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP')
+  }
+
+  await ensureRentalStatusColumn(connection)
+
+  console.log('✅ instrument_rentals table created / verified')
+}
+
 export async function initializeDatabase() {
   const connection = await pool.getConnection()
   try {
     await ensureCoreSchema(connection)
+    await ensureInstrumentRentalsTable(connection)
+
+    // TODO: Replace this name-only text field with an instructor_id foreign key
+    // once a real instructor management system is built. Currently stores the
+    // instructor's name as plain text since there's no instructor accounts/IDs yet.
+    await ensureColumn(connection, 'enrollments', 'instructor_requested', "VARCHAR(100) DEFAULT NULL")
   } finally {
     connection.release()
   }

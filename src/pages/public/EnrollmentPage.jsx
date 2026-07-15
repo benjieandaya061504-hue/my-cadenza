@@ -46,6 +46,16 @@ const LESSONS = [
   },
 ]
 
+// TODO: Replace this static list with a real instructor data source / API fetch
+// once instructor management is implemented. Schedule availability should also
+// be filtered based on the selected instructor.
+const TEACHERS = [
+  { id: 1, name: 'Mark Reyes', icon: '🎵', desc: 'Guitar & Drums specialist' },
+  { id: 2, name: 'Anna Santos', icon: '🎶', desc: 'Piano & Violin instructor' },
+  { id: 3, name: 'Carlo Mendoza', icon: '🎷', desc: 'Saxophone & Woodwinds' },
+  { id: 4, name: 'Sofia Gomez', icon: '🎹', desc: 'Keyboard & Music Theory' },
+]
+
 const TIME_BLOCKS = [
   ['08:00', '09:00'],
   ['09:00', '10:00'],
@@ -100,6 +110,7 @@ export default function EnrollmentPage() {
   // ── Restore state from localStorage on mount ────────────────
   const [step, setStep] = useState(() => loadSaved('cz_en_step', 1))
   const [lesson, setLesson] = useState(() => loadSaved('cz_en_lesson', null))
+  const [selectedInstructor, setSelectedInstructor] = useState(() => loadSaved('cz_en_instructor', null))
   const [monthCursor, setMonthCursor] = useState(() => {
     const saved = loadSaved('cz_en_month', null)
     return saved ? new Date(saved) : startOfMonth(new Date())
@@ -117,6 +128,7 @@ export default function EnrollmentPage() {
   // ── Persist state changes to localStorage ───────────────────
   useEffect(() => { saveState('cz_en_step', step) }, [step])
   useEffect(() => { saveState('cz_en_lesson', lesson) }, [lesson])
+  useEffect(() => { saveState('cz_en_instructor', selectedInstructor) }, [selectedInstructor])
   useEffect(() => { saveState('cz_en_month', monthCursor) }, [monthCursor])
   useEffect(() => { saveState('cz_en_picked', pickedDay) }, [pickedDay])
   useEffect(() => { saveState('cz_en_slots', selectedSlots) }, [selectedSlots])
@@ -218,7 +230,17 @@ export default function EnrollmentPage() {
     setSelectedSlots((prev) => prev.filter((s) => s.id !== id))
   }
 
-  const scheduleText = selectedSlots.length === 0 ? '—' : selectedSlots.map((s) => s.label).join('\n')
+  const scheduleText = selectedSlots.length === 0
+    ? '—'
+    : selectedSlots
+        .map((s) => {
+          const [y, m, d] = s.dateKey.split('-').map(Number)
+          const date = new Date(y, m - 1, d)
+          const dayName = date.toLocaleString(undefined, { weekday: 'long' })
+          const monthDay = date.toLocaleString(undefined, { month: 'long', day: 'numeric' })
+          return `${dayName}, ${monthDay} — ${s.short}`
+        })
+        .join('\n')
 
   const totalAmount = lesson ? lesson.rate * selectedSlots.length : 0
 
@@ -244,6 +266,7 @@ export default function EnrollmentPage() {
         last_name: form.lname || null,
         email: form.email || null,
         course: lesson?.name || null,
+        instructor: selectedInstructor?.name || null,
         schedule: scheduleText !== '—' ? scheduleText : null,
         program: form.level || null,
         notes: form.notes || null,
@@ -260,7 +283,7 @@ export default function EnrollmentPage() {
         message:
           'Thank you! Your request has been received. Our front desk team will verify your payment and confirm your enrollment.',
       })
-      setStep(5)
+      setStep(6)
     } catch (err) {
       setSubmitting(false)
       const msg =
@@ -274,6 +297,7 @@ export default function EnrollmentPage() {
   const resetAll = () => {
     setStep(1)
     setLesson(null)
+    setSelectedInstructor(null)
     setMonthCursor(startOfMonth(new Date()))
     setPickedDay(null)
     setSelectedSlots([])
@@ -292,6 +316,7 @@ export default function EnrollmentPage() {
     // Clear all saved state
     removeSaved('cz_en_step')
     removeSaved('cz_en_lesson')
+    removeSaved('cz_en_instructor')
     removeSaved('cz_en_month')
     removeSaved('cz_en_picked')
     removeSaved('cz_en_slots')
@@ -331,13 +356,13 @@ export default function EnrollmentPage() {
           Enrollment
         </div>
         <div className="he-si-wrap">
-          {[1, 2, 3, 4, 5].map((n, i) => (
+          {[1, 2, 3, 4, 5, 6].map((n, i) => (
             <div key={n} style={{ display: 'flex', alignItems: 'center' }}>
               <div className={stepClass(n)} id={`he-si-${n}`}>
-                <div className="he-snum">{n === 5 ? '✓' : n}</div>
-                <span>{['Lesson', 'Schedule', 'Your Info', 'Payment', 'Done'][i]}</span>
+                <div className="he-snum">{n === 6 ? '✓' : n}</div>
+                <span>{['Lesson', 'Instructor', 'Schedule', 'Your Info', 'Payment', 'Done'][i]}</span>
               </div>
-              {n < 5 ? <div className="he-sep" /> : null}
+              {n < 6 ? <div className="he-sep" /> : null}
             </div>
           ))}
         </div>
@@ -370,13 +395,52 @@ export default function EnrollmentPage() {
               ← Back to Home
             </Link>
             <button type="button" className="btn btn-primary" disabled={!lesson} onClick={() => goStep(2)}>
-              Next: Schedule →
+              Next: Instructor →
             </button>
           </div>
         </div>
       </div>
 
       <div id="he-step-2" className={`he-step${step === 2 ? ' active' : ''}`}>
+        <div className="he-wrap">
+          <h1 className="he-title">Choose Your Instructor</h1>
+          <p className="he-desc">
+            Select your preferred instructor.{' '}
+            {/* TODO: When connected to a real data source, filter available instructors
+            based on the selected instrument and show only relevant teachers. */}
+          </p>
+          <div className="he-lesson-grid">
+            {TEACHERS.map((T) => (
+              <button
+                key={T.id}
+                type="button"
+                className={`he-lesson-card${selectedInstructor?.id === T.id ? ' selected' : ''}`}
+                onClick={() => setSelectedInstructor(T)}
+              >
+                <div className="he-sel-badge">✓</div>
+                <div className="he-l-icon">{T.icon}</div>
+                <div className="he-l-name">{T.name}</div>
+                <div className="he-l-desc">{T.desc}</div>
+              </button>
+            ))}
+          </div>
+          <div className="he-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => goStep(1)}>
+              ← Back
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!selectedInstructor}
+              onClick={() => goStep(3)}
+            >
+              Next: Schedule →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="he-step-3" className={`he-step${step === 3 ? ' active' : ''}`}>
         <div className="he-wrap" style={{ maxWidth: 1000 }}>
           <div className="he-slot-header">
             <div>
@@ -537,14 +601,14 @@ export default function EnrollmentPage() {
           </div>
 
           <div className="he-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => goStep(1)}>
+            <button type="button" className="btn btn-secondary" onClick={() => goStep(2)}>
               ← Back
             </button>
             <button
               type="button"
               className="btn btn-primary"
               disabled={selectedSlots.length < MIN_ENROLL_SLOTS}
-              onClick={() => goStep(3)}
+              onClick={() => goStep(4)}
             >
               Next: Your Info →
             </button>
@@ -552,7 +616,7 @@ export default function EnrollmentPage() {
         </div>
       </div>
 
-      <div id="he-step-3" className={`he-step${step === 3 ? ' active' : ''}`}>
+      <div id="he-step-4" className={`he-step${step === 4 ? ' active' : ''}`}>
         <div className="he-wrap">
           <h1 className="he-title">Your Information</h1>
           <p className="he-desc">Please fill in your details. This will be used for enrollment records and confirmation.</p>
@@ -642,17 +706,17 @@ export default function EnrollmentPage() {
             </div>
           </div>
           <div className="he-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => goStep(2)}>
+            <button type="button" className="btn btn-secondary" onClick={() => goStep(3)}>
               ← Back
             </button>
-            <button type="button" className="btn btn-primary" onClick={() => goStep(4)}>
+            <button type="button" className="btn btn-primary" onClick={() => goStep(5)}>
               Review & Pay →
             </button>
           </div>
         </div>
       </div>
 
-      <div id="he-step-4" className={`he-step${step === 4 ? ' active' : ''}`}>
+      <div id="he-step-5" className={`he-step${step === 5 ? ' active' : ''}`}>
         <div className="he-wrap">
           <h1 className="he-title">Review & Payment</h1>
           <p className="he-desc">
@@ -672,6 +736,10 @@ export default function EnrollmentPage() {
               <div className="he-sr">
                 <span className="he-sr-l">Instrument</span>
                 <span className="he-sr-v">{lesson ? `${lesson.icon} ${lesson.name}` : '—'}</span>
+              </div>
+              <div className="he-sr">
+                <span className="he-sr-l">Instructor</span>
+                <span className="he-sr-v">{selectedInstructor?.name || '—'}</span>
               </div>
               <div className="he-sr">
                 <span className="he-sr-l">Number of Slots</span>
@@ -788,7 +856,7 @@ export default function EnrollmentPage() {
             </span>
           </div>
           <div className="he-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => goStep(3)}>
+            <button type="button" className="btn btn-secondary" onClick={() => goStep(4)}>
               ← Back
             </button>
             <button
@@ -803,7 +871,7 @@ export default function EnrollmentPage() {
         </div>
       </div>
 
-      <div id="he-step-5" className={`he-step${step === 5 ? ' active' : ''}`}>
+      <div id="he-step-6" className={`he-step${step === 6 ? ' active' : ''}`}>
         <div className="he-wrap" style={{ textAlign: 'center', paddingTop: 80, paddingBottom: 80, maxWidth: 600 }}>
           <div style={{ fontSize: 68, marginBottom: 20, animation: 'pubLightHePop 0.5s cubic-bezier(0.34,1.56,0.64,1)' }}>
             🎉
@@ -827,8 +895,27 @@ export default function EnrollmentPage() {
               <span style={{ fontWeight: 600, color: 'var(--text)' }}>{lesson?.name || '—'}</span>
             </div>
             <div className="he-cc-row">
+              <span style={{ color: 'var(--text2)' }}>Instructor</span>
+              <span style={{ fontWeight: 600, color: 'var(--text)' }}>{selectedInstructor?.name || '—'}</span>
+            </div>
+            <div className="he-cc-row">
               <span style={{ color: 'var(--text2)' }}>Slots Booked</span>
               <span style={{ fontWeight: 600, color: 'var(--text)' }}>{selectedSlots.length}</span>
+            </div>
+            <div className="he-cc-row">
+              <span style={{ color: 'var(--text2)' }}>Schedule</span>
+              <span
+                style={{
+                  fontWeight: 600,
+                  color: 'var(--text)',
+                  fontSize: 12,
+                  lineHeight: 1.9,
+                  whiteSpace: 'pre-line',
+                  textAlign: 'right',
+                }}
+              >
+                {scheduleText !== '—' ? scheduleText : '—'}
+              </span>
             </div>
             <div className="he-cc-row">
               <span style={{ color: 'var(--text2)' }}>Amount Paid (Full)</span>

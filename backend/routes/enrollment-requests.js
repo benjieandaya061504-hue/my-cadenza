@@ -17,6 +17,7 @@ router.post('/', async (req, res) => {
       email,
       course,
       schedule,
+      instructor,
       program,
       notes,
       contact_number,
@@ -45,10 +46,13 @@ router.post('/', async (req, res) => {
 
     if (existing.length > 0) {
       // Update the existing enrollment with all fields, including refreshed enrollment_date
+      // TODO: instructor_requested is a temporary name-only field. Replace with instructor_id
+      // foreign key once a real instructor management system is built.
       await pool.query(
         `UPDATE enrollments SET
            course_requested = ?,
            schedule_requested = ?,
+           instructor_requested = ?,
            program_requested = ?,
            notes = ?,
            contact_number = ?,
@@ -64,6 +68,7 @@ router.post('/', async (req, res) => {
         [
           course || null,
           schedule || null,
+          instructor || null,
           program || null,
           notes || null,
           contact_number || null,
@@ -88,17 +93,20 @@ router.post('/', async (req, res) => {
     }
 
     // Create new enrollment record with all fields
+    // TODO: instructor_requested is a temporary name-only field. Replace with instructor_id
+    // foreign key once a real instructor management system is built.
     const [result] = await pool.query(
       `INSERT INTO enrollments
-         (student_id, enrollment_date, status, course_requested, schedule_requested, program_requested,
-          notes, contact_number, student_address, payment_reference, payment_method, total_amount,
-          first_name, last_name, email)
-       VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (student_id, enrollment_date, status, course_requested, schedule_requested, instructor_requested,
+          program_requested, notes, contact_number, student_address, payment_reference, payment_method,
+          total_amount, first_name, last_name, email)
+       VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         student_id,
         'pending',
         course || null,
         schedule || null,
+        instructor || null,
         program || null,
         notes || null,
         contact_number || null,
