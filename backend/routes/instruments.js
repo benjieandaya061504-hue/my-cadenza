@@ -11,7 +11,7 @@ const router = Router()
 // ─── GET all instruments ───────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM Instrument ORDER BY created_at DESC')
+    const [rows] = await pool.query('SELECT * FROM equipment')
     res.json(rows)
   } catch (error) {
     console.error('Error fetching instruments:', error)
@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
 // ─── GET single instrument by ID ───────────────────────────────
 router.get('/:id', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM Instrument WHERE instrument_id = ?', [req.params.id])
+    const [rows] = await pool.query('SELECT * FROM equipment WHERE equipment_id = ?', [req.params.id])
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Instrument not found' })
     }
@@ -41,8 +41,8 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Instrument name is required' })
     }
     const [result] = await pool.query(
-      'INSERT INTO Instrument (instrument_name, type, brand, description, quantity) VALUES (?, ?, ?, ?, ?)',
-      [instrument_name, type || null, brand || null, description || null, quantity || 0]
+      'INSERT INTO equipment (equipment_id, eqp_name, brand_name, quantity) VALUES (?, ?, ?, ?)',
+      [req.body.equipment_id || req.body.instrument_id || '', instrument_name, brand || null, quantity || 0]
     )
     res.status(201).json({ message: 'Instrument created successfully', instrumentId: result.insertId })
   } catch (error) {
@@ -56,8 +56,8 @@ router.put('/:id', async (req, res) => {
   try {
     const { instrument_name, type, brand, description, quantity } = req.body
     const [result] = await pool.query(
-      'UPDATE Instrument SET instrument_name = ?, type = ?, brand = ?, description = ?, quantity = ? WHERE instrument_id = ?',
-      [instrument_name, type, brand, description, quantity, req.params.id]
+      'UPDATE equipment SET eqp_name = ?, brand_name = ?, quantity = ? WHERE equipment_id = ?',
+      [instrument_name, brand, quantity, req.params.id]
     )
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Instrument not found' })
@@ -72,7 +72,7 @@ router.put('/:id', async (req, res) => {
 // ─── DELETE an instrument ──────────────────────────────────────
 router.delete('/:id', async (req, res) => {
   try {
-    const [result] = await pool.query('DELETE FROM Instrument WHERE instrument_id = ?', [req.params.id])
+    const [result] = await pool.query('DELETE FROM equipment WHERE equipment_id = ?', [req.params.id])
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Instrument not found' })
     }
@@ -93,11 +93,10 @@ router.get('/rentals/all', async (req, res) => {
     const [rows] = await pool.query(
       `SELECT ir.*, 
               CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, '')) as student_name,
-              COALESCE(i.instrument_name, eqt.eqp_name, 'Unknown') as instrument_name
+              COALESCE(eqt.eqp_name, 'Unknown') as instrument_name
        FROM instrument_rentals ir
        LEFT JOIN enrollments e ON ir.student_id = e.id
-       LEFT JOIN Instrument i ON ir.instrument_id = i.instrument_id
-       LEFT JOIN Equipment eqt ON ir.instrument_id = eqt.equipment_id
+       LEFT JOIN equipment eqt ON ir.instrument_id = eqt.equipment_id
        ORDER BY ir.created_at DESC`
     )
     res.json(rows)
@@ -113,11 +112,10 @@ router.get('/rentals/pending', async (req, res) => {
     const [rows] = await pool.query(
       `SELECT ir.*, 
               CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, '')) as student_name,
-              COALESCE(i.instrument_name, eqt.eqp_name, 'Unknown') as instrument_name
+              COALESCE(eqt.eqp_name, 'Unknown') as instrument_name
        FROM instrument_rentals ir
        LEFT JOIN enrollments e ON ir.student_id = e.id
-       LEFT JOIN Instrument i ON ir.instrument_id = i.instrument_id
-       LEFT JOIN Equipment eqt ON ir.instrument_id = eqt.equipment_id
+       LEFT JOIN equipment eqt ON ir.instrument_id = eqt.equipment_id
        WHERE ir.status = 'pending'
        ORDER BY ir.created_at DESC`
     )
@@ -154,16 +152,20 @@ router.post('/rentals', async (req, res) => {
 
     const safeStudentId = student_id || 0
 
+    // NOTE: client_id is intentionally omitted (NULL) for student-submitted rentals.
+    // Students are tracked via student_id (enrollments.id), not the separate `client` table
+    // which stores admin-managed client records (IDs 1-5).
+    // If admins later need to query rentals by student more formally, consider adding
+    // a proper FK link — e.g. an enrollment_id or student_id FK — instead of reusing client_id.
     const [result] = await pool.query(
       `INSERT INTO instrument_rentals 
-        (student_id, equipment_id, client_id, instrument_id, renter_name, contact_number, email, address,
+        (student_id, equipment_id, instrument_id, renter_name, contact_number, email, address,
          rental_start_date, duration_months, monthly_rate, deposit_amount, total_amount,
          payment_method, payment_reference, notes, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
       [
         safeStudentId,
         instrument_id || null,
-        safeStudentId || 0,
         instrument_id || null,
         renter_name,
         contact_number || null,

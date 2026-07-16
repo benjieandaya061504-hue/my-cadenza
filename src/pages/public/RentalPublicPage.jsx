@@ -5,7 +5,7 @@ import { instrumentsAPI } from '../../services/api'
 
 const INSTRUMENTS = [
   {
-    id: '1',
+    id: 'EQP-001',
     icon: '🎸',
     name: 'Yamaha F310 Acoustic Guitar',
     meta: 'Guitar · Serial: YF310-2218',
@@ -14,7 +14,7 @@ const INSTRUMENTS = [
     status: 'Available',
   },
   {
-    id: '2',
+    id: 'EQP-002',
     icon: '🎹',
     name: 'Casio CT-S300 Keyboard',
     meta: 'Keyboard · Serial: CT-S300-0045',
@@ -23,7 +23,7 @@ const INSTRUMENTS = [
     status: 'Available',
   },
   {
-    id: '3',
+    id: 'EQP-003',
     icon: '🎻',
     name: 'Stentor Student Violin 4/4',
     meta: 'Violin · Serial: ST-VL-0078',
@@ -32,7 +32,7 @@ const INSTRUMENTS = [
     status: 'Rented Out',
   },
   {
-    id: '4',
+    id: 'EQP-004',
     icon: '🥁',
     name: 'Pearl Export Drum Kit',
     meta: 'Drums · Serial: PE-DK-0034',
@@ -41,7 +41,7 @@ const INSTRUMENTS = [
     status: 'Available',
   },
   {
-    id: '5',
+    id: 'EQP-005',
     icon: '🎸',
     name: 'Fender Squier Strat (Electric)',
     meta: 'Guitar · Serial: SQ-ST-0091',
@@ -50,7 +50,7 @@ const INSTRUMENTS = [
     status: 'Available',
   },
   {
-    id: '6',
+    id: 'EQP-006',
     icon: '🎹',
     name: 'Yamaha P-45 Digital Piano',
     meta: 'Piano · Serial: YP45-0017',

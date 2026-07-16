@@ -306,6 +306,10 @@ export const instrumentsAPI = {
 
   createRental: (data) => api.post('/instruments/rentals', data),
 
+  approveRental: (id) => api.put(`/instruments/rentals/${id}/approve`),
+
+  rejectRental: (id) => api.put(`/instruments/rentals/${id}/reject`),
+
   returnRental: (id, data) => api.put(`/instruments/rentals/${id}/return`, data)
 
 }
