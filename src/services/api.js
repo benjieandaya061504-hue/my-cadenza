@@ -178,7 +178,9 @@ export const coursesAPI = {
 
   createPackage: (data) => api.post('/courses/packages', data),
 
-  updatePackage: (id, data) => api.put(`/courses/packages/${id}`, data)
+  updatePackage: (id, data) => api.put(`/courses/packages/${id}`, data),
+
+  deletePackage: (id) => api.delete(`/courses/packages/${id}`)
 
 }
 

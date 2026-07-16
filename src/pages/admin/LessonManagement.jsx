@@ -79,9 +79,9 @@ function fieldLabel(text) {
 
 function PackageFormModal({ mode, initial, onClose, onSave }) {
   const [name, setName] = useState(initial?.name ?? '')
-  const [durationMinutes, setDurationMinutes] = useState(initial?.durationMinutes ?? 45)
-  const [sessionLimit, setSessionLimit] = useState(initial?.sessionLimit ?? 8)
-  const [categoryKind, setCategoryKind] = useState(initial?.categoryKind ?? 'instrument')
+  const [durationMinutes, setDurationMinutes] = useState(initial?.durationMinutes ?? initial?.duration_minutes ?? 45)
+  const [sessionLimit, setSessionLimit] = useState(initial?.sessionLimit ?? initial?.session_limit ?? 8)
+  const [categoryKind, setCategoryKind] = useState(initial?.categoryKind ?? initial?.category_kind ?? 'instrument')
   const [category, setCategory] = useState(initial?.category ?? INSTRUMENTS[0])
   const [description, setDescription] = useState(initial?.description ?? '')
   const [rate, setRate] = useState(initial?.rate ?? '')
@@ -354,10 +354,24 @@ function LessonManagement({ isMobile = false, isTablet = false }) {
       throw err
     }
   }
-  const removePackage = id => {
-    setPackages(prev => prev.filter(p => p.id !== id))
-    setEnrollments(prev => prev.filter(e => e.packageId !== id))
-    setDeleteId(null)
+
+  const [deleteError, setDeleteError] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const removePackage = async id => {
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await coursesAPI.deletePackage(id)
+      setPackages(prev => prev.filter(p => p.id !== id))
+      setEnrollments(prev => prev.filter(e => e.packageId !== id))
+      setDeleteId(null)
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message || 'Failed to delete package'
+      setDeleteError(msg)
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const logSession = enrollmentId => {
@@ -742,12 +756,17 @@ function LessonManagement({ isMobile = false, isTablet = false }) {
             <p style={{ fontSize: '13px', color: C.text2, lineHeight: 1.5, marginBottom: '18px' }}>
               This will delete the package and remove linked enrollment progress rows for students on this package.
             </p>
+            {deleteError && (
+              <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.3)', color: C.coral, fontSize: '13px', marginBottom: '14px' }}>
+                {deleteError}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button type="button" className="lm-pill" onClick={() => setDeleteId(null)} style={{ padding: '8px 14px', borderRadius: '10px', border: `1px solid ${C.border}`, background: 'transparent', color: C.text2, cursor: 'pointer', fontFamily: C.font, fontSize: '13px' }}>
+              <button type="button" className="lm-pill" onClick={() => { setDeleteId(null); setDeleteError(null) }} disabled={deleting} style={{ padding: '8px 14px', borderRadius: '10px', border: `1px solid ${C.border}`, background: 'transparent', color: C.text2, cursor: 'pointer', fontFamily: C.font, fontSize: '13px' }}>
                 Cancel
               </button>
-              <button type="button" onClick={() => removePackage(deleteId)} style={{ padding: '8px 14px', borderRadius: '10px', border: 'none', background: C.coral, color: '#fff', cursor: 'pointer', fontFamily: C.font, fontSize: '13px', fontWeight: 600 }}>
-                Remove
+              <button type="button" onClick={() => removePackage(deleteId)} disabled={deleting} style={{ padding: '8px 14px', borderRadius: '10px', border: 'none', background: deleting ? C.text3 : C.coral, color: '#fff', cursor: deleting ? 'not-allowed' : 'pointer', fontFamily: C.font, fontSize: '13px', fontWeight: 600 }}>
+                {deleting ? 'Removing…' : 'Remove'}
               </button>
             </div>
           </div>

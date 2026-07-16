@@ -171,4 +171,37 @@ router.put('/packages/:id', async (req, res) => {
   }
 })
 
+// ─── DELETE a lesson package ─────────────────────────────────
+router.delete('/packages/:id', async (req, res) => {
+  try {
+    const packageId = Number(req.params.id)
+    if (!packageId) {
+      return res.status(400).json({ error: 'Invalid package ID' })
+    }
+
+    // Check for existing enrollments referencing this package
+    const [enrollments] = await pool.query(
+      'SELECT COUNT(*) AS count FROM enrollments WHERE package_id = ?',
+      [packageId]
+    )
+
+    if (enrollments[0].count > 0) {
+      return res.status(409).json({
+        error: `Cannot remove — ${enrollments[0].count} student(s) are enrolled in this package. Remove or reassign them first.`
+      })
+    }
+
+    const [result] = await pool.query('DELETE FROM lesson_packages WHERE id = ?', [packageId])
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Lesson package not found' })
+    }
+
+    res.json({ message: 'Lesson package deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting lesson package:', error)
+    res.status(500).json({ error: 'Failed to delete lesson package' })
+  }
+})
+
 export default router
