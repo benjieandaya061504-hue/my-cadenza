@@ -24,7 +24,9 @@ router.post('/', async (req, res) => {
       student_address,
       payment_reference,
       payment_method,
-      total_amount
+      total_amount,
+      package_id,
+      package_name
     } = req.body
 
     // Validate required fields
@@ -63,6 +65,8 @@ router.post('/', async (req, res) => {
            first_name = ?,
            last_name = ?,
            email = ?,
+           package_id = ?,
+           package_name = ?,
            enrollment_date = NOW()
          WHERE id = ?`,
         [
@@ -79,6 +83,8 @@ router.post('/', async (req, res) => {
           first_name || null,
           last_name || null,
           email || null,
+          package_id || null,
+          package_name || null,
           existing[0].id
         ]
       )
@@ -99,8 +105,8 @@ router.post('/', async (req, res) => {
       `INSERT INTO enrollments
          (student_id, enrollment_date, status, course_requested, schedule_requested, instructor_requested,
           program_requested, notes, contact_number, student_address, payment_reference, payment_method,
-          total_amount, first_name, last_name, email)
-       VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          total_amount, first_name, last_name, email, package_id, package_name)
+       VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         student_id,
         'pending',
@@ -116,7 +122,9 @@ router.post('/', async (req, res) => {
         total_amount || null,
         first_name || null,
         last_name || null,
-        email || null
+        email || null,
+        package_id || null,
+        package_name || null
       ]
     )
 

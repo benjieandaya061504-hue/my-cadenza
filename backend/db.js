@@ -210,16 +210,55 @@ async function ensureInstrumentRentalsTable(connection) {
   console.log('✅ instrument_rentals table created / verified')
 }
 
+async function ensureLessonPackagesTable(connection) {
+  const [tables] = await connection.query(
+    'SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?',
+    ['lesson_packages']
+  )
+
+  if (tables.length === 0) {
+    await connection.query(`
+      CREATE TABLE lesson_packages (
+        id INT AUTO_INCREMENT,
+        name VARCHAR(200) NOT NULL,
+        duration_minutes INT NOT NULL DEFAULT 45,
+        session_limit INT NOT NULL DEFAULT 8,
+        category_kind ENUM('instrument', 'course') NOT NULL DEFAULT 'instrument',
+        /*
+         * category stores the instrument or course type name as plain text (e.g. "Guitar", "Music Theory — Beginner"),
+         * NOT a foreign key ID. This follows the same pattern as instructor_requested in the enrollments table.
+         * If normalization is needed later, this can be replaced with FK references to equipment and courses tables.
+         */
+        category VARCHAR(100) NOT NULL,
+        description TEXT DEFAULT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `)
+    console.log('✅ lesson_packages table created')
+  }
+}
+
 export async function initializeDatabase() {
   const connection = await pool.getConnection()
   try {
     await ensureCoreSchema(connection)
     await ensureInstrumentRentalsTable(connection)
 
-    // TODO: Replace this name-only text field with an instructor_id foreign key
-    // once a real instructor management system is built. Currently stores the
-    // instructor's name as plain text since there's no instructor accounts/IDs yet.
-    await ensureColumn(connection, 'enrollments', 'instructor_requested', "VARCHAR(100) DEFAULT NULL")
+  // TODO: Replace this name-only text field with an instructor_id foreign key
+  // once a real instructor management system is built. Currently stores the
+  // instructor's name as plain text since there's no instructor accounts/IDs yet.
+  await ensureColumn(connection, 'enrollments', 'instructor_requested', "VARCHAR(100) DEFAULT NULL")
+
+    // Add rate column to lesson_packages if not present
+    await ensureColumn(connection, 'lesson_packages', 'rate', 'DECIMAL(10,2) NOT NULL DEFAULT 0')
+
+    // Add package_id and package_name columns to enrollments if not present
+    await ensureColumn(connection, 'enrollments', 'package_id', 'INT DEFAULT NULL')
+    await ensureColumn(connection, 'enrollments', 'package_name', 'VARCHAR(200) DEFAULT NULL')
+
+    await ensureLessonPackagesTable(connection)
   } finally {
     connection.release()
   }

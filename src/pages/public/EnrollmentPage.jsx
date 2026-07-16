@@ -13,42 +13,6 @@ import {
   toDateKey,
 } from './enrollmentUtils'
 
-const LESSONS = [
-  {
-    name: 'Drums',
-    icon: '🥁',
-    rate: 500,
-    desc: 'Learn rhythm, beats, and percussion techniques from beginner to advanced.',
-  },
-  {
-    name: 'Guitar',
-    icon: '🎸',
-    rate: 450,
-    desc: 'Acoustic or electric — chords, strumming, fingerpicking, and more.',
-  },
-  {
-    name: 'Violin',
-    icon: '🎻',
-    rate: 550,
-    desc: 'Classical and contemporary violin for children and adults alike.',
-  },
-  {
-    name: 'Piano',
-    icon: '🎹',
-    rate: 500,
-    desc: 'From scales to sonatas — keyboard fundamentals to performance-level skills.',
-  },
-  {
-    name: 'Saxophone',
-    icon: '🎷',
-    rate: 500,
-    desc: 'Jazz, classical, and pop — an incredibly expressive and rewarding instrument.',
-  },
-]
-
-// TODO: Replace this static list with a real instructor data source / API fetch
-// once instructor management is implemented. Schedule availability should also
-// be filtered based on the selected instructor.
 const TEACHERS = [
   { id: 1, name: 'Mark Reyes', icon: '🎵', desc: 'Guitar & Drums specialist' },
   { id: 2, name: 'Anna Santos', icon: '🎶', desc: 'Piano & Violin instructor' },
@@ -107,6 +71,11 @@ export default function EnrollmentPage() {
   const navigate = useNavigate()
   const { openSignupGate, showToast, openSuccessModal, signedUpUser, isLoggedIn, user } = usePublicSite()
 
+  // ── Packages state (fetched from API) ──────────────────────────
+  const [packages, setPackages] = useState([])
+  const [packagesLoading, setPackagesLoading] = useState(true)
+  const [packagesError, setPackagesError] = useState(null)
+
   // ── Restore state from localStorage on mount ────────────────
   const [step, setStep] = useState(() => loadSaved('cz_en_step', 1))
   const [lesson, setLesson] = useState(() => loadSaved('cz_en_lesson', null))
@@ -124,6 +93,23 @@ export default function EnrollmentPage() {
     fname: '', lname: '', email: '', phone: '', age: '',
     level: '', notes: '', refnum: '', paymethod: '', address: '',
   }))
+
+  // ── Fetch lesson packages on mount ─────────────────────────────
+  useEffect(() => {
+    setPackagesLoading(true)
+    setPackagesError(null)
+    studentAPI.getPublicPackages()
+      .then((res) => {
+        setPackages(res.data)
+        console.log('Fetched packages:', res.data)
+        setPackagesLoading(false)
+      })
+      .catch((err) => {
+        console.error('Failed to fetch lesson packages:', err)
+        setPackagesError('Could not load available lessons. Please try again later.')
+        setPackagesLoading(false)
+      })
+  }, [])
 
   // ── Persist state changes to localStorage ───────────────────
   useEffect(() => { saveState('cz_en_step', step) }, [step])
@@ -186,8 +172,10 @@ export default function EnrollmentPage() {
   const pickedKey = pickedDay ? toDateKey(pickedDay) : null
   const timeRows = pickedKey ? slotTimesForDay(pickedKey) : []
 
-  const slotsRemaining = Math.max(0, TOTAL_SLOT_POOL - selectedSlots.length * 3)
-  const fillPct = Math.min(100, Math.round(((TOTAL_SLOT_POOL - slotsRemaining) / TOTAL_SLOT_POOL) * 100))
+  // The required number of slots is now derived from the selected package's session_limit
+  const requiredSlots = lesson?.sessionLimit ?? lesson?.session_limit ?? MIN_ENROLL_SLOTS
+  const slotsRemaining = Math.max(0, requiredSlots - selectedSlots.length)
+  const fillPct = Math.min(100, Math.round(((selectedSlots.length) / requiredSlots) * 100))
 
   const selectLesson = (L) => {
     if (isLoggedIn) {
@@ -195,9 +183,9 @@ export default function EnrollmentPage() {
       return
     }
     openSignupGate({
-      icon: L.icon,
+      icon: '📚',
       title: 'Student Enrollment',
-      subtitle: `Sign up to enroll in ${L.name} lessons.`,
+      subtitle: `Sign up to enroll in ${L.name}.`,
       onContinue: () => {
         setLesson(L)
       },
@@ -242,7 +230,8 @@ export default function EnrollmentPage() {
         })
         .join('\n')
 
-  const totalAmount = lesson ? lesson.rate * selectedSlots.length : 0
+  // Total amount is now the package's fixed rate, not rate × slots
+  const totalAmount = lesson ? Number(lesson.rate) : 0
 
   const [submitting, setSubmitting] = useState(false)
 
@@ -274,7 +263,9 @@ export default function EnrollmentPage() {
         student_address: form.address || null,
         payment_reference: form.refnum.trim(),
         payment_method: form.paymethod || null,
-        total_amount: totalAmount || null
+        total_amount: totalAmount || null,
+        package_id: lesson?.id || null,
+        package_name: lesson?.name || null,
       }
       await studentAPI.enroll(payload)
       setSubmitting(false)
@@ -370,26 +361,69 @@ export default function EnrollmentPage() {
 
       <div id="he-step-1" className={`he-step${step === 1 ? ' active' : ''}`}>
         <div className="he-wrap">
-          <h1 className="he-title">Choose Your Instrument</h1>
+          <h1 className="he-title">Choose Your Lesson Package</h1>
           <p className="he-desc">
-            Select the instrument lesson you'd like to enroll in. Each lesson is 1 hour per slot.
+            Select a lesson package to enroll in. Each package includes a fixed number of sessions at a set price.
           </p>
-          <div className="he-lesson-grid">
-            {LESSONS.map((L) => (
+
+          {packagesLoading ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text2)', fontSize: 15 }}>
+              Loading available lessons…
+            </div>
+          ) : packagesError ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+              <div style={{ color: 'var(--coral)', fontSize: 14, marginBottom: 16 }}>{packagesError}</div>
               <button
-                key={L.name}
                 type="button"
-                className={`he-lesson-card${lesson?.name === L.name ? ' selected' : ''}`}
-                onClick={() => selectLesson(L)}
+                className="btn btn-secondary"
+                onClick={() => {
+                  setPackagesLoading(true)
+                  setPackagesError(null)
+                  studentAPI.getPublicPackages()
+                    .then((res) => { setPackages(res.data); setPackagesLoading(false) })
+                    .catch(() => { setPackagesError('Could not load available lessons. Please try again later.'); setPackagesLoading(false) })
+                }}
               >
-                <div className="he-sel-badge">✓</div>
-                <div className="he-l-icon">{L.icon}</div>
-                <div className="he-l-name">{L.name}</div>
-                <div className="he-l-rate">₱{L.rate} / hr</div>
-                <div className="he-l-desc">{L.desc}</div>
+                Retry
               </button>
-            ))}
-          </div>
+            </div>
+          ) : packages.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text2)', fontSize: 15 }}>
+              No lesson packages are available yet. Please check back later.
+            </div>
+          ) : (
+            <div className="he-lesson-grid">
+              {packages.map((P) => {
+                const rate = Number(P.rate)
+                const sessionLimit = P.sessionLimit ?? P.session_limit
+                const durationMin = P.durationMinutes ?? P.duration_minutes
+                return (
+                  <button
+                    key={P.id}
+                    type="button"
+                    className={`he-lesson-card${lesson?.id === P.id ? ' selected' : ''}`}
+                    onClick={() => selectLesson(P)}
+                  >
+                    <div className="he-sel-badge">✓</div>
+                    <div className="he-l-name">{P.name}</div>
+                    <div className="he-l-rate" style={{ fontSize: 12, color: 'var(--gold)' }}>
+                      {P.category}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 4 }}>
+                      {durationMin} min · {sessionLimit} sessions
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--teal)', marginTop: 6 }}>
+                      {rate > 0 ? `₱${rate.toLocaleString()}` : <span style={{ color: 'var(--text2)', fontWeight: 400 }}>Price TBD</span>}
+                    </div>
+                    {P.description && (
+                      <div className="he-l-desc">{P.description}</div>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
           <div className="he-actions">
             <Link to={PUBLIC_ROUTES.home} className="btn btn-secondary">
               ← Back to Home
@@ -458,7 +492,7 @@ export default function EnrollmentPage() {
               <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>Pick Your Schedule</div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 5 }}>Total Slot Availability</div>
+              <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 5 }}>Slot Selection Progress</div>
               <div
                 style={{
                   width: 170,
@@ -480,8 +514,8 @@ export default function EnrollmentPage() {
                 />
               </div>
               <div style={{ color: 'var(--text)', fontWeight: 600, fontSize: 13, marginTop: 4 }}>
-                <span style={{ color: 'var(--gold)' }}>{slotsRemaining}</span> of{' '}
-                <span>{TOTAL_SLOT_POOL}</span> slots remaining
+                <span style={{ color: 'var(--gold)' }}>{selectedSlots.length}</span> of{' '}
+                <span>{requiredSlots}</span> slots selected
               </div>
             </div>
           </div>
@@ -493,7 +527,10 @@ export default function EnrollmentPage() {
             <span>
               Select available dates <span style={{ color: 'var(--teal)', fontWeight: 600 }}>(teal)</span> on the
               calendar. Each slot is <strong>1 hour</strong>. You may select <strong>1 slot per day</strong>, and must
-              book a <strong>minimum of 4 slots total</strong> to proceed.
+              select exactly <strong>{requiredSlots} slots</strong> to proceed with this package.
+              {/* TODO: The day/slot availability below is currently generated from seeded random data, not real
+              instructor/room availability. Once a real scheduling system is implemented, the "exactly N slots"
+              enforcement will need to work against real availability data instead of these fake values. */}
             </span>
           </div>
 
@@ -506,8 +543,8 @@ export default function EnrollmentPage() {
               ›
             </button>
             <span style={{ color: 'var(--text2)', fontSize: 13, marginLeft: 8 }}>
-              Selected: <strong style={{ color: 'var(--gold)' }}>{selectedSlots.length}</strong> / {MIN_ENROLL_SLOTS}{' '}
-              min slots
+              Selected: <strong style={{ color: 'var(--gold)' }}>{selectedSlots.length}</strong> / {requiredSlots}{' '}
+              required
             </span>
           </div>
 
@@ -580,7 +617,7 @@ export default function EnrollmentPage() {
           <div className="he-ssb">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>Your Selected Slots</span>
-              <span style={{ color: 'var(--gold)', fontSize: 12 }}>{selectedSlots.length} slots selected</span>
+              <span style={{ color: 'var(--gold)', fontSize: 12 }}>{selectedSlots.length} / {requiredSlots} slots</span>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, minHeight: 28 }}>
               {selectedSlots.length === 0 ? (
@@ -607,7 +644,7 @@ export default function EnrollmentPage() {
             <button
               type="button"
               className="btn btn-primary"
-              disabled={selectedSlots.length < MIN_ENROLL_SLOTS}
+              disabled={selectedSlots.length !== requiredSlots}
               onClick={() => goStep(4)}
             >
               Next: Your Info →
@@ -734,20 +771,24 @@ export default function EnrollmentPage() {
                 <span className="he-sr-v">{form.email || '—'}</span>
               </div>
               <div className="he-sr">
-                <span className="he-sr-l">Instrument</span>
-                <span className="he-sr-v">{lesson ? `${lesson.icon} ${lesson.name}` : '—'}</span>
+                <span className="he-sr-l">Package</span>
+                <span className="he-sr-v">{lesson ? lesson.name : '—'}</span>
+              </div>
+              <div className="he-sr">
+                <span className="he-sr-l">Category</span>
+                <span className="he-sr-v">{lesson ? lesson.category : '—'}</span>
               </div>
               <div className="he-sr">
                 <span className="he-sr-l">Instructor</span>
                 <span className="he-sr-v">{selectedInstructor?.name || '—'}</span>
               </div>
               <div className="he-sr">
-                <span className="he-sr-l">Number of Slots</span>
-                <span className="he-sr-v">{selectedSlots.length || '—'}</span>
+                <span className="he-sr-l">Package Sessions</span>
+                <span className="he-sr-v">{lesson ? (lesson.sessionLimit ?? lesson.session_limit) : '—'}</span>
               </div>
               <div className="he-sr">
-                <span className="he-sr-l">Rate per Slot</span>
-                <span className="he-sr-v">{lesson ? `₱${lesson.rate}` : '—'}</span>
+                <span className="he-sr-l">Sessions Booked</span>
+                <span className="he-sr-v">{selectedSlots.length || '—'}</span>
               </div>
               <div className="he-sr">
                 <span className="he-sr-l">Schedule</span>
@@ -757,16 +798,16 @@ export default function EnrollmentPage() {
               </div>
               <div className="he-sr he-sr-total">
                 <span className="he-sr-l" style={{ fontSize: 15, fontWeight: 700 }}>
-                  Total Amount
+                  Package Price
                 </span>
                 <span className="he-sr-v" style={{ fontSize: 20, color: 'var(--gold)' }}>
-                  {lesson ? `₱${totalAmount.toLocaleString()}` : '—'}
+                  {lesson && totalAmount > 0 ? `₱${totalAmount.toLocaleString()}` : <span style={{ color: 'var(--text2)', fontSize: 14, fontWeight: 400 }}>Price TBD</span>}
                 </span>
               </div>
               <div className="he-sr">
                 <span className="he-sr-l">Full Payment Required</span>
                 <span className="he-sr-v" style={{ fontSize: 16, color: 'var(--teal)' }}>
-                  {lesson ? `₱${totalAmount.toLocaleString()}` : '—'}
+                  {lesson && totalAmount > 0 ? `₱${totalAmount.toLocaleString()}` : <span style={{ color: 'var(--text2)', fontSize: 14, fontWeight: 400 }}>Price TBD</span>}
                 </span>
               </div>
             </div>
@@ -891,7 +932,7 @@ export default function EnrollmentPage() {
               </span>
             </div>
             <div className="he-cc-row">
-              <span style={{ color: 'var(--text2)' }}>Instrument</span>
+              <span style={{ color: 'var(--text2)' }}>Package</span>
               <span style={{ fontWeight: 600, color: 'var(--text)' }}>{lesson?.name || '—'}</span>
             </div>
             <div className="he-cc-row">
@@ -899,7 +940,7 @@ export default function EnrollmentPage() {
               <span style={{ fontWeight: 600, color: 'var(--text)' }}>{selectedInstructor?.name || '—'}</span>
             </div>
             <div className="he-cc-row">
-              <span style={{ color: 'var(--text2)' }}>Slots Booked</span>
+              <span style={{ color: 'var(--text2)' }}>Sessions Booked</span>
               <span style={{ fontWeight: 600, color: 'var(--text)' }}>{selectedSlots.length}</span>
             </div>
             <div className="he-cc-row">
@@ -919,7 +960,9 @@ export default function EnrollmentPage() {
             </div>
             <div className="he-cc-row">
               <span style={{ color: 'var(--text2)' }}>Amount Paid (Full)</span>
-              <span style={{ fontWeight: 600, color: 'var(--teal)' }}>₱{totalAmount.toLocaleString()}</span>
+              <span style={{ fontWeight: 600, color: 'var(--teal)' }}>
+                {totalAmount > 0 ? `₱${totalAmount.toLocaleString()}` : <span style={{ color: 'var(--text2)', fontWeight: 400 }}>Price TBD</span>}
+              </span>
             </div>
             <div className="he-cc-row">
               <span style={{ color: 'var(--text2)' }}>Payment Reference</span>

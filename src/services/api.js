@@ -176,7 +176,9 @@ export const coursesAPI = {
 
   getPackages: () => api.get('/courses/packages/all'),
 
-  createPackage: (data) => api.post('/courses/packages', data)
+  createPackage: (data) => api.post('/courses/packages', data),
+
+  updatePackage: (id, data) => api.put(`/courses/packages/${id}`, data)
 
 }
 
@@ -339,7 +341,9 @@ export const studentAPI = {
   login: (data) => api.post('/auth/login', data),
   getMe: (id) => api.get(`/auth/me?id=${id}`),
   enroll: (data) => api.post('/enrollment-requests', data),
-  getEnrollments: (studentId) => api.get(`/enrollment-requests/student/${studentId}`)
+  getEnrollments: (studentId) => api.get(`/enrollment-requests/student/${studentId}`),
+  // Public endpoint to fetch lesson packages for the enrollment flow
+  getPublicPackages: () => api.get('/courses/packages/all')
 }
 
 // ================================================================

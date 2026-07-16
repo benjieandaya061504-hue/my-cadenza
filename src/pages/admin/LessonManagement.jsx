@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
+import { coursesAPI } from '../../services/api'
 
 const C = {
   bg: '#0e0f13',
@@ -31,13 +32,6 @@ const CATEGORY_KINDS = [
   { value: 'course', label: 'Course type' },
 ]
 
-const initialPackages = () => [
-  { id: 'p1', name: 'Guitar Starter Pack', durationMinutes: 45, sessionLimit: 8, categoryKind: 'instrument', category: 'Guitar', description: 'Intro chords & rhythm' },
-  { id: 'p2', name: 'Piano Foundations', durationMinutes: 60, sessionLimit: 12, categoryKind: 'instrument', category: 'Piano', description: 'Reading & technique' },
-  { id: 'p3', name: 'Theory Bootcamp', durationMinutes: 50, sessionLimit: 6, categoryKind: 'course', category: 'Music Theory — Beginner', description: 'Notation & intervals' },
-  { id: 'p4', name: 'Drums Intensive', durationMinutes: 55, sessionLimit: 10, categoryKind: 'instrument', category: 'Drums', description: 'Stick control & grooves' },
-]
-
 const initialEnrollments = () => [
   { id: 'e1', studentName: 'Ana Reyes', packageId: 'p1', completedSessions: 5, lastSessionDate: '2026-05-08' },
   { id: 'e2', studentName: 'Marco Santos', packageId: 'p2', completedSessions: 3, lastSessionDate: '2026-05-06' },
@@ -46,7 +40,6 @@ const initialEnrollments = () => [
   { id: 'e5', studentName: 'Sofia Dela Cruz', packageId: 'p3', completedSessions: 1, lastSessionDate: '2026-05-01' },
 ]
 
-let nextPackageId = 5
 let nextEnrollmentId = 6
 
 const css = `
@@ -91,36 +84,40 @@ function PackageFormModal({ mode, initial, onClose, onSave }) {
   const [categoryKind, setCategoryKind] = useState(initial?.categoryKind ?? 'instrument')
   const [category, setCategory] = useState(initial?.category ?? INSTRUMENTS[0])
   const [description, setDescription] = useState(initial?.description ?? '')
+  const [rate, setRate] = useState(initial?.rate ?? '')
   const [focus, setFocus] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState(null)
 
   const categoryOptions = categoryKind === 'instrument' ? INSTRUMENTS : COURSE_TYPES
 
-  const handleSubmit = e => {
+  const handleSubmit = async e => {
     e.preventDefault()
-    if (!name.trim()) return
-    const cat = categoryOptions.includes(category) ? category : categoryOptions[0]
-    if (mode === 'add') {
-      onSave({
-        id: `p${nextPackageId++}`,
-        name: name.trim(),
-        durationMinutes: Math.max(15, Number(durationMinutes) || 45),
-        sessionLimit: Math.max(1, Number(sessionLimit) || 1),
-        categoryKind,
-        category: cat,
-        description: description.trim(),
-      })
-    } else {
-      onSave({
-        ...initial,
-        name: name.trim(),
-        durationMinutes: Math.max(15, Number(durationMinutes) || 45),
-        sessionLimit: Math.max(1, Number(sessionLimit) || 1),
-        categoryKind,
-        category: cat,
-        description: description.trim(),
-      })
+    setError(null)
+
+    if (!name.trim()) {
+      setError('Package name is required')
+      return
     }
-    onClose()
+    const cat = categoryOptions.includes(category) ? category : categoryOptions[0]
+
+    setSubmitting(true)
+    try {
+      await onSave({
+        name: name.trim(),
+        durationMinutes: Math.max(15, Number(durationMinutes) || 45),
+        sessionLimit: Math.max(1, Number(sessionLimit) || 1),
+        categoryKind,
+        category: cat,
+        description: description.trim(),
+        rate: Math.max(0, Number(rate) || 0),
+      })
+      onClose()
+    } catch (err) {
+      setError(err?.response?.data?.error || err?.message || 'Failed to save package')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -151,6 +148,11 @@ function PackageFormModal({ mode, initial, onClose, onSave }) {
         <p style={{ fontSize: '12px', color: C.text3, marginBottom: '18px', lineHeight: 1.45 }}>
           Set duration per session, total session limit, and whether the package is grouped by instrument or course type.
         </p>
+        {error && (
+          <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.3)', color: C.coral, fontSize: '13px', marginBottom: '14px' }}>
+            {error}
+          </div>
+        )}
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div>
@@ -200,16 +202,20 @@ function PackageFormModal({ mode, initial, onClose, onSave }) {
               </select>
             </div>
             <div>
+              {fieldLabel('Rate / Total Price (₱)')}
+              <input type="number" min={0} step={0.01} value={rate} onChange={e => setRate(e.target.value)} placeholder="e.g. 4000" style={inputStyle(focus === 'r')} onFocus={() => setFocus('r')} onBlur={() => setFocus(null)} />
+            </div>
+            <div>
               {fieldLabel('Description (optional)')}
               <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} style={{ ...inputStyle(focus === 'x'), resize: 'vertical', minHeight: '72px' }} onFocus={() => setFocus('x')} onBlur={() => setFocus(null)} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} className="lm-pill" style={{ padding: '9px 16px', borderRadius: '10px', border: `1px solid ${C.border}`, background: 'transparent', color: C.text2, cursor: 'pointer', fontFamily: C.font, fontSize: '13px', fontWeight: 500 }}>
+            <button type="button" onClick={onClose} className="lm-pill" disabled={submitting} style={{ padding: '9px 16px', borderRadius: '10px', border: `1px solid ${C.border}`, background: 'transparent', color: C.text2, cursor: 'pointer', fontFamily: C.font, fontSize: '13px', fontWeight: 500 }}>
               Cancel
             </button>
-            <button type="submit" style={{ padding: '9px 18px', borderRadius: '10px', border: 'none', background: `linear-gradient(135deg, ${C.accent}, ${C.accentD})`, color: '#fff', cursor: 'pointer', fontFamily: C.font, fontSize: '13px', fontWeight: 600 }}>
-              {mode === 'add' ? 'Create package' : 'Save changes'}
+            <button type="submit" disabled={submitting} style={{ padding: '9px 18px', borderRadius: '10px', border: 'none', background: submitting ? C.text3 : `linear-gradient(135deg, ${C.accent}, ${C.accentD})`, color: '#fff', cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: C.font, fontSize: '13px', fontWeight: 600 }}>
+              {submitting ? 'Creating…' : (mode === 'add' ? 'Create package' : 'Save changes')}
             </button>
           </div>
         </form>
@@ -235,7 +241,7 @@ function SessionProgressBar({ completed, total }) {
  */
 function LessonManagement({ isMobile = false, isTablet = false }) {
   const [tab, setTab] = useState('packages')
-  const [packages, setPackages] = useState(initialPackages)
+  const [packages, setPackages] = useState([])
   const [enrollments, setEnrollments] = useState(initialEnrollments)
   const [pkgSearch, setPkgSearch] = useState('')
   const [pkgFilterKind, setPkgFilterKind] = useState('all')
@@ -243,20 +249,41 @@ function LessonManagement({ isMobile = false, isTablet = false }) {
   const [progSearch, setProgSearch] = useState('')
   const [pkgModal, setPkgModal] = useState(null)
   const [deleteId, setDeleteId] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(null)
+
+  const fetchPackages = useCallback(async () => {
+    setLoading(true)
+    setFetchError(null)
+    try {
+      const res = await coursesAPI.getPackages()
+      setPackages(res.data)
+    } catch (err) {
+      console.error('Failed to fetch lesson packages:', err)
+      setFetchError('Could not load packages. Is the backend running?')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchPackages()
+  }, [fetchPackages])
 
   const packageById = useMemo(() => Object.fromEntries(packages.map(p => [p.id, p])), [packages])
 
   const filteredPackages = useMemo(() => {
     const q = pkgSearch.trim().toLowerCase()
     return packages.filter(p => {
-      if (pkgFilterKind !== 'all' && p.categoryKind !== pkgFilterKind) return false
+      const kind = p.categoryKind ?? p.category_kind
+      if (pkgFilterKind !== 'all' && kind !== pkgFilterKind) return false
       if (pkgFilterCategory !== 'all' && p.category !== pkgFilterCategory) return false
       if (!q) return true
       return (
         p.name.toLowerCase().includes(q) ||
         p.category.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q) ||
-        p.id.toLowerCase().includes(q)
+        p.description?.toLowerCase().includes(q) ||
+        String(p.id).toLowerCase().includes(q)
       )
     })
   }, [packages, pkgSearch, pkgFilterKind, pkgFilterCategory])
@@ -295,8 +322,38 @@ function LessonManagement({ isMobile = false, isTablet = false }) {
     return { rows: enrollments.filter(e => packageById[e.packageId]).length, totalSessions, completed, remaining }
   }, [enrollments, packageById])
 
-  const addPackage = row => setPackages(prev => [...prev, row])
-  const updatePackage = row => setPackages(prev => prev.map(p => (p.id === row.id ? row : p)))
+  const addPackage = async formData => {
+    await coursesAPI.createPackage({
+      name: formData.name,
+      duration_minutes: formData.durationMinutes,
+      session_limit: formData.sessionLimit,
+      category_kind: formData.categoryKind,
+      category: formData.category,
+      description: formData.description || null,
+      rate: formData.rate || 0,
+    })
+    await fetchPackages()
+  }
+
+  const updatePackage = async formData => {
+    try {
+      // Map camelCase form fields to snake_case DB columns for the API
+      const payload = {
+        name: formData.name,
+        duration_minutes: formData.durationMinutes,
+        session_limit: formData.sessionLimit,
+        category_kind: formData.categoryKind,
+        category: formData.category,
+        description: formData.description || null,
+        rate: formData.rate || 0,
+      }
+      await coursesAPI.updatePackage(pkgModal.pkg.id, payload)
+      await fetchPackages()
+    } catch (err) {
+      console.error('Failed to update package:', err)
+      throw err
+    }
+  }
   const removePackage = id => {
     setPackages(prev => prev.filter(p => p.id !== id))
     setEnrollments(prev => prev.filter(e => e.packageId !== id))
@@ -374,8 +431,8 @@ function LessonManagement({ isMobile = false, isTablet = false }) {
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
               {[
                 { label: 'Packages defined', value: packages.length, hint: 'Duration & session rules' },
-                { label: 'Instrument-based', value: packages.filter(p => p.categoryKind === 'instrument').length, hint: 'Categories by instrument' },
-                { label: 'Course-based', value: packages.filter(p => p.categoryKind === 'course').length, hint: 'Categories by course type' },
+                { label: 'Instrument-based', value: packages.filter(p => (p.categoryKind ?? p.category_kind) === 'instrument').length, hint: 'Categories by instrument' },
+                { label: 'Course-based', value: packages.filter(p => (p.categoryKind ?? p.category_kind) === 'course').length, hint: 'Categories by course type' },
               ].map((s, i) => (
                 <div
                   key={s.label}
@@ -457,66 +514,79 @@ function LessonManagement({ isMobile = false, isTablet = false }) {
                 Showing <strong style={{ color: C.text2 }}>{filteredPackages.length}</strong> of {packages.length} packages
               </div>
 
-              <div style={{ overflowX: 'auto', borderRadius: '12px', border: `1px solid ${C.border}` }}>
-                <table style={{ width: '100%', minWidth: isTablet ? '720px' : '800px', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: C.bg4 }}>
-                      {['Package', 'Duration', 'Sessions', 'Category', 'Actions'].map(h => (
-                        <th
-                          key={h}
-                          style={{
-                            textAlign: h === 'Actions' ? 'right' : 'left',
-                            padding: '10px 12px',
-                            fontSize: '10px',
-                            fontWeight: 600,
-                            color: C.text3,
-                            textTransform: 'uppercase',
-                            letterSpacing: '.1em',
-                            borderBottom: `1px solid ${C.border}`,
-                          }}
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPackages.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} style={{ padding: '36px 16px', textAlign: 'center', color: C.text3, fontSize: '13px' }}>
-                          No packages match your filters. Try clearing search or create a new package.
-                        </td>
+              {loading ? (
+                <div style={{ padding: '48px 16px', textAlign: 'center', color: C.text3, fontSize: '13px' }}>
+                  Loading packages…
+                </div>
+              ) : fetchError ? (
+                <div style={{ padding: '48px 16px', textAlign: 'center' }}>
+                  <div style={{ color: C.coral, fontSize: '13px', marginBottom: '12px' }}>{fetchError}</div>
+                  <button type="button" onClick={fetchPackages} style={{ padding: '8px 14px', borderRadius: '10px', border: `1px solid ${C.border}`, background: C.bg4, color: C.text2, cursor: 'pointer', fontFamily: C.font, fontSize: '13px' }}>
+                    Retry
+                  </button>
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto', borderRadius: '12px', border: `1px solid ${C.border}` }}>
+                  <table style={{ width: '100%', minWidth: isTablet ? '720px' : '800px', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: C.bg4 }}>
+                        {['Package', 'Duration', 'Sessions', 'Category', 'Actions'].map(h => (
+                          <th
+                            key={h}
+                            style={{
+                              textAlign: h === 'Actions' ? 'right' : 'left',
+                              padding: '10px 12px',
+                              fontSize: '10px',
+                              fontWeight: 600,
+                              color: C.text3,
+                              textTransform: 'uppercase',
+                              letterSpacing: '.1em',
+                              borderBottom: `1px solid ${C.border}`,
+                            }}
+                          >
+                            {h}
+                          </th>
+                        ))}
                       </tr>
-                    ) : (
-                      filteredPackages.map((p, i) => (
-                        <tr key={p.id} className="lm-row" style={{ borderBottom: i < filteredPackages.length - 1 ? `1px solid ${C.border}` : 'none' }}>
-                          <td style={{ padding: '12px', verticalAlign: 'top' }}>
-                            <div style={{ fontSize: '13px', fontWeight: 600, color: C.text }}>{p.name}</div>
-                            <div style={{ fontSize: '11px', color: C.text3, fontFamily: C.mono, marginTop: '3px' }}>{p.id}</div>
-                            {p.description && <div style={{ fontSize: '11px', color: C.text2, marginTop: '6px', maxWidth: '320px', lineHeight: 1.4 }}>{p.description}</div>}
-                          </td>
-                          <td style={{ padding: '12px', fontSize: '13px', color: C.text2, fontFamily: C.mono, verticalAlign: 'middle' }}>{p.durationMinutes} min</td>
-                          <td style={{ padding: '12px', fontSize: '13px', color: C.text2, fontFamily: C.mono, verticalAlign: 'middle' }}>{p.sessionLimit}</td>
-                          <td style={{ padding: '12px', verticalAlign: 'middle' }}>
-                            <div style={{ fontSize: '12px', color: C.text, fontWeight: 500 }}>{p.category}</div>
-                            <div style={{ fontSize: '10px', color: C.text3, textTransform: 'uppercase', letterSpacing: '.06em', marginTop: '4px' }}>
-                              {p.categoryKind === 'instrument' ? 'Instrument' : 'Course type'}
-                            </div>
-                          </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
-                            <button type="button" className="lm-pill" onClick={() => setPkgModal({ type: 'edit', pkg: p })} style={{ marginRight: '6px', padding: '6px 11px', borderRadius: '8px', border: `1px solid ${C.border}`, background: C.bg4, color: C.text2, cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}>
-                              Edit
-                            </button>
-                            <button type="button" onClick={() => setDeleteId(p.id)} style={{ padding: '6px 11px', borderRadius: '8px', border: `1px solid rgba(248,113,113,0.35)`, background: 'rgba(248,113,113,0.08)', color: C.coral, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-                              Remove
-                            </button>
+                    </thead>
+                    <tbody>
+                      {filteredPackages.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} style={{ padding: '36px 16px', textAlign: 'center', color: C.text3, fontSize: '13px' }}>
+                            No packages match your filters. Try clearing search or create a new package.
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                      ) : (
+                        filteredPackages.map((p, i) => (
+                          <tr key={p.id} className="lm-row" style={{ borderBottom: i < filteredPackages.length - 1 ? `1px solid ${C.border}` : 'none' }}>
+                            <td style={{ padding: '12px', verticalAlign: 'top' }}>
+                              <div style={{ fontSize: '13px', fontWeight: 600, color: C.text }}>{p.name}</div>
+                              <div style={{ fontSize: '11px', color: C.text3, fontFamily: C.mono, marginTop: '3px' }}>{p.id}</div>
+                              {p.description && <div style={{ fontSize: '11px', color: C.text2, marginTop: '6px', maxWidth: '320px', lineHeight: 1.4 }}>{p.description}</div>}
+                            </td>
+                            <td style={{ padding: '12px', fontSize: '13px', color: C.text2, fontFamily: C.mono, verticalAlign: 'middle' }}>{p.durationMinutes ?? p.duration_minutes} min</td>
+                            <td style={{ padding: '12px', fontSize: '13px', color: C.text2, fontFamily: C.mono, verticalAlign: 'middle' }}>{p.sessionLimit ?? p.session_limit}</td>
+                            <td style={{ padding: '12px', verticalAlign: 'middle' }}>
+                              <div style={{ fontSize: '12px', color: C.text, fontWeight: 500 }}>{p.category}</div>
+                              <div style={{ fontSize: '10px', color: C.text3, textTransform: 'uppercase', letterSpacing: '.06em', marginTop: '4px' }}>
+                                {p.categoryKind === 'instrument' || p.category_kind === 'instrument' ? 'Instrument' : 'Course type'}
+                              </div>
+                            </td>
+                            <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+                              <button type="button" className="lm-pill" onClick={() => setPkgModal({ type: 'edit', pkg: p })} style={{ marginRight: '6px', padding: '6px 11px', borderRadius: '8px', border: `1px solid ${C.border}`, background: C.bg4, color: C.text2, cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}>
+                                Edit
+                              </button>
+                              <button type="button" onClick={() => setDeleteId(p.id)} style={{ padding: '6px 11px', borderRadius: '8px', border: `1px solid rgba(248,113,113,0.35)`, background: 'rgba(248,113,113,0.08)', color: C.coral, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                                Remove
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -607,7 +677,7 @@ function LessonManagement({ isMobile = false, isTablet = false }) {
                     ) : (
                       filteredEnrollments.map((e, i) => {
                         const pkg = packageById[e.packageId]
-                        const total = pkg.sessionLimit
+                        const total = pkg.sessionLimit ?? pkg.session_limit
                         const done = Math.min(e.completedSessions, total)
                         const remaining = Math.max(0, total - done)
                         const complete = done >= total
