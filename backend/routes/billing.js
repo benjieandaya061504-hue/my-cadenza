@@ -11,7 +11,7 @@ const router = Router()
 // ─── GET all billing records ───────────────────────────────────
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM Billing ORDER BY created_at DESC')
+    const [rows] = await pool.query('SELECT * FROM billing ORDER BY created_at DESC')
     res.json(rows)
   } catch (error) {
     console.error('Error fetching billing records:', error)
@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
 // ─── GET single billing record by ID ───────────────────────────
 router.get('/:id', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM Billing WHERE billing_id = ?', [req.params.id])
+    const [rows] = await pool.query('SELECT * FROM billing WHERE billing_id = ?', [req.params.id])
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Billing record not found' })
     }
@@ -41,7 +41,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Student ID and amount are required' })
     }
     const [result] = await pool.query(
-      'INSERT INTO Billing (student_id, amount, due_date, status, description) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO billing (student_id, amount, due_date, status, description) VALUES (?, ?, ?, ?, ?)',
       [student_id, amount, due_date || null, status || 'pending', description || null]
     )
     res.status(201).json({ message: 'Billing record created successfully', billingId: result.insertId })
@@ -56,7 +56,7 @@ router.put('/:id', async (req, res) => {
   try {
     const { amount, due_date, status, description } = req.body
     const [result] = await pool.query(
-      'UPDATE Billing SET amount = ?, due_date = ?, status = ?, description = ? WHERE billing_id = ?',
+      'UPDATE billing SET amount = ?, due_date = ?, status = ?, description = ? WHERE billing_id = ?',
       [amount, due_date, status, description, req.params.id]
     )
     if (result.affectedRows === 0) {
@@ -72,7 +72,7 @@ router.put('/:id', async (req, res) => {
 // ─── DELETE a billing record ───────────────────────────────────
 router.delete('/:id', async (req, res) => {
   try {
-    const [result] = await pool.query('DELETE FROM Billing WHERE billing_id = ?', [req.params.id])
+    const [result] = await pool.query('DELETE FROM billing WHERE billing_id = ?', [req.params.id])
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Billing record not found' })
     }

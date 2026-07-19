@@ -243,7 +243,7 @@ export default function FrontDeskLogin() {
     setError('')
 
     try {
-      await usersAPI.login({ username: username.trim(), email: username.trim(), password })
+      await usersAPI.login({ username: username.trim(), email: username.trim(), password, expectedRole: 'frontdesk' })
       navigate('/frontdesk/dashboard')
     } catch (err) {
       const msg = err.response?.data?.error || 'Login failed. Please check your credentials.'

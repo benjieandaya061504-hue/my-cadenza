@@ -16,15 +16,14 @@ router.get('/', async (req, res) => {
     const [rows] = await pool.query(
       `SELECT s.staff_id AS id, s.email, s.f_name AS first_name, s.m_name AS middle_name,
               s.l_name AS last_name, s.contact_no AS contact_number,
-              s.address, s.status, r.role_name AS role
+              s.address, s.status, s.role
        FROM Staff s
-       JOIN Role r ON s.role_id = r.role_id
        ORDER BY s.staff_id DESC`
     )
-    // Map role_name to the format expected by frontend
+    // Use Staff.role directly (already lowercase: admin, frontdesk, instructor)
     const mapped = rows.map(u => ({
       ...u,
-      role: u.role?.toLowerCase().replace(' ', '') || 'staff',
+      role: u.role || 'staff',
       username: u.email?.split('@')[0] || u.email,
       contact_number: u.contact_number,
       created_at: null,
@@ -44,9 +43,8 @@ router.get('/:id', async (req, res) => {
     const [rows] = await pool.query(
       `SELECT s.staff_id AS id, s.email, s.f_name AS first_name, s.m_name AS middle_name,
               s.l_name AS last_name, s.contact_no AS contact_number,
-              s.address, s.status, r.role_name AS role, s.created_at
+              s.address, s.status, s.role, s.created_at
        FROM Staff s
-       JOIN Role r ON s.role_id = r.role_id
        WHERE s.staff_id = ?`,
       [req.params.id]
     )
@@ -56,7 +54,7 @@ router.get('/:id', async (req, res) => {
     const u = rows[0]
     res.json({
       ...u,
-      role: u.role?.toLowerCase().replace(' ', '') || 'staff',
+      role: u.role || 'staff',
       username: u.email?.split('@')[0] || u.email,
       created_at: u.created_at?.toISOString?.() || u.created_at,
     })
@@ -84,15 +82,14 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'User with this email already exists' })
     }
 
-    // Map role string to role_id
-    const roleMap = { admin: 1, frontdesk: 2, front_desk: 2, instructor: 3, staff: 1 }
-    const roleId = roleMap[role] || 2
+    // Use provided role, default to 'frontdesk'
+    const staffRole = ['admin', 'frontdesk', 'instructor'].includes(role) ? role : 'frontdesk'
 
     const hashedPassword = await bcrypt.hash(password, 10)
 
     // Insert into Staff table
     const [staffResult] = await pool.query(
-      `INSERT INTO Staff (f_name, m_name, l_name, address, age, gender, contact_no, email, profile, status, role_id)
+      `INSERT INTO Staff (f_name, m_name, l_name, address, age, gender, contact_no, email, profile, status, role)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         username || email.split('@')[0],
@@ -105,7 +102,7 @@ router.post('/register', async (req, res) => {
         email,
         null,
         'active',
-        roleId
+        staffRole
       ]
     )
 
@@ -182,16 +179,12 @@ router.post('/add-user', async (req, res) => {
 
     console.log('No duplicate found, proceeding with insert...')
 
-    // Map role to role_id
-    const roleIdMap = { admin: 1, frontdesk: 2 }
-    const roleId = roleIdMap[role]
-
     // Hash password using bcrypt
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // Insert into Staff table
+    // Insert into Staff table with role directly
     const [staffResult] = await pool.query(
-      `INSERT INTO Staff (f_name, m_name, l_name, address, age, gender, contact_no, email, profile, status, role_id)
+      `INSERT INTO Staff (f_name, m_name, l_name, address, age, gender, contact_no, email, profile, status, role)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         firstName,
@@ -204,7 +197,7 @@ router.post('/add-user', async (req, res) => {
         email,
         null,
         'active',
-        roleId
+        role
       ]
     )
 
@@ -240,7 +233,7 @@ router.post('/add-user', async (req, res) => {
 // ─── POST Login (authenticate against Staff_Auth with bcrypt) ──
 router.post('/login', async (req, res) => {
   try {
-    const { username, email, password } = req.body
+    const { username, email, password, expectedRole } = req.body
 
     // Accept either username or email
     const identifier = username || email
@@ -248,14 +241,12 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Username/email and password are required' })
     }
 
-    // Query Staff_Auth joined with Staff by email
+    // Query Staff_Auth joined with Staff by email (use Staff.role directly)
     const [rows] = await pool.query(
       `SELECT sa.*, s.f_name, s.m_name, s.l_name, s.contact_no,
-              s.address, s.profile, s.status AS staff_status, s.role_id,
-              r.role_name
+              s.address, s.profile, s.status AS staff_status, s.role
        FROM Staff_Auth sa
        JOIN Staff s ON sa.staff_id = s.staff_id
-       JOIN Role r ON s.role_id = r.role_id
        WHERE sa.email = ?`,
       [identifier]
     )
@@ -266,15 +257,20 @@ router.post('/login', async (req, res) => {
 
     const staff = rows[0]
 
+    // Role enforcement: if expectedRole is provided, verify the account's role matches
+    if (expectedRole) {
+      if (staff.role !== expectedRole) {
+        return res.status(403).json({ error: 'This account does not have access to this login page' })
+      }
+    }
+
     // Verify password using bcrypt
     const isPasswordValid = await bcrypt.compare(password, staff.password)
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid password' })
     }
 
-    // Map role_name to role string expected by frontend
-    const roleMap = { 'Admin': 'admin', 'Front Desk': 'frontdesk', 'Instructor': 'instructor' }
-    const userRole = roleMap[staff.role_name] || 'staff'
+    const userRole = staff.role || 'staff'
 
     console.log('✅ Login successful:', { staffId: staff.staff_id, email: staff.email, role: userRole })
 
@@ -297,7 +293,7 @@ router.post('/login', async (req, res) => {
         contact_number: staff.contact_no,
         address: staff.address,
         role: userRole,
-        staff_role: staff.role_name,
+        staff_role: userRole,
         status: 'approved',
         staff_status: staff.staff_status,
         profile: staff.profile,

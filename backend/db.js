@@ -26,30 +26,6 @@ const pool = mysql.createPool({
 })
 
 async function ensureCoreSchema(connection) {
-  const [roleTables] = await connection.query(
-    'SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ? ',
-    ['Role']
-  )
-  const roleExists = roleTables.length > 0
-
-  if (!roleExists) {
-    await connection.query(`
-      CREATE TABLE Role (
-        role_id INT AUTO_INCREMENT,
-        role_name VARCHAR(50) NOT NULL,
-        PRIMARY KEY (role_id),
-        UNIQUE KEY uq_role_name (role_name)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `)
-  }
-
-  await connection.query(`
-    INSERT IGNORE INTO Role (role_id, role_name) VALUES
-      (1, 'Admin'),
-      (2, 'Front Desk'),
-      (3, 'Instructor')
-  `)
-
   const [staffTables] = await connection.query(
     'SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ? ',
     ['Staff']
@@ -70,11 +46,9 @@ async function ensureCoreSchema(connection) {
         email VARCHAR(100) NOT NULL,
         profile TEXT DEFAULT NULL,
         status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
-        role_id INT NOT NULL,
+        role ENUM('admin', 'frontdesk', 'instructor') NOT NULL,
         PRIMARY KEY (staff_id),
-        UNIQUE KEY uq_staff_email (email),
-        KEY fk_staff_role_idx (role_id),
-        FOREIGN KEY (role_id) REFERENCES Role(role_id)
+        UNIQUE KEY uq_staff_email (email)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `)
   }
@@ -104,13 +78,13 @@ async function ensureCoreSchema(connection) {
 
   await connection.query(`
     INSERT IGNORE INTO Staff (
-      staff_id, f_name, m_name, l_name, suffix, address, age, gender, contact_no, email, profile, status, role_id
+      staff_id, f_name, m_name, l_name, suffix, address, age, gender, contact_no, email, profile, status, role
     ) VALUES
-      (1, 'Juan', 'Dela', 'Cruz', NULL, '123 Rizal St., Manila', 35, 'Male', '09171234567', 'juan.cruz@cadenza.com', NULL, 'active', 1),
-      (2, 'Maria', 'Luna', 'Santos', NULL, '456 Mabini Ave., Quezon City', 28, 'Female', '09182345678', 'maria.santos@cadenza.com', NULL, 'active', 2),
-      (3, 'Pedro', NULL, 'Gonzales', NULL, '789 Bonifacio St., Makati', 42, 'Male', '09193456789', 'pedro.gonzales@cadenza.com', 'Senior instructor for piano', 'active', 3),
-      (4, 'Ana', 'Reyes', 'Villanueva', NULL, '321 Katipunan Rd., Pasig', 26, 'Female', '09204567890', 'ana.villanueva@cadenza.com', NULL, 'active', 2),
-      (5, 'Carlos', 'M.', 'Fernandez', NULL, '654 Taft Ave., Manila', 38, 'Male', '09215678901', 'carlos.fernandez@cadenza.com', 'Guitar and voice instructor', 'active', 3)
+      (1, 'Juan', 'Dela', 'Cruz', NULL, '123 Rizal St., Manila', 35, 'Male', '09171234567', 'juan.cruz@cadenza.com', NULL, 'active', 'admin'),
+      (2, 'Maria', 'Luna', 'Santos', NULL, '456 Mabini Ave., Quezon City', 28, 'Female', '09182345678', 'maria.santos@cadenza.com', NULL, 'active', 'frontdesk'),
+      (3, 'Pedro', NULL, 'Gonzales', NULL, '789 Bonifacio St., Makati', 42, 'Male', '09193456789', 'pedro.gonzales@cadenza.com', 'Senior instructor for piano', 'active', 'instructor'),
+      (4, 'Ana', 'Reyes', 'Villanueva', NULL, '321 Katipunan Rd., Pasig', 26, 'Female', '09204567890', 'ana.villanueva@cadenza.com', NULL, 'active', 'frontdesk'),
+      (5, 'Carlos', 'M.', 'Fernandez', NULL, '654 Taft Ave., Manila', 38, 'Male', '09215678901', 'carlos.fernandez@cadenza.com', 'Guitar and voice instructor', 'active', 'instructor')
   `)
 
   await connection.query(`
@@ -273,7 +247,6 @@ export async function testConnection() {
     console.log('✅ MySQL database connected successfully')
     console.log(`   Host: ${process.env.DB_HOST || '127.0.0.1'}:${process.env.DB_PORT || 3306}`)
     console.log(`   Database: ${process.env.DB_NAME || 'cadenza_music_db'}`)
-    await ensureCoreSchema(connection)
     connection.release()
     return true
   } catch (err) {

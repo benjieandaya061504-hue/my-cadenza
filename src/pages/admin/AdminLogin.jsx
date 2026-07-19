@@ -263,7 +263,7 @@ function Login({ role = 'admin' }) {
     setError('')
 
     try {
-      await usersAPI.login({ username: username.trim(), email: username.trim(), password })
+      await usersAPI.login({ username: username.trim(), email: username.trim(), password, expectedRole: 'admin' })
       navigate(meta.dashboardPath)
     } catch (err) {
       const msg = err.response?.data?.error || 'Login failed. Please check your credentials.'
