@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { PUBLIC_ROUTES } from '../../constants/publicRoutes'
 import { usePublicSite } from './PublicSiteContext'
-import { studentAPI } from '../../services/api'
+import { studentAPI, instructorsAPI } from '../../services/api'
 import {
   MIN_ENROLL_SLOTS,
   TOTAL_SLOT_POOL,
@@ -11,14 +11,12 @@ import {
   seeded01,
   startOfMonth,
   toDateKey,
+  getWeekdayDatesInMonth,
+  getFrequencyLabel,
+  DAY_NAMES,
+  DAY_SHORT,
 } from './enrollmentUtils'
 
-const TEACHERS = [
-  { id: 1, name: 'Mark Reyes', icon: '🎵', desc: 'Guitar & Drums specialist' },
-  { id: 2, name: 'Anna Santos', icon: '🎶', desc: 'Piano & Violin instructor' },
-  { id: 3, name: 'Carlo Mendoza', icon: '🎷', desc: 'Saxophone & Woodwinds' },
-  { id: 4, name: 'Sofia Gomez', icon: '🎹', desc: 'Keyboard & Music Theory' },
-]
 
 const TIME_BLOCKS = [
   ['08:00', '09:00'],
@@ -84,10 +82,9 @@ export default function EnrollmentPage() {
     const saved = loadSaved('cz_en_month', null)
     return saved ? new Date(saved) : startOfMonth(new Date())
   })
-  const [pickedDay, setPickedDay] = useState(() => {
-    const saved = loadSaved('cz_en_picked', null)
-    return saved ? new Date(saved) : null
-  })
+  // selectedWeekdays holds an array of weekday indices (0=Sunday, 1=Monday, ... 6=Saturday)
+  const [selectedWeekdays, setSelectedWeekdays] = useState(() => loadSaved('cz_en_weekdays', []))
+  // selectedSlots holds { id, dateKey, label, short }
   const [selectedSlots, setSelectedSlots] = useState(() => loadSaved('cz_en_slots', []))
   const [form, setForm] = useState(() => loadSaved('cz_en_form', {
     fname: '', lname: '', email: '', phone: '', age: '',
@@ -116,13 +113,22 @@ export default function EnrollmentPage() {
   useEffect(() => { saveState('cz_en_lesson', lesson) }, [lesson])
   useEffect(() => { saveState('cz_en_instructor', selectedInstructor) }, [selectedInstructor])
   useEffect(() => { saveState('cz_en_month', monthCursor) }, [monthCursor])
-  useEffect(() => { saveState('cz_en_picked', pickedDay) }, [pickedDay])
+  useEffect(() => { saveState('cz_en_weekdays', selectedWeekdays) }, [selectedWeekdays])
   useEffect(() => { saveState('cz_en_slots', selectedSlots) }, [selectedSlots])
   useEffect(() => { saveState('cz_en_form', form) }, [form])
 
   // Pre-fill form with existing enrollment data when a logged-in user visits
   useEffect(() => {
     if (!isLoggedIn || !user) return
+
+    // If user just submitted an enrollment, do NOT re-populate with the just-submitted data
+    let justSubmitted = false
+    try { justSubmitted = sessionStorage.getItem('cz_en_just_submitted') === '1' } catch { /* ignore */ }
+    if (justSubmitted) {
+      // Clear the flag so next navigation WILL auto-fill if there's a genuinely separate pending enrollment
+      try { sessionStorage.removeItem('cz_en_just_submitted') } catch { /* ignore */ }
+      return
+    }
 
     // Only pre-fill name/email from session if the form fields are empty
     // (user might have data restored from localStorage already)
@@ -167,15 +173,27 @@ export default function EnrollmentPage() {
     [monthCursor],
   )
 
-  const weeks = useMemo(() => buildEnrollmentWeeks(monthCursor), [monthCursor])
-
-  const pickedKey = pickedDay ? toDateKey(pickedDay) : null
-  const timeRows = pickedKey ? slotTimesForDay(pickedKey) : []
-
   // The required number of slots is now derived from the selected package's session_limit
   const requiredSlots = lesson?.sessionLimit ?? lesson?.session_limit ?? MIN_ENROLL_SLOTS
+  // sessionsPerWeek controls how many weekdays the student can select
+  const sessionsPerWeek = lesson?.sessionsPerWeek ?? lesson?.sessions_per_week ?? 1
   const slotsRemaining = Math.max(0, requiredSlots - selectedSlots.length)
   const fillPct = Math.min(100, Math.round(((selectedSlots.length) / requiredSlots) * 100))
+
+  // Compute all dates for selected weekdays in the current month
+  const weekdayDatesMap = useMemo(() => {
+    const map = {}
+    selectedWeekdays.forEach((wd) => {
+      const dates = getWeekdayDatesInMonth(monthCursor, wd)
+      // Filter to only dates that have available slots (using dayKind)
+      // dayKind returns 'empty' for out-of-month dates, 'unavail' for unavailable, 'slots' for available
+      const availableDates = dates.filter((d) => dayKind(d, monthCursor) === 'slots')
+      if (availableDates.length > 0) {
+        map[wd] = availableDates
+      }
+    })
+    return map
+  }, [selectedWeekdays, monthCursor])
 
   const selectLesson = (L) => {
     if (isLoggedIn) {
@@ -194,23 +212,38 @@ export default function EnrollmentPage() {
 
   const goStep = (n) => setStep(n)
 
-  const onPickDay = (d, kind) => {
-    if (kind !== 'slots') return
-    setPickedDay(d)
+  const toggleWeekday = (wd) => {
+    setSelectedWeekdays((prev) => {
+      const exists = prev.includes(wd)
+      if (exists) {
+        // Remove the weekday and all slots from that weekday's dates
+        const newWeekdays = prev.filter((d) => d !== wd)
+        // Remove slots that belong to dates of the deselected weekday
+        const datesToRemove = getWeekdayDatesInMonth(monthCursor, wd)
+        const dateKeysToRemove = new Set(datesToRemove.map((d) => toDateKey(d)))
+        setSelectedSlots((slots) => slots.filter((s) => !dateKeysToRemove.has(s.dateKey)))
+        return newWeekdays
+      }
+      if (prev.length >= sessionsPerWeek) {
+        showToast(`You can select up to ${sessionsPerWeek} day(s) per week for this package.`)
+        return prev
+      }
+      return [...prev, wd]
+    })
   }
 
-  const toggleTimeSlot = (t) => {
-    if (!pickedKey || !t.available) return
-    const id = `${pickedKey}|${t.start}`
+  const toggleTimeSlot = (t, dateKey) => {
+    if (!t.available) return
+    const id = `${dateKey}|${t.start}`
     setSelectedSlots((prev) => {
       const exists = prev.some((s) => s.id === id)
       if (exists) return prev.filter((s) => s.id !== id)
-      const sameDay = prev.filter((s) => s.dateKey === pickedKey)
+      const sameDay = prev.filter((s) => s.dateKey === dateKey)
       if (sameDay.length >= 1) {
         showToast('You may select only 1 slot per day.')
         return prev
       }
-      return [...prev, { id, dateKey: pickedKey, label: `${pickedKey} ${t.label}`, short: t.label }]
+      return [...prev, { id, dateKey, label: `${dateKey} ${t.label}`, short: t.label }]
     })
   }
 
@@ -234,12 +267,27 @@ export default function EnrollmentPage() {
   const totalAmount = lesson ? Number(lesson.rate) : 0
 
   const [submitting, setSubmitting] = useState(false)
+  // Track whether a fresh submission just completed to prevent auto-fill from re-populating
+  const submittedRef = useRef(false)
 
   const submitEnrollment = async () => {
-    if (!form.refnum.trim()) {
-      showToast('Please enter your payment reference number.')
+    // ── Frontend required field validation ──────────────────────
+    const requiredFields = [
+      { key: 'fname', label: 'First Name' },
+      { key: 'lname', label: 'Last Name' },
+      { key: 'email', label: 'Gmail Address' },
+      { key: 'phone', label: 'Contact Number' },
+      { key: 'address', label: 'Student Address' },
+      { key: 'refnum', label: 'Payment Reference Number' },
+    ]
+    const emptyFields = requiredFields
+      .filter((f) => !form[f.key].trim())
+      .map((f) => f.label)
+    if (emptyFields.length > 0) {
+      showToast(`Please fill in the following required field(s): ${emptyFields.join(', ')}`)
       return
     }
+
     setSubmitting(true)
     try {
       const userId = signedUpUser?.userId || user?.id
@@ -269,6 +317,21 @@ export default function EnrollmentPage() {
       }
       await studentAPI.enroll(payload)
       setSubmitting(false)
+
+      // ── Clear all localStorage immediately so navigating away & back shows a blank form ──
+      removeSaved('cz_en_step')
+      removeSaved('cz_en_lesson')
+      removeSaved('cz_en_instructor')
+      removeSaved('cz_en_month')
+      removeSaved('cz_en_weekdays')
+      removeSaved('cz_en_slots')
+      removeSaved('cz_en_form')
+
+      // Set session-level flag so auto-fill does NOT re-populate with the just-submitted data
+      // on subsequent component mount (sessionStorage survives re-mount; useRef does not)
+      try { sessionStorage.setItem('cz_en_just_submitted', '1') } catch { /* ignore */ }
+      submittedRef.current = true
+
       openSuccessModal({
         title: 'Enrollment Submitted!',
         message:
@@ -290,7 +353,7 @@ export default function EnrollmentPage() {
     setLesson(null)
     setSelectedInstructor(null)
     setMonthCursor(startOfMonth(new Date()))
-    setPickedDay(null)
+    setSelectedWeekdays([])
     setSelectedSlots([])
     setForm({
       fname: '',
@@ -309,7 +372,7 @@ export default function EnrollmentPage() {
     removeSaved('cz_en_lesson')
     removeSaved('cz_en_instructor')
     removeSaved('cz_en_month')
-    removeSaved('cz_en_picked')
+    removeSaved('cz_en_weekdays')
     removeSaved('cz_en_slots')
     removeSaved('cz_en_form')
     navigate(PUBLIC_ROUTES.home)
@@ -397,6 +460,7 @@ export default function EnrollmentPage() {
                 const rate = Number(P.rate)
                 const sessionLimit = P.sessionLimit ?? P.session_limit
                 const durationMin = P.durationMinutes ?? P.duration_minutes
+                const spw = P.sessionsPerWeek ?? P.sessions_per_week ?? 1
                 return (
                   <button
                     key={P.id}
@@ -410,7 +474,7 @@ export default function EnrollmentPage() {
                       {P.category}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 4 }}>
-                      {durationMin} min · {sessionLimit} sessions
+                      {durationMin} min · {sessionLimit} sessions · {getFrequencyLabel(spw)}
                     </div>
                     <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--teal)', marginTop: 6 }}>
                       {rate > 0 ? `₱${rate.toLocaleString()}` : <span style={{ color: 'var(--text2)', fontWeight: 400 }}>Price TBD</span>}
@@ -439,25 +503,38 @@ export default function EnrollmentPage() {
         <div className="he-wrap">
           <h1 className="he-title">Choose Your Instructor</h1>
           <p className="he-desc">
-            Select your preferred instructor.{' '}
-            {/* TODO: When connected to a real data source, filter available instructors
-            based on the selected instrument and show only relevant teachers. */}
+            {lesson?.instructors && lesson.instructors.length > 0
+              ? `These instructors are assigned to teach "${lesson.name}". Select your preferred instructor.`
+              : 'Select your preferred instructor.'}
           </p>
-          <div className="he-lesson-grid">
-            {TEACHERS.map((T) => (
-              <button
-                key={T.id}
-                type="button"
-                className={`he-lesson-card${selectedInstructor?.id === T.id ? ' selected' : ''}`}
-                onClick={() => setSelectedInstructor(T)}
-              >
-                <div className="he-sel-badge">✓</div>
-                <div className="he-l-icon">{T.icon}</div>
-                <div className="he-l-name">{T.name}</div>
-                <div className="he-l-desc">{T.desc}</div>
-              </button>
-            ))}
-          </div>
+          {(!lesson?.instructors || lesson.instructors.length === 0) ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text2)', fontSize: 14, fontStyle: 'italic' }}>
+              No instructors have been assigned to this package yet. Please contact the admin for assistance.
+            </div>
+          ) : (
+            <div className="he-lesson-grid">
+              {lesson.instructors.map((inst) => (
+                <button
+                  key={inst.id}
+                  type="button"
+                  className={`he-lesson-card${selectedInstructor?.id === inst.id ? ' selected' : ''}`}
+                  onClick={() => setSelectedInstructor({
+                    id: inst.id,
+                    name: `${inst.first_name} ${inst.last_name}`,
+                    desc: inst.specialization || 'Instructor',
+                    email: inst.email || '',
+                  })}
+                >
+                  <div className="he-sel-badge">✓</div>
+                  <div className="he-l-icon">🎵</div>
+                  <div className="he-l-name">{inst.first_name} {inst.last_name}</div>
+                  {inst.specialization && (
+                    <div className="he-l-desc">{inst.specialization}</div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="he-actions">
             <button type="button" className="btn btn-secondary" onClick={() => goStep(1)}>
               ← Back
@@ -465,7 +542,7 @@ export default function EnrollmentPage() {
             <button
               type="button"
               className="btn btn-primary"
-              disabled={!selectedInstructor}
+              disabled={!selectedInstructor || !lesson?.instructors || lesson.instructors.length === 0}
               onClick={() => goStep(3)}
             >
               Next: Schedule →
@@ -525,15 +602,12 @@ export default function EnrollmentPage() {
               💡
             </span>
             <span>
-              Select available dates <span style={{ color: 'var(--teal)', fontWeight: 600 }}>(teal)</span> on the
-              calendar. Each slot is <strong>1 hour</strong>. You may select <strong>1 slot per day</strong>, and must
-              select exactly <strong>{requiredSlots} slots</strong> to proceed with this package.
-              {/* TODO: The day/slot availability below is currently generated from seeded random data, not real
-              instructor/room availability. Once a real scheduling system is implemented, the "exactly N slots"
-              enforcement will need to work against real availability data instead of these fake values. */}
+              Pick your lesson days ({getFrequencyLabel(sessionsPerWeek)}) by clicking the weekday buttons below.
+              Then select available time slots for each date. You may select <strong>1 slot per day</strong>.
             </span>
           </div>
 
+          {/* Month Navigation */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
             <button type="button" className="he-cal-btn" onClick={() => setMonthCursor((m) => addMonths(m, -1))}>
               ‹
@@ -543,76 +617,124 @@ export default function EnrollmentPage() {
               ›
             </button>
             <span style={{ color: 'var(--text2)', fontSize: 13, marginLeft: 8 }}>
-              Selected: <strong style={{ color: 'var(--gold)' }}>{selectedSlots.length}</strong> / {requiredSlots}{' '}
-              required
+              Select up to <strong style={{ color: 'var(--gold)' }}>{sessionsPerWeek}</strong> day(s) per week
             </span>
           </div>
 
-          <div className="he-cal-grid">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-              <div key={d} className="he-cal-label">
-                {d}
-              </div>
-            ))}
-            {weeks.flatMap((week) =>
-              week.map((day) => {
-                const inMonth = day.getMonth() === monthCursor.getMonth()
-                const kind = inMonth ? dayKind(day, monthCursor) : 'empty'
-                const key = toDateKey(day)
-                const isSel = pickedKey === key
-                const cellClass = [
-                  'he-cal-cell',
-                  kind === 'empty' ? 'he-empty' : '',
-                  kind === 'unavail' ? 'he-unavail' : '',
-                  kind === 'slots' ? 'he-has-slots' : '',
-                  isSel ? 'he-sel-day' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    className={cellClass}
-                    disabled={kind !== 'slots'}
-                    onClick={() => onPickDay(day, kind)}
-                  >
-                    <div className="he-cdate">{day.getDate()}</div>
-                    {kind === 'slots' ? (
-                      <div className="he-ccount">{3 + Math.floor(seeded01(`cnt-${key}`) * 5)} open</div>
-                    ) : null}
-                  </button>
-                )
-              }),
-            )}
+          {/* Weekday Selector */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+            {DAY_SHORT.map((name, idx) => {
+              const isSelected = selectedWeekdays.includes(idx)
+              const isMaxed = !isSelected && selectedWeekdays.length >= sessionsPerWeek
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => toggleWeekday(idx)}
+                  disabled={!isSelected && isMaxed}
+                  style={{
+                    flex: 1,
+                    minWidth: 70,
+                    padding: '10px 8px',
+                    borderRadius: 10,
+                    border: isSelected
+                      ? '2px solid var(--teal)'
+                      : isMaxed
+                        ? '1px solid var(--border)'
+                        : '1px solid var(--border)',
+                    background: isSelected
+                      ? 'rgba(15,212,180,0.12)'
+                      : isMaxed
+                        ? 'var(--surface)'
+                        : 'var(--surface)',
+                    color: isSelected ? 'var(--teal)' : isMaxed ? 'var(--text3)' : 'var(--text)',
+                    fontWeight: isSelected ? 700 : 500,
+                    fontSize: 13,
+                    cursor: isMaxed ? 'not-allowed' : 'pointer',
+                    opacity: isMaxed ? 0.4 : 1,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {name}
+                </button>
+              )
+            })}
           </div>
 
-          <div className={`he-time-panel${pickedKey ? ' visible' : ''}`}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Available Times</div>
-            <div style={{ color: 'var(--text2)', fontSize: 12, marginBottom: 14 }}>
-              Click a time slot to select it. Each slot = 1 hour.
+          {/* Selected Weekday Info */}
+          {selectedWeekdays.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text2)', fontSize: 14, fontStyle: 'italic' }}>
+              Click the weekday buttons above to select your lesson days. You can select up to {sessionsPerWeek} day(s).
             </div>
-            <div className="he-time-grid">
-              {timeRows.map((t) => {
-                const id = `${pickedKey}|${t.start}`
-                const sel = selectedSlots.some((s) => s.id === id)
-                const cls = ['he-tslot', t.available ? 'he-avail' : 'he-taken', sel ? 'he-sel-slot' : '']
-                  .filter(Boolean)
-                  .join(' ')
-                return (
-                  <button
-                    key={t.start}
-                    type="button"
-                    className={cls}
-                    disabled={!t.available}
-                    onClick={() => toggleTimeSlot(t)}
-                  >
-                    {t.label}
-                  </button>
-                )
-              })}
+          ) : (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)', marginBottom: 10 }}>
+                Selected day{selectedWeekdays.length > 1 ? 's' : ''}:{' '}
+                <span style={{ color: 'var(--teal)' }}>
+                  {[...selectedWeekdays].sort().map((wd) => DAY_NAMES[wd]).join(', ')}
+                </span>
+              </div>
+              {/* Date rows for each selected weekday */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {[...selectedWeekdays].sort().map((wd) => {
+                  const dates = weekdayDatesMap[wd] || []
+                  if (dates.length === 0) return null
+                  return (
+                    <div key={wd} style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+                      <div
+                        style={{
+                          padding: '10px 14px',
+                          background: 'rgba(15,212,180,0.06)',
+                          borderBottom: '1px solid var(--border)',
+                          fontWeight: 700,
+                          fontSize: 14,
+                          color: 'var(--teal)',
+                        }}
+                      >
+                        {DAY_NAMES[wd]} — {dates.length} date{dates.length > 1 ? 's' : ''} in {monthLabel}
+                      </div>
+                      <div style={{ padding: 10 }}>
+                        {dates.map((date) => {
+                          const dk = toDateKey(date)
+                          const timeRows = slotTimesForDay(dk)
+                          const [y, m, d] = dk.split('-').map(Number)
+                          const dateObj = new Date(y, m - 1, d)
+                          const dateLabel = dateObj.toLocaleString(undefined, { month: 'short', day: 'numeric' })
+                          return (
+                            <div key={dk} style={{ marginBottom: 8, padding: '8px 10px', background: 'var(--surface)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
+                                {DAY_NAMES[wd]}, {dateLabel}
+                              </div>
+                              <div className="he-time-grid" style={{ marginTop: 0 }}>
+                                {timeRows.map((t) => {
+                                  const id = `${dk}|${t.start}`
+                                  const sel = selectedSlots.some((s) => s.id === id)
+                                  const cls = ['he-tslot', t.available ? 'he-avail' : 'he-taken', sel ? 'he-sel-slot' : '']
+                                    .filter(Boolean)
+                                    .join(' ')
+                                  return (
+                                    <button
+                                      key={t.start}
+                                      type="button"
+                                      className={cls}
+                                      disabled={!t.available}
+                                      onClick={() => toggleTimeSlot(t, dk)}
+                                    >
+                                      {t.label}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="he-ssb">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -622,17 +744,22 @@ export default function EnrollmentPage() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, minHeight: 28 }}>
               {selectedSlots.length === 0 ? (
                 <span style={{ color: 'var(--text2)', fontSize: 12, fontStyle: 'italic' }}>
-                  No slots selected yet. Click a teal day on the calendar.
+                  No slots selected yet. Choose your lesson days above and click time slots.
                 </span>
               ) : (
-                selectedSlots.map((s) => (
-                  <span key={s.id} className="he-chip">
-                    {s.label}
-                    <button type="button" onClick={() => removeChip(s.id)} aria-label={`Remove ${s.label}`}>
-                      ×
-                    </button>
-                  </span>
-                ))
+                selectedSlots.map((s) => {
+                  const [y, m, d] = s.dateKey.split('-').map(Number)
+                  const dateObj = new Date(y, m - 1, d)
+                  const dayName = DAY_SHORT[dateObj.getDay()]
+                  return (
+                    <span key={s.id} className="he-chip">
+                      {dayName} {dateObj.getDate()} — {s.short}
+                      <button type="button" onClick={() => removeChip(s.id)} aria-label={`Remove ${s.label}`}>
+                        ×
+                      </button>
+                    </span>
+                  )
+                })
               )}
             </div>
           </div>
@@ -785,6 +912,10 @@ export default function EnrollmentPage() {
               <div className="he-sr">
                 <span className="he-sr-l">Package Sessions</span>
                 <span className="he-sr-v">{lesson ? (lesson.sessionLimit ?? lesson.session_limit) : '—'}</span>
+              </div>
+              <div className="he-sr">
+                <span className="he-sr-l">Frequency</span>
+                <span className="he-sr-v">{lesson ? getFrequencyLabel(lesson.sessionsPerWeek ?? lesson.sessions_per_week ?? 1) : '—'}</span>
               </div>
               <div className="he-sr">
                 <span className="he-sr-l">Sessions Booked</span>

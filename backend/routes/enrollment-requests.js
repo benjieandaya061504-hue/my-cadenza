@@ -30,14 +30,19 @@ router.post('/', async (req, res) => {
     } = req.body
 
     // Validate required fields
-    if (!student_id) {
-      return res.status(400).json({ error: 'student_id is required' })
-    }
+    const missingFields = []
+    if (!student_id) missingFields.push('student_id')
+    if (!first_name) missingFields.push('first_name')
+    if (!last_name) missingFields.push('last_name')
+    if (!email) missingFields.push('email')
+    if (!contact_number) missingFields.push('contact_number')
+    if (!student_address) missingFields.push('student_address')
+    if (!payment_reference) missingFields.push('payment_reference')
 
-    // Verify the user exists (check students table for approved, or Staff for staff)
-    // Accept the enrollment request data as-is since first_name/last_name/email are provided
-    if (!first_name || !last_name) {
-      return res.status(400).json({ error: 'First name and last name are required' })
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        error: `Missing required field(s): ${missingFields.join(', ')}`
+      })
     }
 
     // Check if there's already a pending enrollment for this student
