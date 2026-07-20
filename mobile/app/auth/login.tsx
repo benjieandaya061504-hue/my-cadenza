@@ -1,19 +1,16 @@
 import Button from "../../components/ui/Button";
 import { router } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
 export default function LoginPage() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
+    <View className="flex-1 items-center justify-center">
+      <Text className="mb-5 text-3xl font-bold text-center">Login</Text>
 
-      <View style={styles.card}>
-        <Button
-          title="Client"
-          onPress={() => "Clicked"}
-        />
+      <View className="w-full rounded-[20px] bg-white p-[30px]">
+        <Button title="Client" onPress={() => "Clicked"} />
 
-        <View style={{ height: 10 }} />
+        <View className="h-2.5" />
 
         <Button
           title="Instructor"
@@ -23,25 +20,3 @@ export default function LoginPage() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  card: {
-    width: "100%",
-    backgroundColor: "#FFFFFF",
-    padding: 30,
-    borderRadius: 20,
-  },
-
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-});

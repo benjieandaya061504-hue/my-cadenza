@@ -1,100 +1,28 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { Drawer } from "expo-router/drawer";
-import {
-  DrawerContentScrollView,
-  DrawerItemList,
-} from "@react-navigation/drawer";
+import { Tabs } from "expo-router";
 import { useState } from "react";
-import { Modal, Pressable, Text, View } from "react-native";
+import { Modal, Platform, Pressable, Text, View } from "react-native";
 
 import { fonts } from "../../themes/fonts";
 
-const INSTRUCTOR_NAME = "Terter";
+type IconName = keyof typeof Ionicons.glyphMap;
 
-function CustomDrawerContent(props: any) {
-  const handleLogout = () => {
-    router.replace("/auth/login");
-  };
+const ACCENT = "#0C447C";
+const ACCENT_SOFT = "#E6F1FB";
+const MUTED = "#888780";
 
+function TabIcon({ name, focused }: { name: IconName; focused: boolean }) {
   return (
-    <View style={{ flex: 1 }}>
-      <DrawerContentScrollView
-        {...props}
-        contentContainerStyle={{ paddingTop: 0 }}
-      >
-        <View
-          style={{
-            paddingVertical: 24,
-            paddingHorizontal: 20,
-            alignItems: "center",
-          }}
-        >
-          <Ionicons name="person-circle-outline" size={56} color="#333" />
-
-          <Text
-            style={{
-              marginTop: 8,
-              fontFamily: fonts.bold,
-              fontSize: 16,
-              color: "#222",
-            }}
-          >
-            {INSTRUCTOR_NAME}
-          </Text>
-
-          <Text
-            style={{
-              fontFamily: fonts.regular,
-              fontSize: 13,
-              color: "#888",
-            }}
-          >
-            Instructor
-          </Text>
-        </View>
-
-        <View
-          style={{
-            height: 1,
-            backgroundColor: "#ddd",
-            marginHorizontal: 20,
-            marginBottom: 8,
-          }}
-        />
-
-        <DrawerItemList {...props} />
-      </DrawerContentScrollView>
-
-      <View
-        style={{
-          padding: 20,
-          borderTopWidth: 1,
-          borderColor: "#ddd",
-        }}
-      >
-        <Pressable onPress={handleLogout}>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-            }}
-          >
-            <Ionicons name="log-out-outline" size={20} color="red" />
-
-            <Text
-              style={{
-                marginLeft: 10,
-                fontFamily: fonts.bold,
-                color: "red",
-                fontSize: 14,
-              }}
-            >
-              Logout
-            </Text>
-          </View>
-        </Pressable>
-      </View>
+    <View
+      className="items-center justify-center rounded-xl"
+      style={{
+        width: 40,
+        height: 32,
+        backgroundColor: focused ? ACCENT_SOFT : "transparent",
+      }}
+    >
+      <Ionicons name={name} size={20} color={focused ? ACCENT : MUTED} />
     </View>
   );
 }
@@ -105,181 +33,167 @@ const notifications = [
   { text: "Naghiking" },
 ];
 
+function NotificationsModal({
+  visible,
+  onClose,
+}: {
+  visible: boolean;
+  onClose: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable className="flex-1 bg-black/15" onPress={onClose}>
+        <View
+          onStartShouldSetResponder={() => true}
+          className="absolute right-[15px] top-[60px] w-[260px] rounded-xl bg-white px-4 py-3"
+          style={{
+            elevation: 6,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.15,
+            shadowRadius: 8,
+          }}
+        >
+          <Text className="mb-2.5 text-base" style={{ fontFamily: fonts.bold }}>
+            Notifications
+          </Text>
+
+          {notifications.length === 0 ? (
+            <Text className="text-[#888]" style={{ fontFamily: fonts.regular }}>
+              No notifications
+            </Text>
+          ) : (
+            notifications.map((item, index) => (
+              <View
+                key={index}
+                className={`${index === 0 ? "border-t-0" : "border-t"} flex-row items-center border-[#f0f0f0] py-2`}
+              >
+                <Ionicons
+                  name="notifications-outline"
+                  size={18}
+                  color="#667ef9"
+                  style={{ marginRight: 10 }}
+                />
+
+                <Text className="flex-1 text-sm" style={{ fontFamily: fonts.regular }}>
+                  {item.text}
+                </Text>
+              </View>
+            ))
+          )}
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
 export default function InstructorLayout() {
   const [visible, setVisible] = useState(false);
 
+
   return (
     <>
-      <Drawer
+      <Tabs
         screenOptions={{
+          headerShown: true,
+          headerTitleStyle: { fontFamily: fonts.bold, fontSize: 16 },
+          /*
+          headerLeft: () => (
+            <Pressable onPress={handleLogout} className="ml-[15px]">
+              <Ionicons name="log-out-outline" size={22} color="#e24b4a" />
+            </Pressable>
+          ),*/
           headerRight: () => (
-            <Pressable
-              onPress={() => setVisible(true)}
-              style={{ marginRight: 15 }}
-            >
+            <Pressable onPress={() => setVisible(true)} className="mr-[15px]">
               <Ionicons name="notifications-outline" size={24} color="#000" />
             </Pressable>
           ),
+          tabBarActiveTintColor: ACCENT,
+          tabBarInactiveTintColor: MUTED,
+          tabBarShowLabel: true,
+          tabBarLabelStyle: { fontFamily: fonts.regular, fontSize: 11, marginTop: 2 },
+          tabBarStyle: {
+            position: "absolute",
+            left: 16,
+            right: 16,
+            bottom: Platform.OS === "ios" ? 24 : 16,
+            height: 64,
+            borderRadius: 20,
+            backgroundColor: "#fff",
+            borderTopWidth: 0,
+            elevation: 4,
+            shadowColor: ACCENT,
+            shadowOpacity: 0.12,
+            shadowRadius: 12,
+            shadowOffset: { width: 0, height: 4 },
+          },
+          tabBarItemStyle: { paddingTop: 6 },
         }}
-        drawerContent={(props) => <CustomDrawerContent {...props} />}
       >
-        <Drawer.Screen
-          name="profile"
-          options={{
-            title: "Instructor Profile",
-            drawerIcon: ({ size, color }) => (
-              <Ionicons name="person-circle-outline" size={20} color={color} />
-            ),
-            drawerItemStyle: { display: "none" },
-          }}
-        />
-
-        <Drawer.Screen
+        <Tabs.Screen
           name="dashboard"
           options={{
             title: "Dashboard",
-            drawerIcon: ({ color }) => (
-              <Ionicons name="grid-outline" size={20} color={color} />
+            tabBarIcon: ({ focused }) => (
+              <TabIcon name={focused ? "grid" : "grid-outline"} focused={focused} />
             ),
           }}
         />
 
-        <Drawer.Screen
-          name="availability"
+        <Tabs.Screen
+          name="schedule"
           options={{
-            title: "Availability",
-            drawerIcon: ({ color }) => (
-              <Ionicons name="time-outline" size={20} color={color} />
+            title: "Schedule",
+            tabBarIcon: ({ focused }) => (
+              <TabIcon name={focused ? "calendar" : "calendar-outline"} focused={focused} />
             ),
           }}
         />
 
-        <Drawer.Screen
+        <Tabs.Screen
           name="attendance"
           options={{
             title: "Attendance",
-            drawerIcon: ({ color }) => (
-              <Ionicons
-                name="checkmark-circle-outline"
-                size={20}
-                color={color}
+            tabBarIcon: ({ focused }) => (
+              <TabIcon
+                name={focused ? "checkmark-circle" : "checkmark-circle-outline"}
+                focused={focused}
               />
             ),
           }}
         />
 
-        <Drawer.Screen
+        <Tabs.Screen
           name="progress"
           options={{
-            title: "Progress Tracking",
-            drawerIcon: ({ color }) => (
-              <Ionicons name="bar-chart-outline" size={20} color={color} />
+            title: "Progress tracking",
+            tabBarIcon: ({ focused }) => (
+              <TabIcon name={focused ? "bar-chart" : "bar-chart-outline"} focused={focused} />
             ),
           }}
         />
 
-        <Drawer.Screen
-          name="schedule"
+        <Tabs.Screen
+          name="availability"
           options={{
-            title: "Schedule",
-            drawerIcon: ({ color }) => (
-              <Ionicons name="calendar-outline" size={20} color={color} />
+            title: "Availability",
+            tabBarIcon: ({ focused }) => (
+              <TabIcon name={focused ? "time" : "time-outline"} focused={focused} />
             ),
           }}
         />
-      </Drawer>
 
-      <Modal
-        visible={visible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setVisible(false)}
-      >
-        <Pressable
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.15)",
-          }}
-          onPress={() => setVisible(false)}
-        >
-          <View
-            onStartShouldSetResponder={() => true}
-            style={{
-              position: "absolute",
-              top: 60,
-              right: 15,
-              width: 260,
-              backgroundColor: "#fff",
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-              borderRadius: 12,
+        {/*
+          profile still lives in this route group so router.push('/instructor/profile')
+          keeps working, but it's hidden from the tab bar to avoid a 6th cramped tab.
+          Its title and avatar previously lived in the drawer header — worth surfacing
+          a small avatar button in the Tabs headerLeft on that one screen if you want
+          quick profile access without the logout icon there.
+        */}
+        <Tabs.Screen name="profile" options={{ href: null }} />
+      </Tabs>
 
-              // Android
-              elevation: 6,
-
-              // iOS
-              shadowColor: "#000",
-              shadowOffset: {
-                width: 0,
-                height: 2,
-              },
-              shadowOpacity: 0.15,
-              shadowRadius: 8,
-            }}
-          >
-            <Text
-              style={{
-                fontFamily: fonts.bold,
-                fontSize: 16,
-                marginBottom: 10,
-              }}
-            >
-              Notifications
-            </Text>
-
-            {notifications.length === 0 ? (
-              <Text
-                style={{
-                  fontFamily: fonts.regular,
-                  color: "#888",
-                }}
-              >
-                No notifications
-              </Text>
-            ) : (
-              notifications.map((item, index) => (
-                <View
-                  key={index}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    paddingVertical: 8,
-                    borderTopWidth: index === 0 ? 0 : 1,
-                    borderColor: "#f0f0f0",
-                  }}
-                >
-                  <Ionicons
-                    name="notifications-outline"
-                    size={18}
-                    color="#667ef9"
-                    style={{ marginRight: 10 }}
-                  />
-
-                  <Text
-                    style={{
-                      flex: 1,
-                      fontFamily: fonts.regular,
-                      fontSize: 14,
-                    }}
-                  >
-                    {item.text}
-                  </Text>
-                </View>
-              ))
-            )}
-          </View>
-        </Pressable>
-      </Modal>
+      <NotificationsModal visible={visible} onClose={() => setVisible(false)} />
     </>
   );
 }

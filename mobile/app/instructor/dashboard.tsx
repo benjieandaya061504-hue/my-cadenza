@@ -4,9 +4,7 @@ import {
   View,
   Text,
   ScrollView,
-  StyleSheet,
   RefreshControl,
-  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fonts } from '../../themes/fonts';
@@ -30,7 +28,7 @@ export default function InstructorDashboardScreen() {
       setError(null);
       const result = await getInstructorDashboard();
       setData(result);
-    } catch (err) {
+    } catch {
       setError('Unable to load your dashboard. Please try again.');
     }
   }, []);
@@ -51,7 +49,7 @@ export default function InstructorDashboardScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.centered}>
+      <SafeAreaView className="flex-1 items-center justify-center bg-[#F7F7FB]">
         <Loader />
       </SafeAreaView>
     );
@@ -59,26 +57,30 @@ export default function InstructorDashboardScreen() {
 
   if (error || !data) {
     return (
-      <SafeAreaView style={styles.centered}>
+      <SafeAreaView className="flex-1 items-center justify-center bg-[#F7F7FB]">
         <ErrorMessage message={error ?? 'Something went wrong.'} onRetry={fetchDashboard} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView className="flex-1 bg-[#F7F7FB]">
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerClassName="px-4 pb-8 pt-4"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
         {/* Greeting */}
-        <Text style={styles.greeting}>Welcome back,</Text>
-        <Text style={styles.instructorName}>{data.instructorName}</Text>
+        <Text className="text-sm text-[#8A8A8A]" style={{ fontFamily: fonts.regular }}>
+          Welcome back,
+        </Text>
+        <Text className="mb-2 text-[22px] text-[#1A1A1A]" style={{ fontFamily: fonts.bold }}>
+          {data.instructorName}
+        </Text>
 
         {/* Stats Grid */}
-        <View style={styles.statsGrid}>
+        <View className="-mx-1.5 mb-1 flex-row flex-wrap">
           <StatCard
             label="ASSIGNED STUDENTS"
             value={data.stats.assignedStudents}
@@ -93,9 +95,16 @@ export default function InstructorDashboardScreen() {
 
 
         {/* Student Progress Overview */}
-        <Text style={styles.sectionTitle}>STUDENT PROGRESS OVERVIEW</Text>
+        <Text
+          className="mb-2 mt-2 text-xs uppercase tracking-[0.5px] text-[#1A1A1A]"
+          style={{ fontFamily: fonts.bold }}
+        >
+          STUDENT PROGRESS OVERVIEW
+        </Text>
         {data.studentProgress.length === 0 ? (
-          <Text style={styles.emptyText}>No progress data available.</Text>
+          <Text className="mb-2 text-[13px] text-[#8A8A8A]" style={{ fontFamily: fonts.regular }}>
+            No progress data available.
+          </Text>
         ) : (
           data.studentProgress.map((student) => (
             <StudentProgressCard
@@ -109,79 +118,3 @@ export default function InstructorDashboardScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F7F7FB',
-  },
-
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F7F7FB',
-  },
-
-  content: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-
-  greeting: {
-    fontFamily: fonts.regular,
-    fontSize: 14,
-    color: '#8A8A8A',
-  },
-
-  instructorName: {
-    fontFamily: fonts.bold,
-    fontSize: 22,
-    color: '#1A1A1A',
-    marginBottom: 16,
-  },
-
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 20,
-    marginHorizontal: -6,
-  },
-
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-
-  sectionTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 12,
-    color: '#1A1A1A',
-    marginTop: 16,
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-
-  markAttendanceBtn: {
-    backgroundColor: '#667ef9',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-
-  markAttendanceBtnText: {
-    fontFamily: fonts.bold,
-    color: '#FFF',
-    fontSize: 12,
-  },
-
-  emptyText: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    color: '#8A8A8A',
-    marginBottom: 8,
-  },
-});

@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Pressable, Text } from "react-native";
 
 type ButtonVariant = "primary" | "outline";
 
@@ -17,35 +17,14 @@ export default function Button({
 
   return (
     <Pressable
-      style={[styles.button, isOutline && styles.buttonOutline]}
+      className={`items-center rounded-lg px-4 py-3 ${
+        isOutline ? "border border-[#063970] bg-transparent" : "bg-[#063970]"
+      }`}
       onPress={onPress}
     >
-      <Text style={[styles.text, isOutline && styles.textOutline]}>
+      <Text className={isOutline ? "text-[#063970]" : "text-white"}>
         {title}
       </Text>
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  button: {
-    backgroundColor: "#063970",
-    padding: 14,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-
-  buttonOutline: {
-    backgroundColor: "transparent",
-    borderWidth: 1.5,
-    borderColor: "#063970",
-  },
-
-  text: {
-    color: "#fff",
-  },
-
-  textOutline: {
-    color: "#063970",
-  },
-});

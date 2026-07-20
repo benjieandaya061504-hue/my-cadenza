@@ -1,4 +1,4 @@
-import { StyleSheet, TextInput } from "react-native";
+import { TextInput } from "react-native";
 
 interface InputProps {
   placeholder: string;
@@ -13,20 +13,10 @@ export default function Input({
 }: InputProps) {
   return (
     <TextInput
-      style={styles.input}
+      className="mb-2 rounded-lg border border-[#ddd] p-3"
       placeholder={placeholder}
       value={value}
       onChangeText={onChangeText}
     />
   );
 }
-
-const styles = StyleSheet.create({
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 10,
-  },
-});
