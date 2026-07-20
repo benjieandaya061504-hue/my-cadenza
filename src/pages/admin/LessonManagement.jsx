@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
-import { coursesAPI } from '../../services/api'
+import { coursesAPI, instructorsAPI } from '../../services/api'
 
 const C = {
   bg: '#0e0f13',
@@ -52,6 +52,8 @@ const css = `
   .lm-row:hover { background: rgba(255,255,255,0.03) !important; }
   .lm-pill { transition: all 0.18s ease; }
   .lm-pill:hover { background: rgba(124,106,247,0.18) !important; color: #a99cf9 !important; }
+  .instructor-checkbox { transition: all 0.15s ease; }
+  .instructor-checkbox:hover { background: rgba(124,106,247,0.08) !important; }
 `
 
 function inputStyle(focused) {
@@ -80,7 +82,7 @@ function fieldLabel(text) {
 function PackageFormModal({ mode, initial, onClose, onSave }) {
   const [name, setName] = useState(initial?.name ?? '')
   const [durationMinutes, setDurationMinutes] = useState(initial?.durationMinutes ?? initial?.duration_minutes ?? 45)
-  const [sessionLimit, setSessionLimit] = useState(initial?.sessionLimit ?? initial?.session_limit ?? 8)
+  const [sessionsPerWeek, setSessionsPerWeek] = useState(initial?.sessionsPerWeek ?? initial?.sessions_per_week ?? 1)
   const [categoryKind, setCategoryKind] = useState(initial?.categoryKind ?? initial?.category_kind ?? 'instrument')
   const [category, setCategory] = useState(initial?.category ?? INSTRUMENTS[0])
   const [description, setDescription] = useState(initial?.description ?? '')
@@ -88,8 +90,37 @@ function PackageFormModal({ mode, initial, onClose, onSave }) {
   const [focus, setFocus] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  // Instructor selection
+  const [allInstructors, setAllInstructors] = useState([])
+  const [selectedInstructorIds, setSelectedInstructorIds] = useState([])
+  const [instructorsLoading, setInstructorsLoading] = useState(true)
 
   const categoryOptions = categoryKind === 'instrument' ? INSTRUMENTS : COURSE_TYPES
+
+  // Fetch all instructors on mount
+  useEffect(() => {
+    setInstructorsLoading(true)
+    instructorsAPI.getAll()
+      .then(res => {
+        const instructors = res.data
+        setAllInstructors(instructors)
+        // Pre-select instructors if editing
+        if (mode === 'edit' && initial?.instructors) {
+          setSelectedInstructorIds(initial.instructors.map(inst => inst.id))
+        }
+        setInstructorsLoading(false)
+      })
+      .catch(err => {
+        console.error('Failed to fetch instructors:', err)
+        setInstructorsLoading(false)
+      })
+  }, [mode, initial])
+
+  const toggleInstructor = (id) => {
+    setSelectedInstructorIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
 
   const handleSubmit = async e => {
     e.preventDefault()
@@ -101,16 +132,21 @@ function PackageFormModal({ mode, initial, onClose, onSave }) {
     }
     const cat = categoryOptions.includes(category) ? category : categoryOptions[0]
 
+    // Auto-calculate session limit: sessions_per_week × 4 weeks per month
+    const calculatedSessionLimit = Math.max(1, Math.min(7, Number(sessionsPerWeek) || 1)) * 4
+
     setSubmitting(true)
     try {
       await onSave({
         name: name.trim(),
         durationMinutes: Math.max(15, Number(durationMinutes) || 45),
-        sessionLimit: Math.max(1, Number(sessionLimit) || 1),
+        sessionLimit: calculatedSessionLimit,
+        sessionsPerWeek: Math.max(1, Math.min(7, Number(sessionsPerWeek) || 1)),
         categoryKind,
         category: cat,
         description: description.trim(),
         rate: Math.max(0, Number(rate) || 0),
+        instructor_ids: selectedInstructorIds,
       })
       onClose()
     } catch (err) {
@@ -136,7 +172,7 @@ function PackageFormModal({ mode, initial, onClose, onSave }) {
         aria-labelledby="lm-pkg-title"
         onClick={e => e.stopPropagation()}
         style={{
-          width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto',
+          width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto',
           background: C.bg3, border: `1px solid ${C.border2}`,
           borderRadius: '16px', padding: '22px',
           boxShadow: '0 24px 48px rgba(0,0,0,0.45)',
@@ -159,15 +195,25 @@ function PackageFormModal({ mode, initial, onClose, onSave }) {
               {fieldLabel('Package name')}
               <input value={name} onChange={e => setName(e.target.value)} required style={inputStyle(focus === 'n')} onFocus={() => setFocus('n')} onBlur={() => setFocus(null)} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div>
-                {fieldLabel('Lesson duration (min)')}
-                <input type="number" min={15} step={5} value={durationMinutes} onChange={e => setDurationMinutes(e.target.value)} style={inputStyle(focus === 'd')} onFocus={() => setFocus('d')} onBlur={() => setFocus(null)} />
-              </div>
-              <div>
-                {fieldLabel('Session limit')}
-                <input type="number" min={1} value={sessionLimit} onChange={e => setSessionLimit(e.target.value)} style={inputStyle(focus === 's')} onFocus={() => setFocus('s')} onBlur={() => setFocus(null)} />
-              </div>
+            <div>
+              {fieldLabel('Lesson duration (min)')}
+              <input type="number" min={15} step={5} value={durationMinutes} onChange={e => setDurationMinutes(e.target.value)} style={inputStyle(focus === 'd')} onFocus={() => setFocus('d')} onBlur={() => setFocus(null)} />
+            </div>
+            <div>
+              {fieldLabel('Sessions per week')}
+              <select
+                value={sessionsPerWeek}
+                onChange={e => setSessionsPerWeek(Number(e.target.value))}
+                style={{ ...inputStyle(focus === 'w'), cursor: 'pointer' }}
+                onFocus={() => setFocus('w')}
+                onBlur={() => setFocus(null)}
+              >
+                {[1, 2, 3, 4, 5, 6, 7].map(n => (
+                  <option key={n} value={n}>
+                    {n === 1 ? '1 — Once a week' : n === 2 ? '2 — Twice a week' : n === 3 ? '3 — Three times a week' : n === 4 ? '4 — Four times a week' : n === 5 ? '5 — Five times a week' : n === 6 ? '6 — Six times a week' : '7 — Daily'}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               {fieldLabel('Lesson category basis')}
@@ -204,6 +250,58 @@ function PackageFormModal({ mode, initial, onClose, onSave }) {
             <div>
               {fieldLabel('Rate / Total Price (₱)')}
               <input type="number" min={0} step={0.01} value={rate} onChange={e => setRate(e.target.value)} placeholder="e.g. 4000" style={inputStyle(focus === 'r')} onFocus={() => setFocus('r')} onBlur={() => setFocus(null)} />
+            </div>
+            <div>
+              {fieldLabel('Assign instructors')}
+              {instructorsLoading ? (
+                <div style={{ padding: '12px', color: C.text3, fontSize: '12px' }}>Loading instructors…</div>
+              ) : allInstructors.length === 0 ? (
+                <div style={{ padding: '12px', color: C.text3, fontSize: '12px', fontStyle: 'italic' }}>
+                  No instructors available. Add instructors first.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '160px', overflowY: 'auto', padding: '4px', border: `1px solid ${C.border}`, borderRadius: '10px', background: C.bg4 }}>
+                  {allInstructors.map(inst => {
+                    const checked = selectedInstructorIds.includes(inst.id)
+                    return (
+                      <label
+                        key={inst.id}
+                        className="instructor-checkbox"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          background: checked ? 'rgba(124,106,247,0.12)' : 'transparent',
+                          border: checked ? '1px solid rgba(124,106,247,0.3)' : '1px solid transparent',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleInstructor(inst.id)}
+                          style={{ accentColor: C.accent, cursor: 'pointer' }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '13px', fontWeight: 500, color: C.text }}>
+                            {inst.first_name} {inst.last_name}
+                          </div>
+                          {inst.specialization && (
+                            <div style={{ fontSize: '11px', color: C.text3 }}>{inst.specialization}</div>
+                          )}
+                        </div>
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+              {selectedInstructorIds.length > 0 && (
+                <div style={{ fontSize: '11px', color: C.accentL, marginTop: '4px' }}>
+                  {selectedInstructorIds.length} instructor{selectedInstructorIds.length > 1 ? 's' : ''} selected
+                </div>
+              )}
             </div>
             <div>
               {fieldLabel('Description (optional)')}
@@ -327,10 +425,12 @@ function LessonManagement({ isMobile = false, isTablet = false }) {
       name: formData.name,
       duration_minutes: formData.durationMinutes,
       session_limit: formData.sessionLimit,
+      sessions_per_week: formData.sessionsPerWeek,
       category_kind: formData.categoryKind,
       category: formData.category,
       description: formData.description || null,
       rate: formData.rate || 0,
+      instructor_ids: formData.instructor_ids || [],
     })
     await fetchPackages()
   }
@@ -342,10 +442,12 @@ function LessonManagement({ isMobile = false, isTablet = false }) {
         name: formData.name,
         duration_minutes: formData.durationMinutes,
         session_limit: formData.sessionLimit,
+        sessions_per_week: formData.sessionsPerWeek,
         category_kind: formData.categoryKind,
         category: formData.category,
         description: formData.description || null,
         rate: formData.rate || 0,
+        instructor_ids: formData.instructor_ids || [],
       }
       await coursesAPI.updatePackage(pkgModal.pkg.id, payload)
       await fetchPackages()
@@ -541,10 +643,10 @@ function LessonManagement({ isMobile = false, isTablet = false }) {
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto', borderRadius: '12px', border: `1px solid ${C.border}` }}>
-                  <table style={{ width: '100%', minWidth: isTablet ? '720px' : '800px', borderCollapse: 'collapse' }}>
+                  <table style={{ width: '100%', minWidth: isTablet ? '820px' : '920px', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ background: C.bg4 }}>
-                        {['Package', 'Duration', 'Sessions', 'Category', 'Actions'].map(h => (
+                        {['Package', 'Duration', 'Sessions', 'Frequency', 'Category', 'Instructors', 'Actions'].map(h => (
                           <th
                             key={h}
                             style={{
@@ -566,36 +668,59 @@ function LessonManagement({ isMobile = false, isTablet = false }) {
                     <tbody>
                       {filteredPackages.length === 0 ? (
                         <tr>
-                          <td colSpan={5} style={{ padding: '36px 16px', textAlign: 'center', color: C.text3, fontSize: '13px' }}>
+                          <td colSpan={7} style={{ padding: '36px 16px', textAlign: 'center', color: C.text3, fontSize: '13px' }}>
                             No packages match your filters. Try clearing search or create a new package.
                           </td>
                         </tr>
                       ) : (
-                        filteredPackages.map((p, i) => (
-                          <tr key={p.id} className="lm-row" style={{ borderBottom: i < filteredPackages.length - 1 ? `1px solid ${C.border}` : 'none' }}>
-                            <td style={{ padding: '12px', verticalAlign: 'top' }}>
-                              <div style={{ fontSize: '13px', fontWeight: 600, color: C.text }}>{p.name}</div>
-                              <div style={{ fontSize: '11px', color: C.text3, fontFamily: C.mono, marginTop: '3px' }}>{p.id}</div>
-                              {p.description && <div style={{ fontSize: '11px', color: C.text2, marginTop: '6px', maxWidth: '320px', lineHeight: 1.4 }}>{p.description}</div>}
-                            </td>
-                            <td style={{ padding: '12px', fontSize: '13px', color: C.text2, fontFamily: C.mono, verticalAlign: 'middle' }}>{p.durationMinutes ?? p.duration_minutes} min</td>
-                            <td style={{ padding: '12px', fontSize: '13px', color: C.text2, fontFamily: C.mono, verticalAlign: 'middle' }}>{p.sessionLimit ?? p.session_limit}</td>
-                            <td style={{ padding: '12px', verticalAlign: 'middle' }}>
-                              <div style={{ fontSize: '12px', color: C.text, fontWeight: 500 }}>{p.category}</div>
-                              <div style={{ fontSize: '10px', color: C.text3, textTransform: 'uppercase', letterSpacing: '.06em', marginTop: '4px' }}>
-                                {p.categoryKind === 'instrument' || p.category_kind === 'instrument' ? 'Instrument' : 'Course type'}
-                              </div>
-                            </td>
-                            <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
-                              <button type="button" className="lm-pill" onClick={() => setPkgModal({ type: 'edit', pkg: p })} style={{ marginRight: '6px', padding: '6px 11px', borderRadius: '8px', border: `1px solid ${C.border}`, background: C.bg4, color: C.text2, cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}>
-                                Edit
-                              </button>
-                              <button type="button" onClick={() => setDeleteId(p.id)} style={{ padding: '6px 11px', borderRadius: '8px', border: `1px solid rgba(248,113,113,0.35)`, background: 'rgba(248,113,113,0.08)', color: C.coral, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-                                Remove
-                              </button>
-                            </td>
-                          </tr>
-                        ))
+                        filteredPackages.map((p, i) => {
+                          const instructors = p.instructors || []
+                          return (
+                            <tr key={p.id} className="lm-row" style={{ borderBottom: i < filteredPackages.length - 1 ? `1px solid ${C.border}` : 'none' }}>
+                              <td style={{ padding: '12px', verticalAlign: 'top' }}>
+                                <div style={{ fontSize: '13px', fontWeight: 600, color: C.text }}>{p.name}</div>
+                                <div style={{ fontSize: '11px', color: C.text3, fontFamily: C.mono, marginTop: '3px' }}>{p.id}</div>
+                                {p.description && <div style={{ fontSize: '11px', color: C.text2, marginTop: '6px', maxWidth: '240px', lineHeight: 1.4 }}>{p.description}</div>}
+                              </td>
+                              <td style={{ padding: '12px', fontSize: '13px', color: C.text2, fontFamily: C.mono, verticalAlign: 'middle' }}>{p.durationMinutes ?? p.duration_minutes} min</td>
+                              <td style={{ padding: '12px', fontSize: '13px', color: C.text2, fontFamily: C.mono, verticalAlign: 'middle' }}>{p.sessionLimit ?? p.session_limit}</td>
+                              <td style={{ padding: '12px', fontSize: '13px', color: C.teal, fontFamily: C.mono, fontWeight: 600, verticalAlign: 'middle' }}>
+                                {(() => {
+                                  const spw = p.sessionsPerWeek ?? p.sessions_per_week ?? 1
+                                  const labels = { 1: '1x/week', 2: '2x/week', 3: '3x/week', 4: '4x/week', 5: '5x/week', 6: '6x/week', 7: 'Daily' }
+                                  return labels[spw] || `${spw}x/week`
+                                })()}
+                              </td>
+                              <td style={{ padding: '12px', verticalAlign: 'middle' }}>
+                                <div style={{ fontSize: '12px', color: C.text, fontWeight: 500 }}>{p.category}</div>
+                                <div style={{ fontSize: '10px', color: C.text3, textTransform: 'uppercase', letterSpacing: '.06em', marginTop: '4px' }}>
+                                  {p.categoryKind === 'instrument' || p.category_kind === 'instrument' ? 'Instrument' : 'Course type'}
+                                </div>
+                              </td>
+                              <td style={{ padding: '12px', verticalAlign: 'middle' }}>
+                                {instructors.length === 0 ? (
+                                  <span style={{ fontSize: '11px', color: C.text3, fontStyle: 'italic' }}>None assigned</span>
+                                ) : (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                    {instructors.map(inst => (
+                                      <span key={inst.id} style={{ fontSize: '11px', color: C.accentL, fontWeight: 500 }}>
+                                        {inst.first_name} {inst.last_name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </td>
+                              <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+                                <button type="button" className="lm-pill" onClick={() => setPkgModal({ type: 'edit', pkg: p })} style={{ marginRight: '6px', padding: '6px 11px', borderRadius: '8px', border: `1px solid ${C.border}`, background: C.bg4, color: C.text2, cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}>
+                                  Edit
+                                </button>
+                                <button type="button" onClick={() => setDeleteId(p.id)} style={{ padding: '6px 11px', borderRadius: '8px', border: `1px solid rgba(248,113,113,0.35)`, background: 'rgba(248,113,113,0.08)', color: C.coral, cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+                                  Remove
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })
                       )}
                     </tbody>
                   </table>

@@ -214,6 +214,54 @@ async function ensureLessonPackagesTable(connection) {
   }
 }
 
+async function ensurePackageInstructorsTable(connection) {
+  const [tables] = await connection.query(
+    'SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?',
+    ['package_instructors']
+  )
+
+  if (tables.length === 0) {
+    await connection.query(`
+      CREATE TABLE package_instructors (
+        id INT AUTO_INCREMENT,
+        package_id INT NOT NULL,
+        instructor_id INT NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY uq_pkg_instructor (package_id, instructor_id),
+        FOREIGN KEY (package_id) REFERENCES lesson_packages(id) ON DELETE CASCADE,
+        FOREIGN KEY (instructor_id) REFERENCES instructors(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `)
+    console.log('✅ package_instructors table created')
+  } else {
+    // Ensure columns exist if table already exists
+    await ensureColumn(connection, 'package_instructors', 'package_id', 'INT NOT NULL')
+    await ensureColumn(connection, 'package_instructors', 'instructor_id', 'INT NOT NULL')
+  }
+}
+
+async function dropInstructorColumns(connection) {
+  // Drop hourly_rate column if it exists
+  const [hourlyCol] = await connection.query(
+    "SELECT COUNT(*) AS count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'instructors' AND column_name = 'hourly_rate'"
+  )
+  if (hourlyCol[0].count > 0) {
+    await connection.query('ALTER TABLE instructors DROP COLUMN hourly_rate')
+    console.log('✅ Dropped hourly_rate from instructors')
+  }
+
+  // Drop commission_percentage column if it exists
+  const [commCol] = await connection.query(
+    "SELECT COUNT(*) AS count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'instructors' AND column_name = 'commission_percentage'"
+  )
+  if (commCol[0].count > 0) {
+    await connection.query('ALTER TABLE instructors DROP COLUMN commission_percentage')
+    console.log('✅ Dropped commission_percentage from instructors')
+  }
+
+}
+
 export async function initializeDatabase() {
   const connection = await pool.getConnection()
   try {
@@ -225,14 +273,36 @@ export async function initializeDatabase() {
   // instructor's name as plain text since there's no instructor accounts/IDs yet.
   await ensureColumn(connection, 'enrollments', 'instructor_requested', "VARCHAR(100) DEFAULT NULL")
 
+    await ensureLessonPackagesTable(connection)
+
     // Add rate column to lesson_packages if not present
     await ensureColumn(connection, 'lesson_packages', 'rate', 'DECIMAL(10,2) NOT NULL DEFAULT 0')
+
+    // Ensure package_instructors junction table exists
+    await ensurePackageInstructorsTable(connection)
+
+    // Drop hourly_rate and commission_percentage from instructors table
+    await dropInstructorColumns(connection)
+
+    // Add sessions_per_week column to lesson_packages if not present
+    await ensureColumn(connection, 'lesson_packages', 'sessions_per_week', 'INT NOT NULL DEFAULT 1')
 
     // Add package_id and package_name columns to enrollments if not present
     await ensureColumn(connection, 'enrollments', 'package_id', 'INT DEFAULT NULL')
     await ensureColumn(connection, 'enrollments', 'package_name', 'VARCHAR(200) DEFAULT NULL')
 
-    await ensureLessonPackagesTable(connection)
+    // Seed default lesson packages if table is empty
+    const [existingPkgs] = await connection.query('SELECT COUNT(*) AS count FROM lesson_packages')
+    if (existingPkgs[0].count === 0) {
+      await connection.query(`
+        INSERT INTO lesson_packages (name, duration_minutes, session_limit, sessions_per_week, category_kind, category, description, rate) VALUES
+        ('Package 1 – Starter', 60, 4, 1, 'instrument', 'Guitar', '4 sessions once a week for 1 month', 1550.00),
+        ('Package 2 – Standard', 60, 8, 2, 'instrument', 'Guitar', '8 sessions twice a week for 1 month', 3000.00),
+        ('Package 3 – Premium', 60, 12, 3, 'instrument', 'Guitar', '12 sessions three times a week for 1 month', 4300.00),
+        ('Package 4 – Intensive', 60, 16, 4, 'instrument', 'Guitar', '16 sessions four times a week for 1 month', 5400.00)
+      `)
+      console.log('✅ Default lesson packages seeded')
+    }
   } finally {
     connection.release()
   }

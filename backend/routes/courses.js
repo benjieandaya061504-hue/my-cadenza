@@ -83,11 +83,28 @@ router.delete('/:id', async (req, res) => {
   }
 })
 
-// ─── GET all lesson packages ────────────────────────────────────
+// ─── GET all lesson packages (with assigned instructors) ────────
 router.get('/packages/all', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM lesson_packages ORDER BY created_at DESC')
-    res.json(rows)
+
+    // For each package, fetch assigned instructors
+    const packagesWithInstructors = await Promise.all(rows.map(async (pkg) => {
+      const [instructors] = await pool.query(
+        `SELECT i.id, i.first_name, i.last_name, i.specialization, i.email
+         FROM instructors i
+         JOIN package_instructors pi ON pi.instructor_id = i.id
+         WHERE pi.package_id = ?
+         ORDER BY i.first_name ASC`,
+        [pkg.id]
+      )
+      return {
+        ...pkg,
+        instructors: instructors || [],
+      }
+    }))
+
+    res.json(packagesWithInstructors)
   } catch (error) {
     console.error('Error fetching lesson packages:', error)
     res.status(500).json({ error: 'Failed to fetch lesson packages' })
@@ -97,7 +114,7 @@ router.get('/packages/all', async (req, res) => {
 // ─── POST create a lesson package ───────────────────────────────
 router.post('/packages', async (req, res) => {
   try {
-    const { name, duration_minutes, session_limit, category_kind, category, description, rate } = req.body
+    const { name, duration_minutes, session_limit, sessions_per_week, category_kind, category, description, rate, instructor_ids } = req.body
 
     // Validate required fields
     if (!name || !name.trim()) {
@@ -109,6 +126,9 @@ router.post('/packages', async (req, res) => {
     if (!session_limit || session_limit < 1) {
       return res.status(400).json({ error: 'Session limit must be at least 1' })
     }
+    if (!sessions_per_week || sessions_per_week < 1 || sessions_per_week > 7) {
+      return res.status(400).json({ error: 'Sessions per week must be between 1 and 7' })
+    }
     if (!category_kind || !['instrument', 'course'].includes(category_kind)) {
       return res.status(400).json({ error: 'Category basis must be "instrument" or "course"' })
     }
@@ -117,15 +137,36 @@ router.post('/packages', async (req, res) => {
     }
 
     const [result] = await pool.query(
-      `INSERT INTO lesson_packages (name, duration_minutes, session_limit, category_kind, category, description, rate)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [name.trim(), Number(duration_minutes), Number(session_limit), category_kind, category.trim(), description || null, rate || 0]
+      `INSERT INTO lesson_packages (name, duration_minutes, session_limit, sessions_per_week, category_kind, category, description, rate)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name.trim(), Number(duration_minutes), Number(session_limit), Number(sessions_per_week), category_kind, category.trim(), description || null, rate || 0]
     )
 
-    // Fetch the newly created record to return full data
-    const [newPackage] = await pool.query('SELECT * FROM lesson_packages WHERE id = ?', [result.insertId])
+    const packageId = result.insertId
 
-    res.status(201).json({ message: 'Lesson package created successfully', package: newPackage[0] })
+    // Insert instructor assignments if provided
+    if (instructor_ids && Array.isArray(instructor_ids) && instructor_ids.length > 0) {
+      const values = instructor_ids.map(id => [packageId, id])
+      await pool.query(
+        'INSERT INTO package_instructors (package_id, instructor_id) VALUES ?',
+        [values]
+      )
+    }
+
+    // Fetch the newly created record with instructors
+    const [newPackage] = await pool.query('SELECT * FROM lesson_packages WHERE id = ?', [packageId])
+    const [instructors] = await pool.query(
+      `SELECT i.id, i.first_name, i.last_name, i.specialization, i.email
+       FROM instructors i
+       JOIN package_instructors pi ON pi.instructor_id = i.id
+       WHERE pi.package_id = ?`,
+      [packageId]
+    )
+
+    res.status(201).json({
+      message: 'Lesson package created successfully',
+      package: { ...newPackage[0], instructors: instructors || [] }
+    })
   } catch (error) {
     console.error('Error creating lesson package:', error)
     res.status(500).json({ error: 'Failed to create lesson package' })
@@ -135,7 +176,7 @@ router.post('/packages', async (req, res) => {
 // ─── PUT update a lesson package ──────────────────────────────
 router.put('/packages/:id', async (req, res) => {
   try {
-    const { name, duration_minutes, session_limit, category_kind, category, description, rate } = req.body
+    const { name, duration_minutes, session_limit, sessions_per_week, category_kind, category, description, rate, instructor_ids } = req.body
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Package name is required' })
@@ -143,12 +184,13 @@ router.put('/packages/:id', async (req, res) => {
 
     const [result] = await pool.query(
       `UPDATE lesson_packages
-       SET name = ?, duration_minutes = ?, session_limit = ?, category_kind = ?, category = ?, description = ?, rate = ?
+       SET name = ?, duration_minutes = ?, session_limit = ?, sessions_per_week = ?, category_kind = ?, category = ?, description = ?, rate = ?
        WHERE id = ?`,
       [
         name.trim(),
         Number(duration_minutes),
         Number(session_limit),
+        Number(sessions_per_week) || 1,
         category_kind,
         category.trim(),
         description || null,
@@ -161,10 +203,31 @@ router.put('/packages/:id', async (req, res) => {
       return res.status(404).json({ error: 'Lesson package not found' })
     }
 
-    // Fetch the updated record
-    const [updated] = await pool.query('SELECT * FROM lesson_packages WHERE id = ?', [req.params.id])
+    // Replace instructor assignments: delete existing, insert new
+    await pool.query('DELETE FROM package_instructors WHERE package_id = ?', [req.params.id])
 
-    res.json({ message: 'Lesson package updated successfully', package: updated[0] })
+    if (instructor_ids && Array.isArray(instructor_ids) && instructor_ids.length > 0) {
+      const values = instructor_ids.map(id => [Number(req.params.id), id])
+      await pool.query(
+        'INSERT INTO package_instructors (package_id, instructor_id) VALUES ?',
+        [values]
+      )
+    }
+
+    // Fetch the updated record with instructors
+    const [updated] = await pool.query('SELECT * FROM lesson_packages WHERE id = ?', [req.params.id])
+    const [instructors] = await pool.query(
+      `SELECT i.id, i.first_name, i.last_name, i.specialization, i.email
+       FROM instructors i
+       JOIN package_instructors pi ON pi.instructor_id = i.id
+       WHERE pi.package_id = ?`,
+      [req.params.id]
+    )
+
+    res.json({
+      message: 'Lesson package updated successfully',
+      package: { ...updated[0], instructors: instructors || [] }
+    })
   } catch (error) {
     console.error('Error updating lesson package:', error)
     res.status(500).json({ error: 'Failed to update lesson package' })
@@ -191,6 +254,7 @@ router.delete('/packages/:id', async (req, res) => {
       })
     }
 
+    // package_instructors entries will be deleted automatically via ON DELETE CASCADE
     const [result] = await pool.query('DELETE FROM lesson_packages WHERE id = ?', [packageId])
 
     if (result.affectedRows === 0) {
@@ -201,6 +265,24 @@ router.delete('/packages/:id', async (req, res) => {
   } catch (error) {
     console.error('Error deleting lesson package:', error)
     res.status(500).json({ error: 'Failed to delete lesson package' })
+  }
+})
+
+// ─── GET instructors assigned to a specific package ─────────────
+router.get('/packages/:id/instructors', async (req, res) => {
+  try {
+    const [instructors] = await pool.query(
+      `SELECT i.id, i.first_name, i.last_name, i.specialization, i.email
+       FROM instructors i
+       JOIN package_instructors pi ON pi.instructor_id = i.id
+       WHERE pi.package_id = ?
+       ORDER BY i.first_name ASC`,
+      [req.params.id]
+    )
+    res.json(instructors)
+  } catch (error) {
+    console.error('Error fetching package instructors:', error)
+    res.status(500).json({ error: 'Failed to fetch package instructors' })
   }
 })
 

@@ -8,7 +8,7 @@ import pool from '../db.js'
 
 const router = Router()
 
-// ─── GET all instructors ───────────────────────────────────────
+// ─── GET all instructors ──────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -41,16 +41,16 @@ router.get('/:id', async (req, res) => {
 // ─── POST Create new instructor ────────────────────────────────
 router.post('/', async (req, res) => {
   try {
-    const { first_name, last_name, email, contact_number, address, specialization, bio, hourly_rate, commission_percentage } = req.body
+    const { first_name, last_name, email, contact_number, address, specialization, bio } = req.body
 
     if (!first_name || !last_name || !email || !contact_number) {
       return res.status(400).json({ error: 'First name, last name, email, and contact number are required' })
     }
 
     const [result] = await pool.query(
-      `INSERT INTO instructors (first_name, last_name, email, contact_number, address, specialization, bio, hourly_rate, commission_percentage)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [first_name, last_name, email, contact_number, address || null, specialization || null, bio || null, hourly_rate || 0, commission_percentage || 0]
+      `INSERT INTO instructors (first_name, last_name, email, contact_number, address, specialization, bio)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [first_name, last_name, email, contact_number, address || null, specialization || null, bio || null]
     )
 
     res.status(201).json({ message: 'Instructor created successfully', instructorId: result.insertId })
@@ -63,11 +63,11 @@ router.post('/', async (req, res) => {
 // ─── PUT Update instructor ─────────────────────────────────────
 router.put('/:id', async (req, res) => {
   try {
-    const { first_name, last_name, email, contact_number, address, specialization, bio, hourly_rate, commission_percentage, status } = req.body
+    const { first_name, last_name, email, contact_number, address, specialization, bio, status } = req.body
 
     const [result] = await pool.query(
-      `UPDATE instructors SET first_name = ?, last_name = ?, email = ?, contact_number = ?, address = ?, specialization = ?, bio = ?, hourly_rate = ?, commission_percentage = ?, status = ? WHERE id = ?`,
-      [first_name, last_name, email, contact_number, address, specialization, bio, hourly_rate, commission_percentage, status || 'active', req.params.id]
+      `UPDATE instructors SET first_name = ?, last_name = ?, email = ?, contact_number = ?, address = ?, specialization = ?, bio = ?, status = ? WHERE id = ?`,
+      [first_name, last_name, email, contact_number, address, specialization, bio, status || 'active', req.params.id]
     )
 
     if (result.affectedRows === 0) {

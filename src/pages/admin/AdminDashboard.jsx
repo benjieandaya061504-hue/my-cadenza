@@ -8,6 +8,7 @@ import InstrumentManagement from './InstrumentManagement'
 import AnnouncementManagement from './AnnouncementManagement'
 import Reports from './Reports'
 import EnrolledStudents from './EnrolledStudents'
+import InstructorManagement from './InstructorManagement'
 
 const C = {
   bg:       '#0e0f13',
@@ -39,6 +40,7 @@ const ADMIN_NAV = [
   { section: 'Management', items: [
     { id: 'enrolled',      icon: '🎓', label: 'Enrolled Students' },
     { id: 'users',         icon: '◈', label: 'Users' },
+    { id: 'instructors',   icon: '👨‍🏫', label: 'Instructors' },
     { id: 'lessons',       icon: '♫', label: 'Lessons' },
     { id: 'scheduling',    icon: '▦', label: 'Schedules' },
     { id: 'studio',        icon: '♬', label: 'Studio Rooms' },
@@ -54,6 +56,7 @@ const PAGE_LABELS = {
   dashboard: 'Dashboard',
   enrolled: 'Enrolled Students',
   users: 'Users',
+  instructors: 'Instructors',
   lessons: 'Lessons',
   scheduling: 'Schedules',
   studio: 'Studio Rooms',
@@ -646,7 +649,9 @@ function Dashboard({ onLogout }) {
                 ? <EnrolledStudents isMobile={isMobile} isTablet={isTablet} />
                 : activePage === 'users'
                   ? <UserManagement isMobile={isMobile} isTablet={isTablet} />
-                  : activePage === 'lessons'
+                  : activePage === 'instructors'
+                    ? <InstructorManagement isMobile={isMobile} isTablet={isTablet} />
+                    : activePage === 'lessons'
                     ? <LessonManagement isMobile={isMobile} isTablet={isTablet} />
                     : activePage === 'scheduling'
                       ? <ScheduleManagement isMobile={isMobile} isTablet={isTablet} />
