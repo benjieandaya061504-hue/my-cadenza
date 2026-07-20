@@ -1,81 +1,33 @@
-import { useState } from 'react'
 import PublicSectionNav from './PublicSectionNav'
 import { usePublicSite } from './PublicSiteContext'
-import { usersAPI } from '../../services/api'
 
 export default function RegistrationPublicPage() {
-  const { showToast } = usePublicSite()
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    contactNumber: '',
-    address: '',
-    password: '',
-    confirmPassword: '',
-  })
-  const [passwordError, setPasswordError] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const {
+    isLoggedIn,
+    signupFields,
+    setSignupFields,
+    signupError,
+    submitting,
+    submitSignupGate,
+  } = usePublicSite()
 
-  const handleChange = (e) => {
-    const value = e.target.name === 'contactNumber' ? e.target.value.replace(/[^0-9+]/g, '') : e.target.value
-    setFormData({ ...formData, [e.target.name]: value })
-    if (e.target.name === 'password' || e.target.name === 'confirmPassword') {
-      setPasswordError('')
-    }
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!formData.username || !formData.email || !formData.contactNumber || !formData.password || !formData.confirmPassword) {
-      showToast('Please fill in all required fields.')
-      return
-    }
-    if (formData.password !== formData.confirmPassword) {
-      setPasswordError('Incorrect Password')
-      return
-    }
-
-    setIsSubmitting(true)
-    try {
-      const response = await usersAPI.register({
-        username: formData.username,
-        email: formData.email,
-        contactNumber: formData.contactNumber,
-        address: formData.address,
-        password: formData.password,
-      })
-
-      if (response.status === 201) {
-        showToast('Registration successful! Your application will be routed to the Student Approval Module for verification.')
-        setFormData({
-          username: '',
-          email: '',
-          contactNumber: '',
-          address: '',
-          password: '',
-          confirmPassword: '',
-        })
-        setPasswordError('')
-      }
-    } catch (error) {
-      console.error('Registration error:', error)
-      const errorMessage = error.response?.data?.error || error.message || 'Registration failed. Please try again.'
-      showToast(errorMessage)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleCancel = () => {
-    setFormData({
-      username: '',
-      email: '',
-      contactNumber: '',
-      address: '',
-      password: '',
-      confirmPassword: '',
-    })
-    setPasswordError('')
+  if (isLoggedIn) {
+    return (
+      <div id="page-registration" className="pub-section">
+        <PublicSectionNav label="Registration" />
+        <div className="pub-page-header">
+          <h2>Registration</h2>
+          <p>Onboarding new users into the system. Create your account to access all services.</p>
+        </div>
+        <div className="card" style={{ maxWidth: '500px', margin: '0 auto', textAlign: 'center', padding: '40px 20px' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+          <h3 style={{ marginBottom: 8 }}>You are already registered and logged in.</h3>
+          <p style={{ color: 'var(--text2)', fontSize: 14 }}>
+            You can proceed to enroll in lessons or explore other services.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -85,138 +37,106 @@ export default function RegistrationPublicPage() {
         <h2>Registration</h2>
         <p>Onboarding new users into the system. Create your account to access all services.</p>
       </div>
-      <div className="card" style={{ maxWidth: '500px', margin: '0 auto' }}>
-        <form onSubmit={handleSubmit}>
-          <div className="form-row">
-            <div>
-              <label htmlFor="username">User name</label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                placeholder="Enter your username"
-                value={formData.username}
-                onChange={handleChange}
-                required
-              />
-            </div>
+      <div className="card" style={{ maxWidth: '480px', margin: '0 auto' }}>
+        <div style={{ fontSize: 36, marginBottom: 8, textAlign: 'center' }} aria-hidden>📝</div>
+        <h2 style={{ marginBottom: 4, textAlign: 'center' }}>Create Your Account</h2>
+        <p className="sg-sub" style={{ textAlign: 'center' }}>Create your account.</p>
+
+        <div className={`sg-error${signupError ? ' visible' : ''}`}>{signupError}</div>
+
+        <div className="sg-row sg-row-3">
+          <div className="sg-field">
+            <label htmlFor="sg-fname">First Name <span style={{color:'var(--gold)'}}>*</span></label>
+            <input
+              id="sg-fname"
+              value={signupFields?.fname || ''}
+              onChange={(e) => setSignupFields((f) => ({ ...f, fname: e.target.value }))}
+              placeholder="e.g. Maria"
+              autoComplete="given-name"
+            />
           </div>
-          <div className="form-row">
-            <div>
-              <label htmlFor="email">Email</label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="Enter your email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-              />
-            </div>
+          <div className="sg-field">
+            <label htmlFor="sg-mname">Middle Name</label>
+            <input
+              id="sg-mname"
+              value={signupFields?.mname || ''}
+              onChange={(e) => setSignupFields((f) => ({ ...f, mname: e.target.value }))}
+              placeholder="(optional)"
+              autoComplete="additional-name"
+            />
           </div>
-          <div className="form-row">
-            <div>
-              <label htmlFor="contactNumber">Contact Number</label>
-              <input
-                id="contactNumber"
-                name="contactNumber"
-                type="tel"
-                placeholder="Enter your contact number"
-                value={formData.contactNumber}
-                onChange={handleChange}
-                required
-              />
-            </div>
+          <div className="sg-field">
+            <label htmlFor="sg-lname">Last Name <span style={{color:'var(--gold)'}}>*</span></label>
+            <input
+              id="sg-lname"
+              value={signupFields?.lname || ''}
+              onChange={(e) => setSignupFields((f) => ({ ...f, lname: e.target.value }))}
+              placeholder="e.g. Santos"
+              autoComplete="family-name"
+            />
           </div>
-          <div className="form-row">
-            <div>
-              <label htmlFor="address">Address</label>
-              <input
-                id="address"
-                name="address"
-                type="text"
-                placeholder="Enter your address"
-                value={formData.address}
-                onChange={handleChange}
-              />
-            </div>
+        </div>
+        <div className="sg-field">
+          <label htmlFor="sg-suffix">Suffix</label>
+          <input
+            id="sg-suffix"
+            value={signupFields?.suffix || ''}
+            onChange={(e) => setSignupFields((f) => ({ ...f, suffix: e.target.value }))}
+            placeholder="e.g. Jr., III (optional)"
+            autoComplete="honorific-suffix"
+          />
+        </div>
+        <div className="sg-field">
+          <label htmlFor="sg-email">Email Address <span style={{color:'var(--gold)'}}>*</span></label>
+          <input
+            id="sg-email"
+            type="email"
+            value={signupFields?.email || ''}
+            onChange={(e) => setSignupFields((f) => ({ ...f, email: e.target.value }))}
+            placeholder="your@email.com"
+            autoComplete="email"
+          />
+        </div>
+        <div className="sg-field">
+          <label htmlFor="sg-phone">Contact Number <span style={{color:'var(--gold)'}}>*</span></label>
+          <input
+            id="sg-phone"
+            type="tel"
+            value={signupFields?.phone || ''}
+            onChange={(e) => setSignupFields((f) => ({ ...f, phone: e.target.value.replace(/[^0-9+]/g, '') }))}
+            placeholder="+63 9XX XXX XXXX"
+            autoComplete="tel"
+          />
+        </div>
+        <div className="sg-row">
+          <div className="sg-field">
+            <label htmlFor="sg-password">Password <span style={{color:'var(--gold)'}}>*</span></label>
+            <input
+              id="sg-password"
+              type="password"
+              value={signupFields?.password || ''}
+              onChange={(e) => setSignupFields((f) => ({ ...f, password: e.target.value }))}
+              placeholder="Min. 8 characters"
+              autoComplete="new-password"
+            />
           </div>
-          <div className="form-row">
-            <div>
-              <label htmlFor="password">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="Enter your password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-              />
-            </div>
+          <div className="sg-field">
+            <label htmlFor="sg-confirm">Confirm Password <span style={{color:'var(--gold)'}}>*</span></label>
+            <input
+              id="sg-confirm"
+              type="password"
+              value={signupFields?.confirm || ''}
+              onChange={(e) => setSignupFields((f) => ({ ...f, confirm: e.target.value }))}
+              placeholder="Re-enter password"
+              autoComplete="new-password"
+            />
           </div>
-          <div className="form-row">
-            <div>
-              <label htmlFor="confirmPassword">Confirm Password</label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                placeholder="Confirm your password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-              />
-              {passwordError && (
-                <div style={{ color: '#ef4444', fontSize: '13px', marginTop: '4px' }}>
-                  {passwordError}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="form-row" style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="btn btn-secondary"
-              disabled={isSubmitting}
-              style={{
-                flex: 1,
-                padding: '12px 24px',
-                borderRadius: '8px',
-                border: '2px solid white',
-                background: 'transparent',
-                color: 'white',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                opacity: isSubmitting ? 0.6 : 1,
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn"
-              disabled={isSubmitting}
-              style={{
-                flex: 1,
-                padding: '12px 24px',
-                borderRadius: '8px',
-                border: 'none',
-                background: '#1e3a8a',
-                color: 'white',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                opacity: isSubmitting ? 0.6 : 1,
-              }}
-            >
-              {isSubmitting ? 'Registering...' : 'Register'}
-            </button>
-          </div>
-        </form>
+        </div>
+        <div className="sg-actions" style={{ marginTop: 8 }}>
+          <button type="button" className="btn btn-primary" onClick={submitSignupGate} disabled={submitting} style={{ width: '100%', justifyContent: 'center' }}>
+            {submitting ? 'Creating Account...' : 'Create Account →'}
+          </button>
+        </div>
       </div>
     </div>
   )

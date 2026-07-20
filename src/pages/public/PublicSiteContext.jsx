@@ -26,6 +26,7 @@ export function PublicSiteProvider({ children }) {
   const [user, setUser] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [loginModal, setLoginModal] = useState({ open: false, mode: 'signup' })
+  const [signupOnly, setSignupOnly] = useState(false)
 
   // Restore session on mount
   useEffect(() => {
@@ -95,7 +96,7 @@ export function PublicSiteProvider({ children }) {
   const [signupError, setSignupError] = useState('')
   const [loginError, setLoginError] = useState('')
 
-  const openSignupGate = useCallback(({ icon, title, subtitle, onContinue }) => {
+  const openSignupGate = useCallback(({ icon, title, subtitle, onContinue, signupOnly: onlySignup }) => {
     signupContinueRef.current = typeof onContinue === 'function' ? onContinue : null
     setSignupError('')
     setLoginError('')
@@ -115,6 +116,7 @@ export function PublicSiteProvider({ children }) {
       title: title || 'Create Your Account',
       subtitle: subtitle || 'Please sign up to continue.',
     })
+    setSignupOnly(!!onlySignup)
     setLoginModal({ open: true, mode: 'signup' })
   }, [])
 
@@ -179,6 +181,7 @@ export function PublicSiteProvider({ children }) {
     signupContinueRef.current = null
     setSignup((s) => ({ ...s, open: false }))
     setLoginModal((l) => ({ ...l, open: false }))
+    setSignupOnly(false)
   }, [])
 
   const [submitting, setSubmitting] = useState(false)
@@ -350,6 +353,7 @@ export function PublicSiteProvider({ children }) {
       closeSignupGate,
       submitSignupGate,
       signup,
+      signupOnly,
       signupFields,
       setSignupFields,
       signupError,
@@ -379,6 +383,7 @@ export function PublicSiteProvider({ children }) {
       closeSignupGate,
       submitSignupGate,
       signup,
+      signupOnly,
       signupFields,
       signupError,
       successModal,

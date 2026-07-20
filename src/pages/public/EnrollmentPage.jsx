@@ -91,6 +91,10 @@ export default function EnrollmentPage() {
     level: '', notes: '', refnum: '', paymethod: '', address: '',
   }))
 
+  // ── Validation state ───────────────────────────────────────────
+  const [errors, setErrors] = useState({})
+  const [touched, setTouched] = useState({})
+
   // ── Fetch lesson packages on mount ─────────────────────────────
   useEffect(() => {
     setPackagesLoading(true)
@@ -117,51 +121,35 @@ export default function EnrollmentPage() {
   useEffect(() => { saveState('cz_en_slots', selectedSlots) }, [selectedSlots])
   useEffect(() => { saveState('cz_en_form', form) }, [form])
 
-  // Pre-fill form with existing enrollment data when a logged-in user visits
+  // ── Clear all state when user logs in (fresh start, no pre-fill) ──
+  const prevLoggedInRef = useRef(isLoggedIn)
   useEffect(() => {
-    if (!isLoggedIn || !user) return
+    // Detect transition from not-logged-in to logged-in
+    if (isLoggedIn && !prevLoggedInRef.current) {
+      // Clear all localStorage keys
+      removeSaved('cz_en_step')
+      removeSaved('cz_en_lesson')
+      removeSaved('cz_en_instructor')
+      removeSaved('cz_en_month')
+      removeSaved('cz_en_weekdays')
+      removeSaved('cz_en_slots')
+      removeSaved('cz_en_form')
 
-    // If user just submitted an enrollment, do NOT re-populate with the just-submitted data
-    let justSubmitted = false
-    try { justSubmitted = sessionStorage.getItem('cz_en_just_submitted') === '1' } catch { /* ignore */ }
-    if (justSubmitted) {
-      // Clear the flag so next navigation WILL auto-fill if there's a genuinely separate pending enrollment
-      try { sessionStorage.removeItem('cz_en_just_submitted') } catch { /* ignore */ }
-      return
+      // Reset all state to blank/default
+      setStep(1)
+      setLesson(null)
+      setSelectedInstructor(null)
+      setMonthCursor(startOfMonth(new Date()))
+      setSelectedWeekdays([])
+      setSelectedSlots([])
+      setForm({
+        fname: '', lname: '', email: '', phone: '', age: '',
+        level: '', notes: '', refnum: '', paymethod: '', address: '',
+      })
+      setErrors({})
+      setTouched({})
     }
-
-    // Only pre-fill name/email from session if the form fields are empty
-    // (user might have data restored from localStorage already)
-    setForm((f) => ({
-      ...f,
-      fname: f.fname || user.firstName || '',
-      lname: f.lname || user.lastName || '',
-      email: f.email || user.email || '',
-    }))
-
-    // Fetch existing enrollment data
-    studentAPI.getEnrollments(user.id)
-      .then((res) => {
-        const enrollments = res.data
-        // Find the most recent pending enrollment
-        const pendingEnrollment = Array.isArray(enrollments)
-          ? enrollments.find((e) => e.status === 'pending')
-          : null
-        if (pendingEnrollment) {
-          setForm((f) => ({
-            ...f,
-            phone: f.phone || pendingEnrollment.contact_number || '',
-            address: f.address || pendingEnrollment.student_address || '',
-            level: f.level || pendingEnrollment.program_requested || '',
-            notes: f.notes || pendingEnrollment.notes || '',
-            refnum: f.refnum || pendingEnrollment.payment_reference || '',
-            paymethod: f.paymethod || pendingEnrollment.payment_method || '',
-          }))
-        }
-      })
-      .catch(() => {
-        // No existing enrollment found, just keep the form as-is with user data
-      })
+    prevLoggedInRef.current = isLoggedIn
   }, [isLoggedIn, user])
 
   const monthLabel = useMemo(
@@ -270,6 +258,93 @@ export default function EnrollmentPage() {
   // Track whether a fresh submission just completed to prevent auto-fill from re-populating
   const submittedRef = useRef(false)
 
+  // ── Validation helpers ──────────────────────────────────────────
+  const FIELD_LABELS = {
+    fname: 'First Name',
+    lname: 'Last Name',
+    email: 'Gmail Address',
+    phone: 'Contact Number',
+    address: 'Student Address',
+    age: 'Age',
+    refnum: 'Payment Reference Number',
+  }
+
+  const validateStep = (stepNum) => {
+    const newErrors = { ...errors }
+    const newTouched = { ...touched }
+    let hasError = false
+
+    if (stepNum === 4) {
+      // Step 4: Your Information - validate required fields
+      const step4Fields = ['fname', 'lname', 'email', 'phone', 'address', 'age']
+      step4Fields.forEach((key) => {
+        newTouched[key] = true
+        if (!form[key].toString().trim()) {
+          newErrors[key] = `${FIELD_LABELS[key]} is required`
+          hasError = true
+        } else {
+          delete newErrors[key]
+        }
+      })
+    } else if (stepNum === 5) {
+      // Step 5: Review & Payment - validate refnum and paymethod
+      newTouched.refnum = true
+      if (!form.refnum.trim()) {
+        newErrors.refnum = 'Payment Reference Number is required'
+        hasError = true
+      } else {
+        delete newErrors.refnum
+      }
+      newTouched.paymethod = true
+      if (!form.paymethod.trim()) {
+        newErrors.paymethod = 'Payment Method is required'
+        hasError = true
+      } else {
+        delete newErrors.paymethod
+      }
+    }
+
+    setTouched(newTouched)
+    setErrors(newErrors)
+    return !hasError
+  }
+
+  const handleNextStep = (nextStep) => {
+    if (validateStep(step)) {
+      setStep(nextStep)
+    } else {
+      showToast('Please fill in all required fields before proceeding.')
+    }
+  }
+
+  const handleFieldChange = (key, value) => {
+    setForm((f) => ({ ...f, [key]: value }))
+    // Clear error for this field when user starts typing
+    if (errors[key]) {
+      setErrors((prev) => {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
+    }
+  }
+
+  const handleFieldBlur = (key) => {
+    setTouched((prev) => ({ ...prev, [key]: true }))
+    if (!form[key].trim()) {
+      setErrors((prev) => ({
+        ...prev,
+        [key]: `${FIELD_LABELS[key] || key} is required`,
+      }))
+    } else {
+      setErrors((prev) => {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
+    }
+  }
+
   const submitEnrollment = async () => {
     // ── Frontend required field validation ──────────────────────
     const requiredFields = [
@@ -278,7 +353,9 @@ export default function EnrollmentPage() {
       { key: 'email', label: 'Gmail Address' },
       { key: 'phone', label: 'Contact Number' },
       { key: 'address', label: 'Student Address' },
+      { key: 'age', label: 'Age' },
       { key: 'refnum', label: 'Payment Reference Number' },
+      { key: 'paymethod', label: 'Payment Method' },
     ]
     const emptyFields = requiredFields
       .filter((f) => !form[f.key].trim())
@@ -327,6 +404,19 @@ export default function EnrollmentPage() {
       removeSaved('cz_en_slots')
       removeSaved('cz_en_form')
 
+      // ── Reset all form state to blank ────────────────────────────
+      setForm({
+        fname: '', lname: '', email: '', phone: '', age: '',
+        level: '', notes: '', refnum: '', paymethod: '', address: '',
+      })
+      setLesson(null)
+      setSelectedInstructor(null)
+      setMonthCursor(startOfMonth(new Date()))
+      setSelectedWeekdays([])
+      setSelectedSlots([])
+      setErrors({})
+      setTouched({})
+
       // Set session-level flag so auto-fill does NOT re-populate with the just-submitted data
       // on subsequent component mount (sessionStorage survives re-mount; useRef does not)
       try { sessionStorage.setItem('cz_en_just_submitted', '1') } catch { /* ignore */ }
@@ -367,6 +457,8 @@ export default function EnrollmentPage() {
       paymethod: '',
       address: '',
     })
+    setErrors({})
+    setTouched({})
     // Clear all saved state
     removeSaved('cz_en_step')
     removeSaved('cz_en_lesson')
@@ -382,6 +474,15 @@ export default function EnrollmentPage() {
     if (n < step) return 'he-si done'
     if (n === step) return 'he-si active'
     return 'he-si'
+  }
+
+  // Helper to get input style with validation error indicator
+  const inputStyle = (fieldKey) => {
+    const hasError = touched[fieldKey] && errors[fieldKey]
+    return {
+      borderColor: hasError ? 'var(--coral)' : undefined,
+      boxShadow: hasError ? '0 0 0 2px rgba(248,113,113,0.2)' : undefined,
+    }
   }
 
   return (
@@ -791,9 +892,14 @@ export default function EnrollmentPage() {
               </label>
               <input
                 value={form.fname}
-                onChange={(e) => setForm((f) => ({ ...f, fname: e.target.value }))}
+                onChange={(e) => handleFieldChange('fname', e.target.value)}
+                onBlur={() => handleFieldBlur('fname')}
                 placeholder="e.g. Juan"
+                style={inputStyle('fname')}
               />
+              {touched.fname && errors.fname && (
+                <span style={{ fontSize: 11, color: 'var(--coral)', marginTop: 4, display: 'block' }}>{errors.fname}</span>
+              )}
             </div>
             <div className="he-fg">
               <label>
@@ -801,9 +907,14 @@ export default function EnrollmentPage() {
               </label>
               <input
                 value={form.lname}
-                onChange={(e) => setForm((f) => ({ ...f, lname: e.target.value }))}
+                onChange={(e) => handleFieldChange('lname', e.target.value)}
+                onBlur={() => handleFieldBlur('lname')}
                 placeholder="e.g. dela Cruz"
+                style={inputStyle('lname')}
               />
+              {touched.lname && errors.lname && (
+                <span style={{ fontSize: 11, color: 'var(--coral)', marginTop: 4, display: 'block' }}>{errors.lname}</span>
+              )}
             </div>
             <div className="he-fg">
               <label>
@@ -812,9 +923,14 @@ export default function EnrollmentPage() {
               <input
                 type="email"
                 value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                onChange={(e) => handleFieldChange('email', e.target.value)}
+                onBlur={() => handleFieldBlur('email')}
                 placeholder="yourname@gmail.com"
+                style={inputStyle('email')}
               />
+              {touched.email && errors.email && (
+                <span style={{ fontSize: 11, color: 'var(--coral)', marginTop: 4, display: 'block' }}>{errors.email}</span>
+              )}
               <span style={{ fontSize: 11, color: 'var(--text2)' }}>Confirmation and updates will be sent here</span>
             </div>
             <div className="he-fg">
@@ -823,9 +939,14 @@ export default function EnrollmentPage() {
               </label>
               <input
                 value={form.phone}
-                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/[^0-9+]/g, '') }))}
+                onChange={(e) => handleFieldChange('phone', e.target.value.replace(/[^0-9+]/g, ''))}
+                onBlur={() => handleFieldBlur('phone')}
                 placeholder="+63 9XX XXX XXXX"
+                style={inputStyle('phone')}
               />
+              {touched.phone && errors.phone && (
+                <span style={{ fontSize: 11, color: 'var(--coral)', marginTop: 4, display: 'block' }}>{errors.phone}</span>
+              )}
             </div>
             <div className="he-fg he-fg-full">
               <label>
@@ -834,20 +955,32 @@ export default function EnrollmentPage() {
               <textarea
                 rows={2}
                 value={form.address}
-                onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                onChange={(e) => handleFieldChange('address', e.target.value)}
+                onBlur={() => handleFieldBlur('address')}
                 placeholder="e.g. 123 Rizal St., Barangay San Antonio, Makati City"
+                style={inputStyle('address')}
               />
+              {touched.address && errors.address && (
+                <span style={{ fontSize: 11, color: 'var(--coral)', marginTop: 4, display: 'block' }}>{errors.address}</span>
+              )}
             </div>
             <div className="he-fg">
-              <label>Age</label>
+              <label>
+                Age <span style={{ color: 'var(--gold)' }}>*</span>
+              </label>
               <input
                 type="number"
                 value={form.age}
-                onChange={(e) => setForm((f) => ({ ...f, age: e.target.value }))}
+                onChange={(e) => handleFieldChange('age', e.target.value)}
+                onBlur={() => handleFieldBlur('age')}
                 placeholder="e.g. 16"
                 min={4}
                 max={80}
+                style={inputStyle('age')}
               />
+              {touched.age && errors.age && (
+                <span style={{ fontSize: 11, color: 'var(--coral)', marginTop: 4, display: 'block' }}>{errors.age}</span>
+              )}
             </div>
             <div className="he-fg">
               <label>Experience Level</label>
@@ -873,7 +1006,7 @@ export default function EnrollmentPage() {
             <button type="button" className="btn btn-secondary" onClick={() => goStep(3)}>
               ← Back
             </button>
-            <button type="button" className="btn btn-primary" onClick={() => goStep(5)}>
+            <button type="button" className="btn btn-primary" onClick={() => handleNextStep(5)}>
               Review & Pay →
             </button>
           </div>
@@ -984,22 +1117,27 @@ export default function EnrollmentPage() {
                 <input
                   type="text"
                   value={form.refnum}
-                  onChange={(e) => setForm((f) => ({ ...f, refnum: e.target.value }))}
+                  onChange={(e) => handleFieldChange('refnum', e.target.value)}
+                  onBlur={() => handleFieldBlur('refnum')}
                   placeholder="e.g. GCash Ref: 1234567890"
-                  style={{ maxWidth: 400 }}
+                  style={{ maxWidth: 400, ...inputStyle('refnum') }}
                 />
+                {touched.refnum && errors.refnum && (
+                  <span style={{ fontSize: 11, color: 'var(--coral)', marginTop: 4, display: 'block' }}>{errors.refnum}</span>
+                )}
                 <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 4 }}>
                   Enter the reference/transaction number from your payment
                 </div>
               </div>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', display: 'block', marginBottom: 6 }}>
-                  Payment Method
+                  Payment Method <span style={{ color: 'var(--gold)' }}>*</span>
                 </label>
                 <select
                   value={form.paymethod}
-                  onChange={(e) => setForm((f) => ({ ...f, paymethod: e.target.value }))}
-                  style={{ maxWidth: 280 }}
+                  onChange={(e) => handleFieldChange('paymethod', e.target.value)}
+                  onBlur={() => handleFieldBlur('paymethod')}
+                  style={{ maxWidth: 280, ...inputStyle('paymethod') }}
                 >
                   <option value="">Select...</option>
                   <option>GCash</option>
@@ -1007,6 +1145,9 @@ export default function EnrollmentPage() {
                   <option>BDO Bank Transfer</option>
                   <option>Other</option>
                 </select>
+                {touched.paymethod && errors.paymethod && (
+                  <span style={{ fontSize: 11, color: 'var(--coral)', marginTop: 4, display: 'block' }}>{errors.paymethod}</span>
+                )}
               </div>
             </div>
           </div>

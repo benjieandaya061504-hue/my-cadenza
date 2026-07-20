@@ -3,6 +3,7 @@ import { usePublicSite } from '../pages/public/PublicSiteContext'
 export default function PublicModals() {
   const {
     signup,
+    signupOnly,
     signupFields,
     setSignupFields,
     signupError,
@@ -53,60 +54,62 @@ export default function PublicModals() {
           </h2>
           <p className="sg-sub">{signupMode ? signup?.subtitle : 'Please log in to continue.'}</p>
 
-          {/* Toggle tabs */}
-          <div style={{
-            display: 'flex',
-            background: 'var(--surface2)',
-            borderRadius: 10,
-            padding: 3,
-            marginBottom: 16,
-            border: '1px solid var(--border)',
-          }}>
-            <button
-              type="button"
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                borderRadius: 8,
-                border: 'none',
-                background: signupMode ? 'var(--accent)' : 'transparent',
-                color: signupMode ? '#fff' : 'var(--text2)',
-                cursor: 'pointer',
-                fontWeight: 600,
-                fontSize: 13,
-                transition: 'all 0.15s ease',
-              }}
-              onClick={() => {
-                if (!signupMode) {
-                  switchToSignup()
-                }
-              }}
-            >
-              Sign Up
-            </button>
-            <button
-              type="button"
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                borderRadius: 8,
-                border: 'none',
-                background: !signupMode ? 'var(--accent)' : 'transparent',
-                color: !signupMode ? '#fff' : 'var(--text2)',
-                cursor: 'pointer',
-                fontWeight: 600,
-                fontSize: 13,
-                transition: 'all 0.15s ease',
-              }}
-              onClick={() => {
-                if (signupMode) {
-                  switchToLogin()
-                }
-              }}
-            >
-              Log In
-            </button>
-          </div>
+          {/* Toggle tabs — hidden when signupOnly mode */}
+          {!signupOnly && (
+            <div style={{
+              display: 'flex',
+              background: 'var(--surface2)',
+              borderRadius: 10,
+              padding: 3,
+              marginBottom: 16,
+              border: '1px solid var(--border)',
+            }}>
+              <button
+                type="button"
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: signupMode ? 'var(--accent)' : 'transparent',
+                  color: signupMode ? '#fff' : 'var(--text2)',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  transition: 'all 0.15s ease',
+                }}
+                onClick={() => {
+                  if (!signupMode) {
+                    switchToSignup()
+                  }
+                }}
+              >
+                Sign Up
+              </button>
+              <button
+                type="button"
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: !signupMode ? 'var(--accent)' : 'transparent',
+                  color: !signupMode ? '#fff' : 'var(--text2)',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  transition: 'all 0.15s ease',
+                }}
+                onClick={() => {
+                  if (signupMode) {
+                    switchToLogin()
+                  }
+                }}
+              >
+                Log In
+              </button>
+            </div>
+          )}
 
           <div className={`sg-error${error ? ' visible' : ''}`}>{error}</div>
 
