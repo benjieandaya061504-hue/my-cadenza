@@ -32,6 +32,8 @@ const CATEGORY_KINDS = [
   { value: 'course', label: 'Course type' },
 ]
 
+const PACKAGE_GROUPS = ['None', 'Package 1', 'Package 2', 'Package 3', 'Package 4']
+
 const initialEnrollments = () => [
   { id: 'e1', studentName: 'Ana Reyes', packageId: 'p1', completedSessions: 5, lastSessionDate: '2026-05-08' },
   { id: 'e2', studentName: 'Marco Santos', packageId: 'p2', completedSessions: 3, lastSessionDate: '2026-05-06' },
@@ -85,6 +87,7 @@ function PackageFormModal({ mode, initial, onClose, onSave }) {
   const [sessionsPerWeek, setSessionsPerWeek] = useState(initial?.sessionsPerWeek ?? initial?.sessions_per_week ?? 1)
   const [categoryKind, setCategoryKind] = useState(initial?.categoryKind ?? initial?.category_kind ?? 'instrument')
   const [category, setCategory] = useState(initial?.category ?? INSTRUMENTS[0])
+  const [packageGroup, setPackageGroup] = useState(initial?.packageGroup ?? initial?.package_group ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [rate, setRate] = useState(initial?.rate ?? '')
   const [focus, setFocus] = useState(null)
@@ -144,6 +147,7 @@ function PackageFormModal({ mode, initial, onClose, onSave }) {
         sessionsPerWeek: Math.max(1, Math.min(7, Number(sessionsPerWeek) || 1)),
         categoryKind,
         category: cat,
+        packageGroup: packageGroup || null,
         description: description.trim(),
         rate: Math.max(0, Number(rate) || 0),
         instructor_ids: selectedInstructorIds,
@@ -244,6 +248,20 @@ function PackageFormModal({ mode, initial, onClose, onSave }) {
               >
                 {categoryOptions.map(o => (
                   <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              {fieldLabel('Package Group')}
+              <select
+                value={packageGroup}
+                onChange={e => setPackageGroup(e.target.value === 'None' ? '' : e.target.value)}
+                style={{ ...inputStyle(focus === 'pg'), cursor: 'pointer' }}
+                onFocus={() => setFocus('pg')}
+                onBlur={() => setFocus(null)}
+              >
+                {PACKAGE_GROUPS.map(g => (
+                  <option key={g} value={g === 'None' ? '' : g}>{g}</option>
                 ))}
               </select>
             </div>
@@ -430,6 +448,7 @@ function LessonManagement({ isMobile = false, isTablet = false }) {
       category: formData.category,
       description: formData.description || null,
       rate: formData.rate || 0,
+      package_group: formData.packageGroup || null,
       instructor_ids: formData.instructor_ids || [],
     })
     await fetchPackages()
@@ -447,6 +466,7 @@ function LessonManagement({ isMobile = false, isTablet = false }) {
         category: formData.category,
         description: formData.description || null,
         rate: formData.rate || 0,
+        package_group: formData.packageGroup || null,
         instructor_ids: formData.instructor_ids || [],
       }
       await coursesAPI.updatePackage(pkgModal.pkg.id, payload)

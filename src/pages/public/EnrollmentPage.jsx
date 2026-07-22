@@ -73,6 +73,35 @@ export default function EnrollmentPage() {
   const [packages, setPackages] = useState([])
   const [packagesLoading, setPackagesLoading] = useState(true)
   const [packagesError, setPackagesError] = useState(null)
+  // ── Package group selection (Phase A of step 1) ────────────────
+  const [selectedPackageGroup, setSelectedPackageGroup] = useState(() => loadSaved('cz_en_pkg_group', null))
+  
+  // Persist package group selection
+  useEffect(() => { saveState('cz_en_pkg_group', selectedPackageGroup) }, [selectedPackageGroup])
+
+  // ── Derive unique package groups from packages data ────────────
+  const packageGroups = useMemo(() => {
+    const groups = new Set()
+    packages.forEach(p => {
+      const g = p.packageGroup ?? p.package_group
+      if (g) groups.add(g)
+    })
+    // Sort groups naturally: Package 1, Package 2, etc.
+    return [...groups].sort((a, b) => {
+      const na = parseInt(a.match(/\d+/)?.[0] || 0)
+      const nb = parseInt(b.match(/\d+/)?.[0] || 0)
+      return na - nb
+    })
+  }, [packages])
+  
+  // ── Lessons filtered by selected package group ─────────────────
+  const filteredLessonsByGroup = useMemo(() => {
+    if (!selectedPackageGroup) return []
+    return packages.filter(p => {
+      const g = p.packageGroup ?? p.package_group
+      return g === selectedPackageGroup
+    })
+  }, [packages, selectedPackageGroup])
 
   // ── Restore state from localStorage on mount ────────────────
   const [step, setStep] = useState(() => loadSaved('cz_en_step', 1))
@@ -134,10 +163,12 @@ export default function EnrollmentPage() {
       removeSaved('cz_en_weekdays')
       removeSaved('cz_en_slots')
       removeSaved('cz_en_form')
+      removeSaved('cz_en_pkg_group')
 
       // Reset all state to blank/default
       setStep(1)
       setLesson(null)
+      setSelectedPackageGroup(null)
       setSelectedInstructor(null)
       setMonthCursor(startOfMonth(new Date()))
       setSelectedWeekdays([])
@@ -555,47 +586,109 @@ export default function EnrollmentPage() {
             <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text2)', fontSize: 15 }}>
               No lesson packages are available yet. Please check back later.
             </div>
+          ) : !selectedPackageGroup ? (
+            <>
+              {/* Phase A: Show package groups */}
+              <p className="he-desc">
+                Choose a package below, then select your preferred instrument or course within it.
+              </p>
+              <div className="he-lesson-grid">
+                {packageGroups.map((group) => {
+                  const lessonsInGroup = packages.filter(p => {
+                    const g = p.packageGroup ?? p.package_group
+                    return g === group
+                  })
+                  const minRate = Math.min(...lessonsInGroup.map(p => Number(p.rate)).filter(r => r > 0))
+                  return (
+                    <button
+                      key={group}
+                      type="button"
+                      className="he-lesson-card"
+                      onClick={() => setSelectedPackageGroup(group)}
+                    >
+                      <div className="he-sel-badge">▶</div>
+                      <div className="he-l-name" style={{ fontSize: 18 }}>{group}</div>
+                      <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 6 }}>
+                        {lessonsInGroup.length} lesson{lessonsInGroup.length > 1 ? 's' : ''} available
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--gold)', marginTop: 4 }}>
+                        {lessonsInGroup.map(l => l.category).join(', ')}
+                      </div>
+                      {minRate > 0 && (
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--teal)', marginTop: 6 }}>
+                          From ₱{minRate.toLocaleString()}
+                        </div>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </>
           ) : (
-            <div className="he-lesson-grid">
-              {packages.map((P) => {
-                const rate = Number(P.rate)
-                const sessionLimit = P.sessionLimit ?? P.session_limit
-                const durationMin = P.durationMinutes ?? P.duration_minutes
-                const spw = P.sessionsPerWeek ?? P.sessions_per_week ?? 1
-                return (
-                  <button
-                    key={P.id}
-                    type="button"
-                    className={`he-lesson-card${lesson?.id === P.id ? ' selected' : ''}`}
-                    onClick={() => selectLesson(P)}
-                  >
-                    <div className="he-sel-badge">✓</div>
-                    <div className="he-l-name">{P.name}</div>
-                    <div className="he-l-rate" style={{ fontSize: 12, color: 'var(--gold)' }}>
-                      {P.category}
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 4 }}>
-                      {durationMin} min · {sessionLimit} sessions · {getFrequencyLabel(spw)}
-                    </div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--teal)', marginTop: 6 }}>
-                      {rate > 0 ? `₱${rate.toLocaleString()}` : <span style={{ color: 'var(--text2)', fontWeight: 400 }}>Price TBD</span>}
-                    </div>
-                    {P.description && (
-                      <div className="he-l-desc">{P.description}</div>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
+            <>
+              {/* Phase B: Show lessons within selected package group */}
+              <div style={{ marginBottom: 16 }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ fontSize: 13 }}
+                  onClick={() => {
+                    setSelectedPackageGroup(null)
+                    setLesson(null)
+                  }}
+                >
+                  ← Back to all packages
+                </button>
+                <span style={{ marginLeft: 12, fontSize: 14, fontWeight: 600, color: 'var(--gold)' }}>
+                  {selectedPackageGroup}
+                </span>
+              </div>
+              <p className="he-desc">
+                Select a specific lesson within {selectedPackageGroup}.
+              </p>
+              <div className="he-lesson-grid">
+                {filteredLessonsByGroup.map((P) => {
+                  const rate = Number(P.rate)
+                  const sessionLimit = P.sessionLimit ?? P.session_limit
+                  const durationMin = P.durationMinutes ?? P.duration_minutes
+                  const spw = P.sessionsPerWeek ?? P.sessions_per_week ?? 1
+                  return (
+                    <button
+                      key={P.id}
+                      type="button"
+                      className={`he-lesson-card${lesson?.id === P.id ? ' selected' : ''}`}
+                      onClick={() => selectLesson(P)}
+                    >
+                      <div className="he-sel-badge">✓</div>
+                      <div className="he-l-name">{P.name}</div>
+                      <div className="he-l-rate" style={{ fontSize: 12, color: 'var(--gold)' }}>
+                        {P.category}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 4 }}>
+                        {durationMin} min · {sessionLimit} sessions · {getFrequencyLabel(spw)}
+                      </div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--teal)', marginTop: 6 }}>
+                        {rate > 0 ? `₱${rate.toLocaleString()}` : <span style={{ color: 'var(--text2)', fontWeight: 400 }}>Price TBD</span>}
+                      </div>
+                      {P.description && (
+                        <div className="he-l-desc">{P.description}</div>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </>
           )}
 
           <div className="he-actions">
             <Link to={PUBLIC_ROUTES.home} className="btn btn-secondary">
               ← Back to Home
             </Link>
-            <button type="button" className="btn btn-primary" disabled={!lesson} onClick={() => goStep(2)}>
-              Next: Instructor →
-            </button>
+            {selectedPackageGroup && (
+              <button type="button" className="btn btn-primary" disabled={!lesson} onClick={() => goStep(2)}>
+                Next: Instructor →
+              </button>
+            )}
           </div>
         </div>
       </div>

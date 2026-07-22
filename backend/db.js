@@ -278,6 +278,9 @@ export async function initializeDatabase() {
     // Add rate column to lesson_packages if not present
     await ensureColumn(connection, 'lesson_packages', 'rate', 'DECIMAL(10,2) NOT NULL DEFAULT 0')
 
+    // Add package_group column to lesson_packages if not present
+    await ensureColumn(connection, 'lesson_packages', 'package_group', "VARCHAR(100) DEFAULT NULL")
+
     // Ensure package_instructors junction table exists
     await ensurePackageInstructorsTable(connection)
 
@@ -295,13 +298,29 @@ export async function initializeDatabase() {
     const [existingPkgs] = await connection.query('SELECT COUNT(*) AS count FROM lesson_packages')
     if (existingPkgs[0].count === 0) {
       await connection.query(`
-        INSERT INTO lesson_packages (name, duration_minutes, session_limit, sessions_per_week, category_kind, category, description, rate) VALUES
-        ('Package 1 – Starter', 60, 4, 1, 'instrument', 'Guitar', '4 sessions once a week for 1 month', 1550.00),
-        ('Package 2 – Standard', 60, 8, 2, 'instrument', 'Guitar', '8 sessions twice a week for 1 month', 3000.00),
-        ('Package 3 – Premium', 60, 12, 3, 'instrument', 'Guitar', '12 sessions three times a week for 1 month', 4300.00),
-        ('Package 4 – Intensive', 60, 16, 4, 'instrument', 'Guitar', '16 sessions four times a week for 1 month', 5400.00)
+        INSERT INTO lesson_packages (name, duration_minutes, session_limit, sessions_per_week, category_kind, category, description, rate, package_group) VALUES
+        ('Package 1 Guitar', 60, 4, 1, 'instrument', 'Guitar', '4 sessions once a week for 1 month', 1550.00, 'Package 1'),
+        ('Package 1 Bass', 60, 4, 1, 'instrument', 'Bass', '4 sessions once a week for 1 month', 1550.00, 'Package 1'),
+        ('Package 1 Piano', 60, 4, 1, 'instrument', 'Piano', '4 sessions once a week for 1 month', 1750.00, 'Package 1'),
+        ('Package 1 Drums', 60, 4, 1, 'instrument', 'Drums', '4 sessions once a week for 1 month', 1750.00, 'Package 1'),
+        ('Package 1 Voice', 60, 4, 1, 'instrument', 'Voice', '4 sessions once a week for 1 month', 1650.00, 'Package 1'),
+        ('Package 2 Guitar', 60, 8, 2, 'instrument', 'Guitar', '8 sessions twice a week for 1 month', 3000.00, 'Package 2'),
+        ('Package 2 Bass', 60, 8, 2, 'instrument', 'Bass', '8 sessions twice a week for 1 month', 3000.00, 'Package 2'),
+        ('Package 2 Piano', 60, 8, 2, 'instrument', 'Piano', '8 sessions twice a week for 1 month', 3400.00, 'Package 2'),
+        ('Package 2 Drums', 60, 8, 2, 'instrument', 'Drums', '8 sessions twice a week for 1 month', 3400.00, 'Package 2'),
+        ('Package 2 Voice', 60, 8, 2, 'instrument', 'Voice', '8 sessions twice a week for 1 month', 3200.00, 'Package 2'),
+        ('Package 3 Guitar', 60, 12, 3, 'instrument', 'Guitar', '12 sessions three times a week for 1 month', 4300.00, 'Package 3'),
+        ('Package 3 Bass', 60, 12, 3, 'instrument', 'Bass', '12 sessions three times a week for 1 month', 4300.00, 'Package 3'),
+        ('Package 3 Piano', 60, 12, 3, 'instrument', 'Piano', '12 sessions three times a week for 1 month', 4900.00, 'Package 3'),
+        ('Package 3 Drums', 60, 12, 3, 'instrument', 'Drums', '12 sessions three times a week for 1 month', 4900.00, 'Package 3'),
+        ('Package 3 Voice', 60, 12, 3, 'instrument', 'Voice', '12 sessions three times a week for 1 month', 4600.00, 'Package 3'),
+        ('Package 4 Guitar', 60, 16, 4, 'instrument', 'Guitar', '16 sessions four times a week for 1 month', 5400.00, 'Package 4'),
+        ('Package 4 Bass', 60, 16, 4, 'instrument', 'Bass', '16 sessions four times a week for 1 month', 5400.00, 'Package 4'),
+        ('Package 4 Piano', 60, 16, 4, 'instrument', 'Piano', '16 sessions four times a week for 1 month', 6200.00, 'Package 4'),
+        ('Package 4 Drums', 60, 16, 4, 'instrument', 'Drums', '16 sessions four times a week for 1 month', 6200.00, 'Package 4'),
+        ('Package 4 Voice', 60, 16, 4, 'instrument', 'Voice', '16 sessions four times a week for 1 month', 5800.00, 'Package 4')
       `)
-      console.log('✅ Default lesson packages seeded')
+      console.log('✅ Default lesson packages seeded with package groups')
     }
   } finally {
     connection.release()

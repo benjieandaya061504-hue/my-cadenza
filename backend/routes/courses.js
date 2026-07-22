@@ -114,7 +114,7 @@ router.get('/packages/all', async (req, res) => {
 // ─── POST create a lesson package ───────────────────────────────
 router.post('/packages', async (req, res) => {
   try {
-    const { name, duration_minutes, session_limit, sessions_per_week, category_kind, category, description, rate, instructor_ids } = req.body
+    const { name, duration_minutes, session_limit, sessions_per_week, category_kind, category, description, rate, package_group, instructor_ids } = req.body
 
     // Validate required fields
     if (!name || !name.trim()) {
@@ -137,9 +137,9 @@ router.post('/packages', async (req, res) => {
     }
 
     const [result] = await pool.query(
-      `INSERT INTO lesson_packages (name, duration_minutes, session_limit, sessions_per_week, category_kind, category, description, rate)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [name.trim(), Number(duration_minutes), Number(session_limit), Number(sessions_per_week), category_kind, category.trim(), description || null, rate || 0]
+      `INSERT INTO lesson_packages (name, duration_minutes, session_limit, sessions_per_week, category_kind, category, description, rate, package_group)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name.trim(), Number(duration_minutes), Number(session_limit), Number(sessions_per_week), category_kind, category.trim(), description || null, rate || 0, package_group || null]
     )
 
     const packageId = result.insertId
@@ -176,7 +176,7 @@ router.post('/packages', async (req, res) => {
 // ─── PUT update a lesson package ──────────────────────────────
 router.put('/packages/:id', async (req, res) => {
   try {
-    const { name, duration_minutes, session_limit, sessions_per_week, category_kind, category, description, rate, instructor_ids } = req.body
+    const { name, duration_minutes, session_limit, sessions_per_week, category_kind, category, description, rate, package_group, instructor_ids } = req.body
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Package name is required' })
@@ -184,7 +184,7 @@ router.put('/packages/:id', async (req, res) => {
 
     const [result] = await pool.query(
       `UPDATE lesson_packages
-       SET name = ?, duration_minutes = ?, session_limit = ?, sessions_per_week = ?, category_kind = ?, category = ?, description = ?, rate = ?
+       SET name = ?, duration_minutes = ?, session_limit = ?, sessions_per_week = ?, category_kind = ?, category = ?, description = ?, rate = ?, package_group = ?
        WHERE id = ?`,
       [
         name.trim(),
@@ -195,6 +195,7 @@ router.put('/packages/:id', async (req, res) => {
         category.trim(),
         description || null,
         rate || 0,
+        package_group || null,
         req.params.id,
       ]
     )
