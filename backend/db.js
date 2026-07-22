@@ -294,6 +294,12 @@ export async function initializeDatabase() {
     await ensureColumn(connection, 'enrollments', 'package_id', 'INT DEFAULT NULL')
     await ensureColumn(connection, 'enrollments', 'package_name', 'VARCHAR(200) DEFAULT NULL')
 
+    // Add emergency_contact column to enrollments if not present
+    await ensureColumn(connection, 'enrollments', 'emergency_contact', "VARCHAR(100) DEFAULT NULL")
+
+    // Add age column to enrollments if not present
+    await ensureColumn(connection, 'enrollments', 'age', 'INT DEFAULT NULL')
+
     // Seed default lesson packages if table is empty
     const [existingPkgs] = await connection.query('SELECT COUNT(*) AS count FROM lesson_packages')
     if (existingPkgs[0].count === 0) {

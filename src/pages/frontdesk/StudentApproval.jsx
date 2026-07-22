@@ -128,14 +128,18 @@ export default function StudentApproval({ isMobile, isTablet }) {
         phone: e.contact_number || e.user_contact || 'N/A',
         course: e.course_requested || 'N/A',
         level: e.program_requested || 'N/A',
-        package: 'Standard',
+        package: e.package_name || 'Standard',
         status: e.status,
         submitted: new Date(e.enrollment_date).toLocaleDateString(),
         address: e.student_address || 'N/A',
-        age: 'N/A',
-        emergencyContact: 'N/A',
+        age: e.age || 'N/A',
+        emergencyContact: e.emergency_contact || 'N/A',
         instructor: e.instructor_requested || 'N/A',
         schedule: e.schedule_requested || 'N/A',
+        emergency_contact: e.emergency_contact || 'N/A',
+        total_amount: e.total_amount || 'N/A',
+        payment_method: e.payment_method || 'N/A',
+        payment_reference: e.payment_reference || 'N/A',
       }))
       setStudents(mapped)
     } catch (err) {
@@ -279,7 +283,7 @@ export default function StudentApproval({ isMobile, isTablet }) {
                   </div>
                   <div style={{ padding: '12px', borderRadius: '10px', background: C.bg4, border: `1px solid ${C.border}` }}>
                     <span style={{ fontSize: '11px', color: C.text3, fontFamily: C.font }}>Emergency Contact:</span>
-                    <span style={{ fontSize: '13px', color: C.text, fontFamily: C.font, marginLeft: '8px' }}>{selectedStudent.emergencyContact}</span>
+                    <span style={{ fontSize: '13px', color: C.text, fontFamily: C.font, marginLeft: '8px' }}>{selectedStudent.emergency_contact}</span>
                   </div>
                 </div>
               </div>
@@ -319,6 +323,20 @@ export default function StudentApproval({ isMobile, isTablet }) {
                     >
                       {selectedStudent.schedule}
                     </span>
+                  </div>
+                  <div style={{ padding: '12px', borderRadius: '10px', background: C.bg4, border: `1px solid ${C.border}` }}>
+                    <span style={{ fontSize: '11px', color: C.text3, fontFamily: C.font }}>Total Amount:</span>
+                    <span style={{ fontSize: '13px', color: C.teal, fontFamily: C.font, fontWeight: 600, marginLeft: '4px' }}>
+                      {selectedStudent.total_amount !== 'N/A' ? `₱${Number(selectedStudent.total_amount).toLocaleString()}` : 'N/A'}
+                    </span>
+                  </div>
+                  <div style={{ padding: '12px', borderRadius: '10px', background: C.bg4, border: `1px solid ${C.border}` }}>
+                    <span style={{ fontSize: '11px', color: C.text3, fontFamily: C.font }}>Payment Method:</span>
+                    <span style={{ fontSize: '13px', color: C.text, fontFamily: C.font, marginLeft: '4px' }}>{selectedStudent.payment_method}</span>
+                  </div>
+                  <div style={{ padding: '12px', borderRadius: '10px', background: C.bg4, border: `1px solid ${C.border}` }}>
+                    <span style={{ fontSize: '11px', color: C.text3, fontFamily: C.font }}>Payment Reference:</span>
+                    <span style={{ fontSize: '13px', color: C.text, fontFamily: C.font, marginLeft: '4px' }}>{selectedStudent.payment_reference}</span>
                   </div>
                 </div>
               </div>

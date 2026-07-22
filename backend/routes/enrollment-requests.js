@@ -22,6 +22,8 @@ router.post('/', async (req, res) => {
       notes,
       contact_number,
       student_address,
+      emergency_contact,
+      age,
       payment_reference,
       payment_method,
       total_amount,
@@ -64,6 +66,8 @@ router.post('/', async (req, res) => {
            notes = ?,
            contact_number = ?,
            student_address = ?,
+           emergency_contact = ?,
+           age = ?,
            payment_reference = ?,
            payment_method = ?,
            total_amount = ?,
@@ -82,6 +86,8 @@ router.post('/', async (req, res) => {
           notes || null,
           contact_number || null,
           student_address || null,
+          emergency_contact || null,
+          age || null,
           payment_reference || null,
           payment_method || null,
           total_amount || null,
@@ -109,9 +115,9 @@ router.post('/', async (req, res) => {
     const [result] = await pool.query(
       `INSERT INTO enrollments
          (student_id, enrollment_date, status, course_requested, schedule_requested, instructor_requested,
-          program_requested, notes, contact_number, student_address, payment_reference, payment_method,
+          program_requested, notes, contact_number, student_address, emergency_contact, age, payment_reference, payment_method,
           total_amount, first_name, last_name, email, package_id, package_name)
-       VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         student_id,
         'pending',
@@ -122,6 +128,8 @@ router.post('/', async (req, res) => {
         notes || null,
         contact_number || null,
         student_address || null,
+        emergency_contact || null,
+        age || null,
         payment_reference || null,
         payment_method || null,
         total_amount || null,
