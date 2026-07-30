@@ -8,61 +8,52 @@ datasource db {
 }
 
 model band_rooms {
-  id                Int                 @id @default(autoincrement())
-  room_name         String?             @db.VarChar(100)
-  hourly_rate       Decimal?            @db.Decimal(10, 2)
-  status            String?             @db.VarChar(50)
-  band_room_rentals band_room_rentals[]
+  id          Int      @id @default(autoincrement())
+  room_name   String?  @db.VarChar(100)
+  hourly_rate Decimal? @db.Decimal(10, 2)
+  status      String?  @db.VarChar(50)
 }
 
 model clients {
-  id                Int                 @id @default(autoincrement())
-  f_name            String?             @db.VarChar(100)
-  m_name            String?             @db.VarChar(100)
-  l_name            String?             @db.VarChar(100)
-  phone             String?             @db.VarChar(20)
-  email             String?
-  address           String?             @db.Text
-  users_id          Int?
-  band_room_rentals band_room_rentals[]
-  users             users?              @relation(fields: [users_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_clients_users")
-  payments          payments[]
-  rentals           rentals[]
-  students          students[]
+  id       Int     @id @default(autoincrement())
+  f_name   String? @db.VarChar(100)
+  m_name   String? @db.VarChar(100)
+  l_name   String? @db.VarChar(100)
+  phone    String? @db.VarChar(20)
+  email    String?
+  address  String? @db.Text
+  users_id Int?
 
   @@index([users_id], map: "fk_clients_users")
 }
 
 model equipments {
-  id             Int            @id @default(autoincrement())
-  equipment_name String?        @db.VarChar(100)
+  id             Int      @id @default(autoincrement())
+  equipment_name String?  @db.VarChar(100)
   quantity       Int?
-  brand          String?        @db.VarChar(100)
-  rental_rate    Decimal?       @db.Decimal(10, 2)
-  rate_type      String?        @db.VarChar(50)
-  rental_items   rental_items[]
+  brand          String?  @db.VarChar(100)
+  rental_rate    Decimal? @db.Decimal(10, 2)
+  rate_type      String?  @db.VarChar(50)
 }
 
 model instructors {
   id                     Int                      @id @default(autoincrement())
   staff_id               Int                      @unique(map: "staff_id")
-  classes                classes[]
   instructor_specialties instructor_specialties[]
-  staff                  staff                    @relation(fields: [staff_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_instructors_staff")
+  staff                  staff                    @relation(fields: [staff_id], references: [id], map: "fk_instructors_staff")
 }
 
 model instruments {
-  id              Int            @id @default(autoincrement())
-  instrument_name String?        @db.VarChar(100)
-  brand           String?        @db.VarChar(100)
-  model           String?        @db.VarChar(100)
-  serial_number   String?        @db.VarChar(100)
+  id              Int       @id @default(autoincrement())
+  instrument_name String?   @db.VarChar(100)
+  brand           String?   @db.VarChar(100)
+  model           String?   @db.VarChar(100)
+  serial_number   String?   @db.VarChar(100)
   quantity        Int?
-  status          String?        @db.VarChar(50)
-  rental_rate     Decimal?       @db.Decimal(10, 2)
-  rate_type       String?        @db.VarChar(50)
-  purchase_date   DateTime?      @db.Date
-  rental_items    rental_items[]
+  status          String?   @db.VarChar(50)
+  rental_rate     Decimal?  @db.Decimal(10, 2)
+  rate_type       String?   @db.VarChar(50)
+  purchase_date   DateTime? @db.Date
 }
 
 model learning_materials {
@@ -72,56 +63,46 @@ model learning_materials {
   file_path     String?   @db.Text
   uploaded_date DateTime? @db.DateTime(0)
   lesson_id     Int
-  lesson        lesson    @relation(fields: [lesson_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_learning_materials_lesson")
 
   @@index([lesson_id], map: "fk_material_lesson")
 }
 
 model lesson {
-  id                 Int                  @id @default(autoincrement())
-  lesson_name        String?              @db.VarChar(100)
-  status             String?              @db.VarChar(50)
-  learning_materials learning_materials[]
-  packages           packages[]
+  id          Int     @id @default(autoincrement())
+  lesson_name String? @db.VarChar(100)
+  status      String? @db.VarChar(50)
 }
 
 model lesson_rooms {
-  id        Int       @id @default(autoincrement())
-  room_name String?   @db.VarChar(100)
-  status    String?   @db.VarChar(50)
-  classes   classes[]
+  id        Int     @id @default(autoincrement())
+  room_name String? @db.VarChar(100)
+  status    String? @db.VarChar(50)
 }
 
 model packages {
-  id            Int           @id @default(autoincrement())
-  package_name  String?       @db.VarChar(100)
-  duration      String?       @db.VarChar(100)
+  id            Int     @id @default(autoincrement())
+  package_name  String? @db.VarChar(100)
+  duration      String? @db.VarChar(100)
   session       Int?
-  fee           Decimal       @db.Decimal(10, 2)
-  status        String?       @db.VarChar(50)
+  fee           Decimal @db.Decimal(10, 2)
+  status        String? @db.VarChar(50)
   total_session Int?
   lesson_id     Int
-  level_name    String?       @db.VarChar(100)
-  classes       classes[]
-  enrollments   enrollments[]
-  lesson        lesson        @relation(fields: [lesson_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_packages_lesson")
+  level_name    String? @db.VarChar(100)
 
   @@index([lesson_id], map: "fk_packages_lesson")
 }
 
 model rental_items {
-  id            Int          @id @default(autoincrement())
-  item_type     String?      @db.VarChar(50)
+  id            Int      @id @default(autoincrement())
+  item_type     String?  @db.VarChar(50)
   quantity      Int?
-  rental_fee    Decimal?     @db.Decimal(10, 2)
+  rental_fee    Decimal? @db.Decimal(10, 2)
   rental_id     Int?
   instrument_id Int?
   equipment_id  Int?
-  rental_rate   Decimal?     @db.Decimal(10, 2)
-  subtotal      Decimal?     @db.Decimal(10, 2)
-  equipments    equipments?  @relation(fields: [equipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rental_items_equipment")
-  instruments   instruments? @relation(fields: [instrument_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rental_items_instrument")
-  rentals       rentals?     @relation(fields: [rental_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rental_items_rental")
+  rental_rate   Decimal? @db.Decimal(10, 2)
+  subtotal      Decimal? @db.Decimal(10, 2)
 
   @@index([equipment_id], map: "fk_rental_items_equipment")
   @@index([instrument_id], map: "fk_rental_items_instrument")
@@ -129,16 +110,13 @@ model rental_items {
 }
 
 model rentals {
-  id           Int            @id @default(autoincrement())
-  rental_date  DateTime?      @db.DateTime(0)
-  due_date     DateTime?      @db.DateTime(0)
-  return_date  DateTime?      @db.DateTime(0)
-  total_amount Decimal?       @db.Decimal(10, 2)
-  status       String?        @db.VarChar(50)
+  id           Int       @id @default(autoincrement())
+  rental_date  DateTime? @db.DateTime(0)
+  due_date     DateTime? @db.DateTime(0)
+  return_date  DateTime? @db.DateTime(0)
+  total_amount Decimal?  @db.Decimal(10, 2)
+  status       String?   @db.VarChar(50)
   client_id    Int?
-  payments     payments[]
-  rental_items rental_items[]
-  clients      clients?       @relation(fields: [client_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rentals_client")
 
   @@index([client_id], map: "fk_rentals_client")
 }
@@ -166,72 +144,59 @@ model staff {
 }
 
 model students {
-  id              Int           @id @default(autoincrement())
-  student_number  String?       @db.VarChar(50)
-  enrollment_date DateTime?     @db.Date
-  guardian_name   String?       @db.VarChar(100)
-  guardian_no     String?       @db.VarChar(20)
-  status          String?       @db.VarChar(50)
+  id              Int       @id @default(autoincrement())
+  student_number  String?   @db.VarChar(50)
+  enrollment_date DateTime? @db.Date
+  guardian_name   String?   @db.VarChar(100)
+  guardian_no     String?   @db.VarChar(20)
+  status          String?   @db.VarChar(50)
   client_id       Int?
   email           String?
   users_id        Int?
-  enrollments     enrollments[]
-  payments        payments[]
-  clients         clients?      @relation(fields: [client_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_students_client")
-  users           users?        @relation(fields: [users_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_students_users")
 
   @@index([client_id], map: "fk_students_client")
   @@index([users_id], map: "fk_students_users")
 }
 
 model users {
-  id         Int        @id @default(autoincrement())
-  email      String     @unique(map: "email")
-  password   String     @db.VarChar(255)
+  id         Int       @id @default(autoincrement())
+  email      String    @unique(map: "email")
+  password   String    @db.VarChar(255)
   role_id    Int
   staff_id   Int?
-  status     String?    @db.VarChar(50)
-  created_at DateTime?  @default(now()) @db.DateTime(0)
-  clients    clients[]
-  students   students[]
-  role       role       @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users_role")
-  staff      staff?     @relation(fields: [staff_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users_staff")
+  status     String?   @db.VarChar(50)
+  created_at DateTime? @default(now()) @db.DateTime(0)
+  role       role      @relation(fields: [role_id], references: [id], map: "fk_users_role")
+  staff      staff?    @relation(fields: [staff_id], references: [id], map: "fk_users_staff")
 
   @@index([role_id], map: "fk_users_role")
   @@index([staff_id], map: "fk_users_staff")
 }
 
 model band_room_rentals {
-  id           Int        @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   client_id    Int
   band_room_id Int
-  rental_date  DateTime?  @db.Date
-  start_time   DateTime?  @db.Time(0)
-  end_time     DateTime?  @db.Time(0)
-  total_amount Decimal?   @db.Decimal(10, 2)
-  status       String?    @db.VarChar(50)
-  clients      clients    @relation(fields: [client_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_band_room_rental_client")
-  band_rooms   band_rooms @relation(fields: [band_room_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_band_room_rental_room")
-  payments     payments[]
+  rental_date  DateTime? @db.Date
+  start_time   DateTime? @db.Time(0)
+  end_time     DateTime? @db.Time(0)
+  total_amount Decimal?  @db.Decimal(10, 2)
+  status       String?   @db.VarChar(50)
 
   @@index([client_id], map: "fk_band_room_rental_client")
   @@index([band_room_id], map: "fk_band_room_rental_room")
 }
 
 model classes {
-  id             Int           @id @default(autoincrement())
+  id             Int      @id @default(autoincrement())
   package_id     Int
   instructor_id  Int
   lesson_room_id Int
-  class_date     DateTime      @db.Date
-  start_time     DateTime      @db.Time(0)
-  end_time       DateTime      @db.Time(0)
+  class_date     DateTime @db.Date
+  start_time     DateTime @db.Time(0)
+  end_time       DateTime @db.Time(0)
   capacity       Int?
-  status         String?       @default("Open") @db.VarChar(50)
-  instructors    instructors   @relation(fields: [instructor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_classes_instructor")
-  packages       packages      @relation(fields: [package_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_classes_package")
-  lesson_rooms   lesson_rooms  @relation(fields: [lesson_room_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_classes_room")
-  enrollments    enrollments[]
+  status         String?  @default("Open") @db.VarChar(50)
 
   @@index([instructor_id], map: "fk_classes_instructor")
   @@index([package_id], map: "fk_classes_package")
@@ -239,19 +204,15 @@ model classes {
 }
 
 model enrollments {
-  id              Int        @id @default(autoincrement())
+  id              Int       @id @default(autoincrement())
   student_id      Int
   class_id        Int
   package_id      Int
-  amount          Decimal    @db.Decimal(10, 2)
-  enrollment_date DateTime?  @db.Date
-  start_date      DateTime?  @db.Date
-  end_date        DateTime?  @db.Date
-  status          String?    @default("Active") @db.VarChar(50)
-  classes         classes    @relation(fields: [class_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_enrollments_class")
-  packages        packages   @relation(fields: [package_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_enrollments_package")
-  students        students   @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_enrollments_student")
-  payments        payments[]
+  amount          Decimal   @db.Decimal(10, 2)
+  enrollment_date DateTime? @db.Date
+  start_date      DateTime? @db.Date
+  end_date        DateTime? @db.Date
+  status          String?   @default("Active") @db.VarChar(50)
 
   @@index([class_id], map: "fk_enrollments_class")
   @@index([package_id], map: "fk_enrollments_package")
@@ -262,29 +223,24 @@ model instructor_specialties {
   id            Int         @id @default(autoincrement())
   instructor_id Int
   specialty_id  Int
-  instructors   instructors @relation(fields: [instructor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_instructor_specialty_instructor")
-  specialties   specialties @relation(fields: [specialty_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_instructor_specialty_specialty")
+  instructors   instructors @relation(fields: [instructor_id], references: [id], map: "fk_instructor_specialty_instructor")
+  specialties   specialties @relation(fields: [specialty_id], references: [id], map: "fk_instructor_specialty_specialty")
 
   @@index([instructor_id], map: "fk_instructor_specialty_instructor")
   @@index([specialty_id], map: "fk_instructor_specialty_specialty")
 }
 
 model payments {
-  id                  Int                @id @default(autoincrement())
+  id                  Int       @id @default(autoincrement())
   client_id           Int?
   student_id          Int?
   enrollment_id       Int?
   rental_id           Int?
   band_room_rental_id Int?
-  amount              Decimal            @db.Decimal(10, 2)
-  payment_date        DateTime?          @default(now()) @db.DateTime(0)
-  payment_method      String?            @db.VarChar(50)
-  status              String?            @default("Paid") @db.VarChar(50)
-  band_room_rentals   band_room_rentals? @relation(fields: [band_room_rental_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payment_band_room_rental")
-  clients             clients?           @relation(fields: [client_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payment_client")
-  enrollments         enrollments?       @relation(fields: [enrollment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payment_enrollment")
-  rentals             rentals?           @relation(fields: [rental_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payment_rental")
-  students            students?          @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_payment_student")
+  amount              Decimal   @db.Decimal(10, 2)
+  payment_date        DateTime? @default(now()) @db.DateTime(0)
+  payment_method      String?   @db.VarChar(50)
+  status              String?   @default("Paid") @db.VarChar(50)
 
   @@index([band_room_rental_id], map: "fk_payment_band_room_rental")
   @@index([client_id], map: "fk_payment_client")
@@ -298,4 +254,22 @@ model specialties {
   specialty_name         String?                  @db.VarChar(255)
   status                 String?                  @default("Active") @db.VarChar(50)
   instructor_specialties instructor_specialties[]
+}
+
+model instructor_schedule {
+  id            Int     @id @default(autoincrement())
+  instructor_id Int
+  day_of_week   String  @db.VarChar(20)
+  time_slot_id  Int
+  status        String? @default("Available") @db.VarChar(50)
+
+  @@unique([instructor_id, day_of_week, time_slot_id])
+  @@index([instructor_id], map: "idx_instructor_id")
+  @@index([time_slot_id], map: "idx_time_slot_id")
+}
+
+model time_slots {
+  id         Int      @id @default(autoincrement())
+  start_time DateTime @db.Time(0)
+  end_time   DateTime @db.Time(0)
 }

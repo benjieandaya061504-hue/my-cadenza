@@ -7,17 +7,9 @@ const adminRoutes = require('./routes/admin')
 
 const app = express()
 
-// CORS - allow frontend origins
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:3000',
-  'https://cadenza-production-709a.up.railway.app',
-  process.env.FRONTEND_URL,
-].filter(Boolean)
-
+// CORS - allow Vite dev server
 app.use(cors({
-  origin: allowedOrigins,
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
   credentials: true,
 }))
 
