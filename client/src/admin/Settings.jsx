@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import LessonManagement from './LessonManagement.jsx'
 import C from './theme.js'
 
 const API = (import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/admin'
@@ -319,6 +320,14 @@ export default function Settings({ isMobile, isTablet }) {
             </table>
           </div>
         )}
+      </div>
+
+      {/* Lesson Management Section */}
+      <div style={{
+        background: '#fff', borderRadius: 18, border: `1px solid ${C.border}`,
+        overflow: 'hidden', marginBottom: 24,
+      }}>
+        <LessonManagement isMobile={isMobile} isTablet={isTablet} />
       </div>
 
       {/* Delete Confirmation Modal */}

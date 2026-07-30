@@ -40,6 +40,7 @@ model instructors {
   id                     Int                      @id @default(autoincrement())
   staff_id               Int                      @unique(map: "staff_id")
   instructor_specialties instructor_specialties[]
+  instructor_schedules   instructor_schedule[]
   staff                  staff                    @relation(fields: [staff_id], references: [id], map: "fk_instructors_staff")
 }
 
@@ -257,11 +258,14 @@ model specialties {
 }
 
 model instructor_schedule {
-  id            Int     @id @default(autoincrement())
+  id            Int         @id @default(autoincrement())
   instructor_id Int
-  day_of_week   String  @db.VarChar(20)
+  day_of_week   String      @db.VarChar(20)
   time_slot_id  Int
-  status        String? @default("Available") @db.VarChar(50)
+  status        String?     @default("Available") @db.VarChar(50)
+
+  instructor instructors @relation(fields: [instructor_id], references: [id])
+  time_slot  time_slots  @relation(fields: [time_slot_id], references: [id])
 
   @@unique([instructor_id, day_of_week, time_slot_id])
   @@index([instructor_id], map: "idx_instructor_id")
@@ -269,7 +273,8 @@ model instructor_schedule {
 }
 
 model time_slots {
-  id         Int      @id @default(autoincrement())
-  start_time DateTime @db.Time(0)
-  end_time   DateTime @db.Time(0)
+  id                   Int                   @id @default(autoincrement())
+  start_time           DateTime              @db.Time(0)
+  end_time             DateTime              @db.Time(0)
+  instructor_schedules instructor_schedule[]
 }

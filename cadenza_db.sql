@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Jul 26, 2026 at 03:52 PM
+-- Generation Time: Jul 30, 2026 at 09:08 AM
 -- Server version: 8.4.7
 -- PHP Version: 8.3.28
 
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS `band_rooms` (
   `hourly_rate` decimal(10,2) DEFAULT NULL,
   `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS `band_room_rentals` (
   PRIMARY KEY (`id`),
   KEY `fk_band_room_rental_client` (`client_id`),
   KEY `fk_band_room_rental_room` (`band_room_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS `classes` (
   KEY `fk_classes_instructor` (`instructor_id`),
   KEY `fk_classes_package` (`package_id`),
   KEY `fk_classes_room` (`lesson_room_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS `clients` (
   `users_id` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_clients_users` (`users_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -118,10 +118,10 @@ CREATE TABLE IF NOT EXISTS `enrollments` (
   `end_date` date DEFAULT NULL,
   `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'Active',
   PRIMARY KEY (`id`),
-  KEY `fk_enrollments_student` (`student_id`),
   KEY `fk_enrollments_class` (`class_id`),
-  KEY `fk_enrollments_package` (`package_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `fk_enrollments_package` (`package_id`),
+  KEY `fk_enrollments_student` (`student_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -138,7 +138,7 @@ CREATE TABLE IF NOT EXISTS `equipments` (
   `rental_rate` decimal(10,2) DEFAULT NULL,
   `rate_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -152,7 +152,32 @@ CREATE TABLE IF NOT EXISTS `instructors` (
   `staff_id` int NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `staff_id` (`staff_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `instructors`
+--
+
+INSERT INTO `instructors` (`id`, `staff_id`) VALUES
+(1, 1);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `instructor_schedule`
+--
+
+DROP TABLE IF EXISTS `instructor_schedule`;
+CREATE TABLE IF NOT EXISTS `instructor_schedule` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `instructor_id` int NOT NULL,
+  `day_of_week` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `time_slot_id` int NOT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'Available',
+  PRIMARY KEY (`id`),
+  KEY `idx_instructor_id` (`instructor_id`),
+  KEY `idx_time_slot_id` (`time_slot_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -168,7 +193,14 @@ CREATE TABLE IF NOT EXISTS `instructor_specialties` (
   PRIMARY KEY (`id`),
   KEY `fk_instructor_specialty_instructor` (`instructor_id`),
   KEY `fk_instructor_specialty_specialty` (`specialty_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `instructor_specialties`
+--
+
+INSERT INTO `instructor_specialties` (`id`, `instructor_id`, `specialty_id`) VALUES
+(1, 1, 3);
 
 -- --------------------------------------------------------
 
@@ -189,7 +221,7 @@ CREATE TABLE IF NOT EXISTS `instruments` (
   `rate_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `purchase_date` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -207,7 +239,7 @@ CREATE TABLE IF NOT EXISTS `learning_materials` (
   `lesson_id` int NOT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_material_lesson` (`lesson_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -221,7 +253,7 @@ CREATE TABLE IF NOT EXISTS `lesson` (
   `lesson_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -235,7 +267,7 @@ CREATE TABLE IF NOT EXISTS `lesson_rooms` (
   `room_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -256,7 +288,7 @@ CREATE TABLE IF NOT EXISTS `packages` (
   `level_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_packages_lesson` (`lesson_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -277,12 +309,12 @@ CREATE TABLE IF NOT EXISTS `payments` (
   `payment_method` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'Paid',
   PRIMARY KEY (`id`),
+  KEY `fk_payment_band_room_rental` (`band_room_rental_id`),
   KEY `fk_payment_client` (`client_id`),
-  KEY `fk_payment_student` (`student_id`),
   KEY `fk_payment_enrollment` (`enrollment_id`),
   KEY `fk_payment_rental` (`rental_id`),
-  KEY `fk_payment_band_room_rental` (`band_room_rental_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `fk_payment_student` (`student_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -301,7 +333,7 @@ CREATE TABLE IF NOT EXISTS `rentals` (
   `client_id` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_rentals_client` (`client_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -321,10 +353,10 @@ CREATE TABLE IF NOT EXISTS `rental_items` (
   `rental_rate` decimal(10,2) DEFAULT NULL,
   `subtotal` decimal(10,2) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `fk_rental_items_rental` (`rental_id`),
+  KEY `fk_rental_items_equipment` (`equipment_id`),
   KEY `fk_rental_items_instrument` (`instrument_id`),
-  KEY `fk_rental_items_equipment` (`equipment_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `fk_rental_items_rental` (`rental_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -337,7 +369,16 @@ CREATE TABLE IF NOT EXISTS `role` (
   `id` int NOT NULL AUTO_INCREMENT,
   `role_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=MyISAM AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `role`
+--
+
+INSERT INTO `role` (`id`, `role_name`) VALUES
+(1, 'admin'),
+(2, 'frontdesk'),
+(3, 'instructor');
 
 -- --------------------------------------------------------
 
@@ -348,11 +389,19 @@ CREATE TABLE IF NOT EXISTS `role` (
 DROP TABLE IF EXISTS `specialties`;
 CREATE TABLE IF NOT EXISTS `specialties` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `lesson_id` int NOT NULL,
+  `specialty_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'Active',
-  PRIMARY KEY (`id`),
-  KEY `fk_specialties_lesson` (`lesson_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `specialties`
+--
+
+INSERT INTO `specialties` (`id`, `specialty_name`, `status`) VALUES
+(1, 'Drum', 'Active'),
+(2, 'Guitar', 'Active'),
+(3, 'Piano', 'Active');
 
 -- --------------------------------------------------------
 
@@ -373,7 +422,14 @@ CREATE TABLE IF NOT EXISTS `staff` (
   `hire_date` date DEFAULT NULL,
   `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `staff`
+--
+
+INSERT INTO `staff` (`id`, `f_name`, `m_name`, `l_name`, `gender`, `contact_no`, `email`, `address`, `hire_date`, `status`) VALUES
+(1, 'Jan', 'Jan m', 'Jan L', 'Other', '09123456789', 'TestIns@gmail.com', 'balay, tantangan, test ins', '2026-07-29', 'active');
 
 -- --------------------------------------------------------
 
@@ -395,7 +451,43 @@ CREATE TABLE IF NOT EXISTS `students` (
   PRIMARY KEY (`id`),
   KEY `fk_students_client` (`client_id`),
   KEY `fk_students_users` (`users_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `time_slots`
+--
+
+DROP TABLE IF EXISTS `time_slots`;
+CREATE TABLE IF NOT EXISTS `time_slots` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `start_time` time NOT NULL,
+  `end_time` time NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `time_slots`
+--
+
+INSERT INTO `time_slots` (`id`, `start_time`, `end_time`) VALUES
+(1, '07:00:00', '08:00:00'),
+(2, '08:00:00', '09:00:00'),
+(3, '09:00:00', '10:00:00'),
+(4, '10:00:00', '11:00:00'),
+(5, '11:00:00', '12:00:00'),
+(6, '13:00:00', '14:00:00'),
+(7, '14:00:00', '15:00:00'),
+(8, '15:00:00', '16:00:00'),
+(9, '16:00:00', '17:00:00'),
+(10, '17:00:00', '18:00:00'),
+(11, '18:00:00', '19:00:00'),
+(12, '19:00:00', '20:00:00'),
+(13, '20:00:00', '21:00:00'),
+(14, '21:00:00', '22:00:00'),
+(15, '22:00:00', '23:00:00'),
+(16, '23:00:00', '00:00:00');
 
 -- --------------------------------------------------------
 
@@ -416,110 +508,44 @@ CREATE TABLE IF NOT EXISTS `users` (
   UNIQUE KEY `email` (`email`),
   KEY `fk_users_role` (`role_id`),
   KEY `fk_users_staff` (`staff_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=MyISAM AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Constraints for dumped tables
+-- Dumping data for table `users`
 --
 
---
--- Constraints for table `band_room_rentals`
---
-ALTER TABLE `band_room_rentals`
-  ADD CONSTRAINT `fk_band_room_rental_client` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`),
-  ADD CONSTRAINT `fk_band_room_rental_room` FOREIGN KEY (`band_room_id`) REFERENCES `band_rooms` (`id`);
+INSERT INTO `users` (`id`, `email`, `password`, `role_id`, `staff_id`, `status`, `created_at`) VALUES
+(1, 'admin@cadenzamusic.com', '$2b$10$uONWqEx.XBJZGPCawYpwreTaAAt8WC9igPs7s/.yW3UoEJ1SFmfBi', 1, NULL, 'active', '2026-07-27 16:40:03'),
+(2, 'frontdesk@cadenzamusic.com', '$2b$10$rd1QRViuZPfUUBg8jR34weSnfXtuHcBOA6Vx74zasdsX/LoYbD8uy', 2, NULL, 'active', '2026-07-27 16:40:03'),
+(3, 'testlocals@gmail.com', '$2b$10$P.y2kyMyp1yyiuthYuxPS.xrUUm7Wn72SE/BuQxWAr2eLbiU263vS', 2, NULL, 'active', '2026-07-29 09:32:01'),
+(4, 'TestIns@gmail.com', '$2b$10$CKBMwHikl1HSuN2AlZvrC.no9wdui2rvNUgNey5UzRJpNaiMh7glu', 3, 1, 'active', '2026-07-29 09:48:21');
+
+-- --------------------------------------------------------
 
 --
--- Constraints for table `classes`
+-- Table structure for table `_prisma_migrations`
 --
-ALTER TABLE `classes`
-  ADD CONSTRAINT `fk_classes_instructor` FOREIGN KEY (`instructor_id`) REFERENCES `instructors` (`id`),
-  ADD CONSTRAINT `fk_classes_package` FOREIGN KEY (`package_id`) REFERENCES `packages` (`id`),
-  ADD CONSTRAINT `fk_classes_room` FOREIGN KEY (`lesson_room_id`) REFERENCES `lesson_rooms` (`id`);
+
+DROP TABLE IF EXISTS `_prisma_migrations`;
+CREATE TABLE IF NOT EXISTS `_prisma_migrations` (
+  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `checksum` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `finished_at` datetime(3) DEFAULT NULL,
+  `migration_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `logs` text COLLATE utf8mb4_unicode_ci,
+  `rolled_back_at` datetime(3) DEFAULT NULL,
+  `started_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `applied_steps_count` int UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Constraints for table `clients`
+-- Dumping data for table `_prisma_migrations`
 --
-ALTER TABLE `clients`
-  ADD CONSTRAINT `fk_clients_users` FOREIGN KEY (`users_id`) REFERENCES `users` (`id`);
 
---
--- Constraints for table `enrollments`
---
-ALTER TABLE `enrollments`
-  ADD CONSTRAINT `fk_enrollments_class` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`),
-  ADD CONSTRAINT `fk_enrollments_package` FOREIGN KEY (`package_id`) REFERENCES `packages` (`id`),
-  ADD CONSTRAINT `fk_enrollments_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`);
-
---
--- Constraints for table `instructors`
---
-ALTER TABLE `instructors`
-  ADD CONSTRAINT `fk_instructors_staff` FOREIGN KEY (`staff_id`) REFERENCES `staff` (`id`);
-
---
--- Constraints for table `instructor_specialties`
---
-ALTER TABLE `instructor_specialties`
-  ADD CONSTRAINT `fk_instructor_specialty_instructor` FOREIGN KEY (`instructor_id`) REFERENCES `instructors` (`id`),
-  ADD CONSTRAINT `fk_instructor_specialty_specialty` FOREIGN KEY (`specialty_id`) REFERENCES `specialties` (`id`);
-
---
--- Constraints for table `learning_materials`
---
-ALTER TABLE `learning_materials`
-  ADD CONSTRAINT `fk_learning_materials_lesson` FOREIGN KEY (`lesson_id`) REFERENCES `lesson` (`id`),
-  ADD CONSTRAINT `fk_material_lesson` FOREIGN KEY (`lesson_id`) REFERENCES `lesson` (`id`);
-
---
--- Constraints for table `packages`
---
-ALTER TABLE `packages`
-  ADD CONSTRAINT `fk_packages_lesson` FOREIGN KEY (`lesson_id`) REFERENCES `lesson` (`id`);
-
---
--- Constraints for table `payments`
---
-ALTER TABLE `payments`
-  ADD CONSTRAINT `fk_payment_band_room_rental` FOREIGN KEY (`band_room_rental_id`) REFERENCES `band_room_rentals` (`id`),
-  ADD CONSTRAINT `fk_payment_client` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`),
-  ADD CONSTRAINT `fk_payment_enrollment` FOREIGN KEY (`enrollment_id`) REFERENCES `enrollments` (`id`),
-  ADD CONSTRAINT `fk_payment_rental` FOREIGN KEY (`rental_id`) REFERENCES `rentals` (`id`),
-  ADD CONSTRAINT `fk_payment_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`id`);
-
---
--- Constraints for table `rentals`
---
-ALTER TABLE `rentals`
-  ADD CONSTRAINT `fk_rentals_client` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`);
-
---
--- Constraints for table `rental_items`
---
-ALTER TABLE `rental_items`
-  ADD CONSTRAINT `fk_rental_items_equipment` FOREIGN KEY (`equipment_id`) REFERENCES `equipments` (`id`),
-  ADD CONSTRAINT `fk_rental_items_instrument` FOREIGN KEY (`instrument_id`) REFERENCES `instruments` (`id`),
-  ADD CONSTRAINT `fk_rental_items_rental` FOREIGN KEY (`rental_id`) REFERENCES `rentals` (`id`);
-
---
--- Constraints for table `specialties`
---
-ALTER TABLE `specialties`
-  ADD CONSTRAINT `fk_specialties_lesson` FOREIGN KEY (`lesson_id`) REFERENCES `lesson` (`id`);
-
---
--- Constraints for table `students`
---
-ALTER TABLE `students`
-  ADD CONSTRAINT `fk_students_client` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`),
-  ADD CONSTRAINT `fk_students_users` FOREIGN KEY (`users_id`) REFERENCES `users` (`id`);
-
---
--- Constraints for table `users`
---
-ALTER TABLE `users`
-  ADD CONSTRAINT `fk_users_role` FOREIGN KEY (`role_id`) REFERENCES `role` (`id`),
-  ADD CONSTRAINT `fk_users_staff` FOREIGN KEY (`staff_id`) REFERENCES `staff` (`id`);
+INSERT INTO `_prisma_migrations` (`id`, `checksum`, `finished_at`, `migration_name`, `logs`, `rolled_back_at`, `started_at`, `applied_steps_count`) VALUES
+('851d7500-c797-4347-b12b-28c0fdd2b854', '604240561552e88c0b54a023b5e17e0f2c5d3562d3d6b3c3321069c1ec38267a', '2026-07-27 16:38:52.625', '20260727163817_ini', NULL, NULL, '2026-07-27 16:38:17.523', 1),
+('39616ed4-5e22-45be-95a9-79069830f231', 'a8ae59e67b9a2a8ac7799adc9c00a8a236374c854089ed0f223b7ff2e73b8bc9', '2026-07-29 16:57:11.410', '0_init', '', NULL, '2026-07-29 16:57:11.410', 0);
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

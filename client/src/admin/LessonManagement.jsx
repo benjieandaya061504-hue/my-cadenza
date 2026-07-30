@@ -13,6 +13,7 @@ export default function LessonManagement({ isMobile, isTablet }) {
   const [formLoading, setFormLoading] = useState(false)
   const [formError, setFormError] = useState('')
   const [formSuccess, setFormSuccess] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
 
   // Form state
   const [form, setForm] = useState({
@@ -134,7 +135,33 @@ export default function LessonManagement({ isMobile, isTablet }) {
     }
   }
 
-  // Modal styles
+  const handleDelete = async (id) => {
+    try {
+      const res = await fetch(`${API}/lessons/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      const data = await res.json()
+      if (data.success) {
+        setDeleteConfirm(null)
+        fetchLessons()
+      } else {
+        setError(data.message || 'Failed to delete lesson.')
+      }
+    } catch (err) {
+      setError('An error occurred while deleting.')
+    }
+  }
+
+  const statusStyle = (status) => {
+    switch (status) {
+      case 'Active': return { bg: 'rgba(16,185,129,0.1)', c: C.green }
+      case 'Inactive': return { bg: 'rgba(248,113,113,0.1)', c: C.coral }
+      default: return { bg: 'rgba(148,163,184,0.1)', c: C.text3 }
+    }
+  }
+
+  // Modal styles (matching Settings.jsx exactly)
   const modalOverlayStyle = {
     position: 'fixed', inset: 0, zIndex: 1000,
     background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(4px)',
@@ -163,10 +190,16 @@ export default function LessonManagement({ isMobile, isTablet }) {
 
   return (
     <div style={{ fontFamily: C.font }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+      {/* Card header — matching Specialty Management exactly */}
+      <div style={{
+        padding: '18px 22px', borderBottom: `1px solid ${C.border}`,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12,
+      }}>
         <div>
-          <h2 style={{ fontFamily: C.display, fontSize: '1.3rem', fontWeight: 700, color: C.navy, margin: 0 }}>Lesson Management</h2>
-          <p style={{ fontSize: '0.8rem', color: C.text3, marginTop: 2 }}>
+          <h3 style={{ fontFamily: C.display, fontSize: '1rem', fontWeight: 700, color: C.navy, margin: 0 }}>
+            Lesson Management
+          </h3>
+          <p style={{ fontSize: '0.75rem', color: C.text3, marginTop: 2 }}>
             {loading ? 'Loading...' : `${filtered.length} lessons`}
           </p>
         </div>
@@ -195,7 +228,7 @@ export default function LessonManagement({ isMobile, isTablet }) {
       </div>
 
       {error && (
-        <div style={{ padding: '12px 16px', background: 'rgba(248,113,113,0.1)', borderRadius: 10, marginBottom: 16, fontSize: '0.8rem', color: C.coral }}>
+        <div style={{ padding: '12px 22px', background: 'rgba(248,113,113,0.1)', fontSize: '0.8rem', color: C.coral }}>
           {error}
         </div>
       )}
@@ -205,57 +238,107 @@ export default function LessonManagement({ isMobile, isTablet }) {
           Loading lessons...
         </div>
       ) : (
-        <div style={{ background: '#fff', borderRadius: 18, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: C.mist }}>
-                  {['Lesson', 'Status', 'Action'].map(h => (
-                    <th key={h} style={{ padding: '12px 14px', fontSize: '0.7rem', fontWeight: 700, color: C.text3, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'left' }}>{h}</th>
-                  ))}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: C.mist }}>
+                {['Lesson', 'Status', 'Action'].map(h => (
+                  <th key={h} style={{ padding: '12px 14px', fontSize: '0.7rem', fontWeight: 700, color: C.text3, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'left' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={3} style={{ padding: 40, textAlign: 'center', color: C.text3, fontSize: '0.85rem' }}>
+                    No lessons found.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} style={{ padding: 40, textAlign: 'center', color: C.text3, fontSize: '0.85rem' }}>
-                      No lessons found.
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map(l => (
+              ) : (
+                filtered.map(l => {
+                  const ss = statusStyle(l.status)
+                  return (
                     <tr key={l.id} style={{ borderBottom: `1px solid ${C.border}` }}>
                       <td style={{ padding: '12px 14px', fontSize: '0.85rem', fontWeight: 600, color: C.navy }}>{l.lesson_name}</td>
                       <td style={{ padding: '12px 14px' }}>
                         <span style={{
                           padding: '3px 12px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 600,
-                          background: l.status === 'Active' ? 'rgba(16,185,129,0.1)' : 'rgba(148,163,184,0.1)',
-                          color: l.status === 'Active' ? C.green : C.text3,
+                          background: ss.bg, color: ss.c,
                         }}>{l.status}</span>
                       </td>
                       <td style={{ padding: '12px 14px' }}>
-                        <button
-                          onClick={() => openEditModal(l)}
-                          style={{
-                            padding: '5px 14px', borderRadius: 8, border: `1.5px solid ${C.royal}`,
-                            background: 'rgba(37,99,235,0.08)', color: C.royal,
-                            fontSize: '0.72rem', fontWeight: 600, fontFamily: C.font,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Edit
-                        </button>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            onClick={() => openEditModal(l)}
+                            style={{
+                              padding: '5px 14px', borderRadius: 8, border: `1.5px solid ${C.royal}`,
+                              background: 'rgba(37,99,235,0.08)', color: C.royal,
+                              fontSize: '0.72rem', fontWeight: 600, fontFamily: C.font,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm(l)}
+                            style={{
+                              padding: '5px 14px', borderRadius: 8, border: `1.5px solid ${C.coral}`,
+                              background: 'rgba(248,113,113,0.08)', color: C.coral,
+                              fontSize: '0.72rem', fontWeight: 600, fontFamily: C.font,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal — matching Specialty Management exactly */}
+      {deleteConfirm && (
+        <div style={modalOverlayStyle} onClick={() => setDeleteConfirm(null)}>
+          <div style={{ ...modalStyle, maxWidth: 400 }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontFamily: C.display, fontSize: '1.1rem', fontWeight: 700, color: C.navy, margin: '0 0 12px' }}>
+              Confirm Delete
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: C.text2, marginBottom: 20 }}>
+              Are you sure you want to delete <strong>{deleteConfirm.lesson_name}</strong>? This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                style={{
+                  padding: '10px 20px', borderRadius: 10, border: `1.5px solid ${C.border2}`,
+                  background: '#fff', fontSize: '0.82rem', fontWeight: 600, fontFamily: C.font,
+                  color: C.text2, cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(deleteConfirm.id)}
+                style={{
+                  padding: '10px 24px', borderRadius: 10, border: 'none',
+                  background: `linear-gradient(135deg, ${C.coral}, ${C.coral})`,
+                  color: '#fff', fontSize: '0.82rem', fontWeight: 600, fontFamily: C.font,
+                  cursor: 'pointer',
+                }}
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Add/Edit Lesson Modal */}
+      {/* Add/Edit Lesson Modal — matching Specialty Management exactly */}
       {showModal && (
         <div style={modalOverlayStyle} onClick={closeModal}>
           <div style={modalStyle} onClick={e => e.stopPropagation()}>
@@ -279,7 +362,7 @@ export default function LessonManagement({ isMobile, isTablet }) {
             )}
 
             <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 20 }}>
                 <label style={labelStyle}>Lesson Name *</label>
                 <input
                   type="text"
@@ -291,7 +374,7 @@ export default function LessonManagement({ isMobile, isTablet }) {
                 />
               </div>
 
-              <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 20 }}>
                 <label style={labelStyle}>Status</label>
                 <select
                   name="status"

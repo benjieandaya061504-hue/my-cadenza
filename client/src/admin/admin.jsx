@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import EnrolledStudents from './EnrolledStudents.jsx'
 import UserManagement from './UserManagement.jsx'
 import InstructorManagement from './InstructorManagement.jsx'
-import LessonManagement from './LessonManagement.jsx'
 import ScheduleManagement from './ScheduleManagement.jsx'
 import StudioRoomManagement from './StudioRoomManagement.jsx'
 import InstrumentManagement from './InstrumentManagement.jsx'
@@ -19,7 +18,6 @@ const ADMIN_NAV = [
     { id: 'enrolled',      icon: '🎓', label: 'Enrolled Students' },
     { id: 'users',         icon: '◈', label: 'Users' },
     { id: 'instructors',   icon: '👨‍🏫', label: 'Instructors' },
-    { id: 'lessons',       icon: '♫', label: 'Lessons' },
     { id: 'scheduling',    icon: '▦', label: 'Schedules' },
     { id: 'studio',        icon: '♬', label: 'Studio Rooms' },
     { id: 'instruments',   icon: '♪', label: 'Instruments' },
@@ -36,7 +34,6 @@ const PAGE_LABELS = {
   enrolled: 'Enrolled Students',
   users: 'Users',
   instructors: 'Instructors',
-  lessons: 'Lessons',
   scheduling: 'Schedules',
   studio: 'Studio Rooms',
   instruments: 'Instruments',
@@ -77,7 +74,6 @@ const AdminDashboard = () => {
       case 'enrolled': return <EnrolledStudents isMobile={isMobile} isTablet={isTablet} />
       case 'users': return <UserManagement isMobile={isMobile} isTablet={isTablet} />
       case 'instructors': return <InstructorManagement isMobile={isMobile} isTablet={isTablet} />
-      case 'lessons': return <LessonManagement isMobile={isMobile} isTablet={isTablet} />
       case 'scheduling': return <ScheduleManagement isMobile={isMobile} isTablet={isTablet} />
       case 'studio': return <StudioRoomManagement isMobile={isMobile} isTablet={isTablet} />
       case 'instruments': return <InstrumentManagement isMobile={isMobile} isTablet={isTablet} />
