@@ -1,0 +1,268 @@
+{
+  "lesson": [
+    {
+      "id": 1,
+      "lesson_name": "Piano",
+      "status": "Active"
+    },
+    {
+      "id": 2,
+      "lesson_name": "Drum",
+      "status": "Active"
+    },
+    {
+      "id": 3,
+      "lesson_name": "Guitar Lesson 1",
+      "status": "Active"
+    }
+  ],
+  "instructor_schedule": [
+    {
+      "id": 76,
+      "instructor_id": 2,
+      "day_of_week": "Mon",
+      "time_slot_id": 1,
+      "status": "Available"
+    },
+    {
+      "id": 77,
+      "instructor_id": 2,
+      "day_of_week": "Mon",
+      "time_slot_id": 2,
+      "status": "Available"
+    },
+    {
+      "id": 78,
+      "instructor_id": 2,
+      "day_of_week": "Mon",
+      "time_slot_id": 3,
+      "status": "Available"
+    },
+    {
+      "id": 79,
+      "instructor_id": 2,
+      "day_of_week": "Tue",
+      "time_slot_id": 1,
+      "status": "Available"
+    },
+    {
+      "id": 80,
+      "instructor_id": 2,
+      "day_of_week": "Tue",
+      "time_slot_id": 2,
+      "status": "Available"
+    },
+    {
+      "id": 81,
+      "instructor_id": 2,
+      "day_of_week": "Tue",
+      "time_slot_id": 3,
+      "status": "Available"
+    },
+    {
+      "id": 82,
+      "instructor_id": 2,
+      "day_of_week": "Wed",
+      "time_slot_id": 1,
+      "status": "Available"
+    },
+    {
+      "id": 83,
+      "instructor_id": 2,
+      "day_of_week": "Wed",
+      "time_slot_id": 2,
+      "status": "Available"
+    },
+    {
+      "id": 84,
+      "instructor_id": 2,
+      "day_of_week": "Wed",
+      "time_slot_id": 3,
+      "status": "Available"
+    }
+  ],
+  "instructors": [
+    {
+      "id": 1,
+      "staff_id": 1
+    },
+    {
+      "id": 2,
+      "staff_id": 2
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "email": "admin@gmail.com",
+      "password": "$2b$10$8PFGP9/FtnAbGlZeLVvq0.Xp4h1v.PkOFEnsOxlUmXaB6Dnap/gRW",
+      "role_id": 1,
+      "staff_id": null,
+      "status": "active",
+      "created_at": "2026-07-29T18:02:45.000Z"
+    },
+    {
+      "id": 2,
+      "email": "frontdesk@cadenzamusic.com",
+      "password": "$2b$10$c90kZjougYBi5DVbR43FZue.rpGe/nq2PcUPQ9S4xcfqkHCD9PLfu",
+      "role_id": 2,
+      "staff_id": null,
+      "status": "active",
+      "created_at": "2026-07-29T18:02:46.000Z"
+    },
+    {
+      "id": 3,
+      "email": "sho@gmail.com",
+      "password": "$2b$10$tos3QK1JNTKrWMHgloUd/OVkYV2B9GN7r2j45luBdbQT.KNskjHzG",
+      "role_id": 3,
+      "staff_id": 1,
+      "status": "active",
+      "created_at": "2026-07-29T18:17:36.000Z"
+    },
+    {
+      "id": 4,
+      "email": "lee@gmail.com",
+      "password": "$2b$10$As0GkezpJt2i0uqcqiJiGOb00G8O0QAV7EWZLuAyIYM6TvancsgrW",
+      "role_id": 3,
+      "staff_id": 2,
+      "status": "active",
+      "created_at": "2026-07-29T18:18:33.000Z"
+    }
+  ],
+  "instructor_specialties": [
+    {
+      "id": 1,
+      "instructor_id": 1,
+      "specialty_id": 3
+    },
+    {
+      "id": 2,
+      "instructor_id": 1,
+      "specialty_id": 2
+    },
+    {
+      "id": 3,
+      "instructor_id": 1,
+      "specialty_id": 1
+    },
+    {
+      "id": 4,
+      "instructor_id": 2,
+      "specialty_id": 3
+    },
+    {
+      "id": 5,
+      "instructor_id": 2,
+      "specialty_id": 2
+    }
+  ],
+  "specialties": [
+    {
+      "id": 1,
+      "specialty_name": "Drum",
+      "status": "Active"
+    },
+    {
+      "id": 2,
+      "specialty_name": "Guitar",
+      "status": "Active"
+    },
+    {
+      "id": 3,
+      "specialty_name": "Piano",
+      "status": "Active"
+    }
+  ],
+  "time_slots": [
+    {
+      "id": 1,
+      "start_time": "1970-01-01T07:00:00.000Z",
+      "end_time": "1970-01-01T08:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "start_time": "1970-01-01T08:00:00.000Z",
+      "end_time": "1970-01-01T09:00:00.000Z"
+    },
+    {
+      "id": 3,
+      "start_time": "1970-01-01T09:00:00.000Z",
+      "end_time": "1970-01-01T10:00:00.000Z"
+    },
+    {
+      "id": 4,
+      "start_time": "1970-01-01T10:00:00.000Z",
+      "end_time": "1970-01-01T11:00:00.000Z"
+    },
+    {
+      "id": 5,
+      "start_time": "1970-01-01T11:00:00.000Z",
+      "end_time": "1970-01-01T12:00:00.000Z"
+    },
+    {
+      "id": 6,
+      "start_time": "1970-01-01T13:00:00.000Z",
+      "end_time": "1970-01-01T14:00:00.000Z"
+    },
+    {
+      "id": 7,
+      "start_time": "1970-01-01T14:00:00.000Z",
+      "end_time": "1970-01-01T15:00:00.000Z"
+    },
+    {
+      "id": 8,
+      "start_time": "1970-01-01T15:00:00.000Z",
+      "end_time": "1970-01-01T16:00:00.000Z"
+    },
+    {
+      "id": 9,
+      "start_time": "1970-01-01T16:00:00.000Z",
+      "end_time": "1970-01-01T17:00:00.000Z"
+    },
+    {
+      "id": 10,
+      "start_time": "1970-01-01T17:00:00.000Z",
+      "end_time": "1970-01-01T18:00:00.000Z"
+    }
+  ],
+  "staff": [
+    {
+      "id": 1,
+      "f_name": "sho",
+      "m_name": "shomid",
+      "l_name": "sholast",
+      "gender": "Male",
+      "contact_no": "09123456789",
+      "email": "sho@gmail.com",
+      "address": "tufi",
+      "hire_date": "2026-07-29T00:00:00.000Z",
+      "status": "active"
+    },
+    {
+      "id": 2,
+      "f_name": "lee",
+      "m_name": "leemid",
+      "l_name": "leelast",
+      "gender": "Male",
+      "contact_no": "09876543210",
+      "email": "lee@gmail.com",
+      "address": "tangan",
+      "hire_date": "2026-07-29T00:00:00.000Z",
+      "status": "active"
+    }
+  ],
+  "role": [
+    {
+      "id": 1,
+      "role_name": "admin"
+    },
+    {
+      "id": 2,
+      "role_name": "frontdesk"
+    },
+    {
+      "id": 3,
+      "role_name": "instructor"
+    }
+  ]
+}

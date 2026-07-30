@@ -69,9 +69,11 @@ model learning_materials {
 }
 
 model lesson {
-  id          Int     @id @default(autoincrement())
-  lesson_name String? @db.VarChar(100)
-  status      String? @db.VarChar(50)
+  id           Int          @id @default(autoincrement())
+  lesson_name  String?      @db.VarChar(100)
+  status       String?      @db.VarChar(50)
+  specialty_id Int?
+  specialties  specialties? @relation(fields: [specialty_id], references: [id])
 }
 
 model lesson_rooms {
@@ -255,6 +257,7 @@ model specialties {
   specialty_name         String?                  @db.VarChar(255)
   status                 String?                  @default("Active") @db.VarChar(50)
   instructor_specialties instructor_specialties[]
+  lesson                 lesson[]
 }
 
 model instructor_schedule {

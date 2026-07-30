@@ -5,6 +5,7 @@ const API = (import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/ad
 
 export default function LessonManagement({ isMobile, isTablet }) {
   const [lessons, setLessons] = useState([])
+  const [specialties, setSpecialties] = useState([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -18,6 +19,7 @@ export default function LessonManagement({ isMobile, isTablet }) {
   // Form state
   const [form, setForm] = useState({
     lesson_name: '',
+    specialty_id: '',
     status: 'Active',
   })
 
@@ -42,8 +44,23 @@ export default function LessonManagement({ isMobile, isTablet }) {
     }
   }
 
+  const fetchSpecialties = async () => {
+    try {
+      const res = await fetch(`${API}/specialties`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSpecialties(data.data)
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
+
   useEffect(() => {
     fetchLessons()
+    fetchSpecialties()
   }, [])
 
   // Filter lessons by search
@@ -61,7 +78,7 @@ export default function LessonManagement({ isMobile, isTablet }) {
   }
 
   const resetForm = () => {
-    setForm({ lesson_name: '', status: 'Active' })
+    setForm({ lesson_name: '', specialty_id: '', status: 'Active' })
     setFormError('')
     setFormSuccess('')
     setEditingId(null)
@@ -75,6 +92,7 @@ export default function LessonManagement({ isMobile, isTablet }) {
   const openEditModal = (lesson) => {
     setForm({
       lesson_name: lesson.lesson_name || '',
+      specialty_id: lesson.specialty_id ? String(lesson.specialty_id) : '',
       status: lesson.status || 'Active',
     })
     setEditingId(lesson.id)
@@ -113,6 +131,7 @@ export default function LessonManagement({ isMobile, isTablet }) {
         },
         body: JSON.stringify({
           lesson_name: form.lesson_name,
+          specialty_id: form.specialty_id,
           status: form.status,
         }),
       })
@@ -242,15 +261,15 @@ export default function LessonManagement({ isMobile, isTablet }) {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: C.mist }}>
-                {['Lesson', 'Status', 'Action'].map(h => (
+                {['Lesson', 'Specialty', 'Status', 'Action'].map(h => (
                   <th key={h} style={{ padding: '12px 14px', fontSize: '0.7rem', fontWeight: 700, color: C.text3, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'left' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+                {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={3} style={{ padding: 40, textAlign: 'center', color: C.text3, fontSize: '0.85rem' }}>
+                  <td colSpan={4} style={{ padding: 40, textAlign: 'center', color: C.text3, fontSize: '0.85rem' }}>
                     No lessons found.
                   </td>
                 </tr>
@@ -260,6 +279,9 @@ export default function LessonManagement({ isMobile, isTablet }) {
                   return (
                     <tr key={l.id} style={{ borderBottom: `1px solid ${C.border}` }}>
                       <td style={{ padding: '12px 14px', fontSize: '0.85rem', fontWeight: 600, color: C.navy }}>{l.lesson_name}</td>
+                      <td style={{ padding: '12px 14px', fontSize: '0.8rem', color: C.text2 }}>
+                        {l.specialties?.specialty_name || <span style={{ color: C.text3, fontStyle: 'italic' }}>None</span>}
+                      </td>
                       <td style={{ padding: '12px 14px' }}>
                         <span style={{
                           padding: '3px 12px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 600,
@@ -372,6 +394,21 @@ export default function LessonManagement({ isMobile, isTablet }) {
                   placeholder="e.g. Piano Fundamentals"
                   style={inputStyle}
                 />
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={labelStyle}>Specialty</label>
+                <select
+                  name="specialty_id"
+                  value={form.specialty_id}
+                  onChange={handleInputChange}
+                  style={inputStyle}
+                >
+                  <option value="">— None —</option>
+                  {specialties.map(s => (
+                    <option key={s.id} value={s.id}>{s.specialty_name}</option>
+                  ))}
+                </select>
               </div>
 
               <div style={{ marginBottom: 20 }}>

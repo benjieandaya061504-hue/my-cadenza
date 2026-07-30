@@ -6,6 +6,7 @@ import ScheduleManagement from './ScheduleManagement.jsx'
 import StudioRoomManagement from './StudioRoomManagement.jsx'
 import InstrumentManagement from './InstrumentManagement.jsx'
 import AnnouncementManagement from './AnnouncementManagement.jsx'
+import LessonPackageManagement from './LessonPackageManagement.jsx'
 import Settings from './Settings.jsx'
 import Reports from './Reports.jsx'
 import C from './theme.js'
@@ -21,6 +22,7 @@ const ADMIN_NAV = [
     { id: 'scheduling',    icon: '▦', label: 'Schedules' },
     { id: 'studio',        icon: '♬', label: 'Studio Rooms' },
     { id: 'instruments',   icon: '♪', label: 'Instruments' },
+    { id: 'packages',      icon: '📦', label: 'Lesson Packages' },
     { id: 'announcements', icon: '◐', label: 'Announcements' },
     { id: 'reports',       icon: '▲', label: 'Reports' },
   ]},
@@ -38,6 +40,7 @@ const PAGE_LABELS = {
   studio: 'Studio Rooms',
   instruments: 'Instruments',
   announcements: 'Announcements',
+  packages: 'Lesson Packages',
   reports: 'Reports',
   settings: 'Settings',
 }
@@ -78,6 +81,7 @@ const AdminDashboard = () => {
       case 'studio': return <StudioRoomManagement isMobile={isMobile} isTablet={isTablet} />
       case 'instruments': return <InstrumentManagement isMobile={isMobile} isTablet={isTablet} />
       case 'announcements': return <AnnouncementManagement isMobile={isMobile} isTablet={isTablet} />
+      case 'packages': return <LessonPackageManagement isMobile={isMobile} isTablet={isTablet} />
       case 'reports': return <Reports isMobile={isMobile} isTablet={isTablet} />
       case 'settings': return <Settings isMobile={isMobile} isTablet={isTablet} />
       default: return (
