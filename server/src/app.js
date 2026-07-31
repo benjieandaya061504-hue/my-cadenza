@@ -9,6 +9,7 @@ const app = express()
 // CORS - allow Vite dev server and Vercel production
 const allowedOrigins = [
   'https://my-cadenza.vercel.app',
+  'mysql://root:hTmpyobcmqGALqOvpXSjRyYVdBLHZwpc@sakura.proxy.rlwy.net:58694/railway',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:3000',
