@@ -146,7 +146,7 @@ export default function LessonPackageManagement({ isMobile, isTablet }) {
     const s = search.toLowerCase()
     return (
       p.package_name?.toLowerCase().includes(s) ||
-      p.lesson?.lesson_name?.toLowerCase().includes(s) ||
+      p.lesson_name?.toLowerCase().includes(s) ||
       p.level_name?.toLowerCase().includes(s)
     )
   })
@@ -418,7 +418,7 @@ export default function LessonPackageManagement({ isMobile, isTablet }) {
                     return (
                       <tr key={p.id} style={{ borderBottom: `1px solid ${C.border}` }}>
                         <td style={{ padding: '12px 14px', fontSize: '0.85rem', fontWeight: 600, color: C.navy }}>{p.package_name}</td>
-                        <td style={{ padding: '12px 14px', fontSize: '0.8rem', color: C.text2 }}>{p.lesson?.lesson_name || '—'}</td>
+                        <td style={{ padding: '12px 14px', fontSize: '0.8rem', color: C.text2 }}>{p.lesson_name || '—'}</td>
                         <td style={{ padding: '12px 14px', fontSize: '0.8rem', color: C.text2 }}>{p.total_session || '—'}</td>
                         <td style={{ padding: '12px 14px', fontSize: '0.8rem', color: C.text2 }}>{p.duration || '—'}</td>
                         <td style={{ padding: '12px 14px', fontSize: '0.85rem', fontWeight: 600, color: C.navy }}>₱{parseFloat(p.fee).toLocaleString()}</td>

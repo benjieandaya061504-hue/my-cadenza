@@ -1049,15 +1049,24 @@ router.delete('/instructor-schedules/instructor/:instructorId', verifyToken, che
 router.get('/packages', verifyToken, checkRole(['admin']), async (req, res) => {
   try {
     const packages = await prisma.packages.findMany({
-      include: {
-        lesson: true,
-      },
       orderBy: { id: 'desc' },
+    })
+
+    // Fetch all lessons and merge manually (no @relation exists on packages → lesson)
+    const lessons = await prisma.lesson.findMany()
+
+    const packagesWithLessons = packages.map(pkg => {
+      const lesson = lessons.find(l => l.id === pkg.lesson_id)
+      return {
+        ...pkg,
+        lesson_name: lesson?.lesson_name || null,
+        lesson_specialty_id: lesson?.specialty_id || null,
+      }
     })
 
     res.json({
       success: true,
-      data: packages,
+      data: packagesWithLessons,
     })
   } catch (error) {
     console.error('Error fetching packages:', error)
@@ -1104,15 +1113,19 @@ router.post('/packages', verifyToken, checkRole(['admin']), async (req, res) => 
         level_name: level_name || null,
         status: status || 'Active',
       },
-      include: {
-        lesson: true,
-      },
     })
+
+    // Manually attach lesson_name (no @relation exists on packages → lesson)
+    const responseData = {
+      ...newPackage,
+      lesson_name: lesson.lesson_name || null,
+      lesson_specialty_id: lesson.specialty_id || null,
+    }
 
     res.status(201).json({
       success: true,
       message: 'Package created successfully.',
-      data: newPackage,
+      data: responseData,
     })
   } catch (error) {
     console.error('Error creating package:', error)
@@ -1154,15 +1167,28 @@ router.put('/packages/:id', verifyToken, checkRole(['admin']), async (req, res) 
     const updated = await prisma.packages.update({
       where: { id: parseInt(id) },
       data: updateData,
-      include: {
-        lesson: true,
-      },
     })
+
+    // Manually attach lesson_name (no @relation exists on packages → lesson)
+    let lessonName = null
+    let lessonSpecialtyId = null
+    const targetLessonId = lesson_id !== undefined ? parseInt(lesson_id) : existing.lesson_id
+    if (targetLessonId) {
+      const lesson = await prisma.lesson.findUnique({ where: { id: targetLessonId } })
+      lessonName = lesson?.lesson_name || null
+      lessonSpecialtyId = lesson?.specialty_id || null
+    }
+
+    const responseData = {
+      ...updated,
+      lesson_name: lessonName,
+      lesson_specialty_id: lessonSpecialtyId,
+    }
 
     res.json({
       success: true,
       message: 'Package updated successfully.',
-      data: updated,
+      data: responseData,
     })
   } catch (error) {
     console.error('Error updating package:', error)
