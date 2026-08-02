@@ -21,7 +21,12 @@ import enrollmentsRouter from './routes/enrollments.js'
 import lessonsRouter from './routes/lessons.js'
 import billingRouter from './routes/billing.js'
 import studiosRouter from './routes/studios.js'
+
 import instrumentsRouter from './routes/instruments.js'
+
+
+//mobile route
+import mobileRoutes from "./mobile/mobile.routes.js";
 
 dotenv.config()
 
@@ -62,8 +67,11 @@ const PORT = process.env.PORT || 5000
 
 // ─── Middleware ─────────────────────────────────────────────────
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  credentials: true
+  origin: [
+    "http://localhost:8081", // Expo Web
+    "http://localhost:5173", // your other frontend if needed
+  ],
+  credentials: true,
 }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
@@ -80,6 +88,10 @@ app.use('/api/lessons', lessonsRouter)
 app.use('/api/billing', billingRouter)
 app.use('/api/studios', studiosRouter)
 app.use('/api/instruments', instrumentsRouter)
+
+//mobile api
+app.use("/api/mobile", mobileRoutes);
+
 
 // ─── Health Check ──────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

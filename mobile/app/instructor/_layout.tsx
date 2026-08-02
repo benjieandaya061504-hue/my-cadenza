@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
 import { Tabs } from "expo-router";
 import { useState } from "react";
 import { Modal, Platform, Pressable, Text, View } from "react-native";
@@ -166,7 +165,7 @@ export default function InstructorLayout() {
         <Tabs.Screen
           name="progress"
           options={{
-            title: "Progress tracking",
+            title: "Progress",
             tabBarIcon: ({ focused }) => (
               <TabIcon name={focused ? "bar-chart" : "bar-chart-outline"} focused={focused} />
             ),

@@ -14,8 +14,8 @@ import ErrorMessage from '../../components/common/ErrorMessage';
 import StatCard from '../../components/instructor/StatCard';
 import StudentProgressCard from '../../components/instructor/StudentProgressCard';
 
-import { getInstructorDashboard } from '../../sevices/instructor.service';
-import type { InstructorDashboardData } from '../../types/instructor.ts';
+import { getInstructorDashboard } from '../../services/instructor.service';
+import type { InstructorDashboardData } from '../../types/instructor';
 
 export default function InstructorDashboardScreen() {
   const [data, setData] = useState<InstructorDashboardData | null>(null);

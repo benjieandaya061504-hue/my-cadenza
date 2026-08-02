@@ -1,0 +1,25 @@
+const theme = {
+  royal: '#2563EB',
+  navy: '#1E293B',
+  purple: '#7C3AED',
+  sky: '#60A5FA',
+  white: '#FFFFFF',
+  text: '#334155',
+  text2: '#64748B',
+  text3: '#94A3B8',
+  mist: '#F4F7FE',
+  border: 'rgba(30,41,59,0.07)',
+  border2: 'rgba(30,41,59,0.12)',
+  green: '#10B981',
+  coral: '#F87171',
+  gold: '#F59E0B',
+  teal: '#14B8A6',
+  pink: '#EC4899',
+  font: "'Inter', sans-serif",
+  display: "'Sora', sans-serif",
+  accent: '#2563EB',
+  accentL: '#60A5FA',
+  accentD: '#1E40AF',
+}
+
+export default theme
