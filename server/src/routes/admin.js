@@ -1036,4 +1036,285 @@ router.delete('/instructor-schedules/instructor/:instructorId', verifyToken, che
   }
 })
 
+// ==================== PACKAGE ROUTES ====================
+
+// GET /api/admin/packages - Get all packages (Admin only)
+router.get('/packages', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const packages = await prisma.packages.findMany({
+      orderBy: { id: 'desc' },
+    })
+
+    // Fetch all lessons and merge manually (no @relation exists on packages → lesson)
+    const lessons = await prisma.lesson.findMany()
+
+    const packagesWithLessons = packages.map(pkg => {
+      const lesson = lessons.find(l => l.id === pkg.lesson_id)
+      return {
+        ...pkg,
+        lesson_name: lesson?.lesson_name || null,
+        lesson_specialty_id: lesson?.specialty_id || null,
+      }
+    })
+
+    res.json({
+      success: true,
+      data: packagesWithLessons,
+    })
+  } catch (error) {
+    console.error('Error fetching packages:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching packages.',
+    })
+  }
+})
+
+// POST /api/admin/packages - Create a new package (Admin only)
+router.post('/packages', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { package_name, lesson_id, total_session, duration, session, fee, level_name, status } = req.body
+
+    // Validate required fields
+    if (!package_name || !lesson_id || fee === undefined || fee === null) {
+      return res.status(400).json({
+        success: false,
+        message: 'Package name, lesson, and fee are required.',
+      })
+    }
+
+    // Verify lesson exists
+    const lesson = await prisma.lesson.findUnique({
+      where: { id: parseInt(lesson_id) },
+    })
+
+    if (!lesson) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid lesson.',
+      })
+    }
+
+    const newPackage = await prisma.packages.create({
+      data: {
+        package_name,
+        lesson_id: parseInt(lesson_id),
+        total_session: total_session ? parseInt(total_session) : null,
+        duration: duration || null,
+        session: session ? parseInt(session) : null,
+        fee: parseFloat(fee),
+        level_name: level_name || null,
+        status: status || 'Active',
+      },
+    })
+
+    // Manually attach lesson_name (no @relation exists on packages → lesson)
+    const responseData = {
+      ...newPackage,
+      lesson_name: lesson.lesson_name || null,
+      lesson_specialty_id: lesson.specialty_id || null,
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Package created successfully.',
+      data: responseData,
+    })
+  } catch (error) {
+    console.error('Error creating package:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error creating package.',
+    })
+  }
+})
+
+// PUT /api/admin/packages/:id - Update a package (Admin only)
+router.put('/packages/:id', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params
+    const { package_name, lesson_id, total_session, duration, session, fee, level_name, status } = req.body
+
+    const existing = await prisma.packages.findUnique({
+      where: { id: parseInt(id) },
+    })
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Package not found.',
+      })
+    }
+
+    const updateData = {}
+
+    if (package_name !== undefined) updateData.package_name = package_name
+    if (lesson_id !== undefined) updateData.lesson_id = parseInt(lesson_id)
+    if (total_session !== undefined) updateData.total_session = parseInt(total_session)
+    if (duration !== undefined) updateData.duration = duration
+    if (session !== undefined) updateData.session = parseInt(session)
+    if (fee !== undefined) updateData.fee = parseFloat(fee)
+    if (level_name !== undefined) updateData.level_name = level_name
+    if (status !== undefined) updateData.status = status
+
+    const updated = await prisma.packages.update({
+      where: { id: parseInt(id) },
+      data: updateData,
+    })
+
+    // Manually attach lesson_name (no @relation exists on packages → lesson)
+    let lessonName = null
+    let lessonSpecialtyId = null
+    const targetLessonId = lesson_id !== undefined ? parseInt(lesson_id) : existing.lesson_id
+    if (targetLessonId) {
+      const lesson = await prisma.lesson.findUnique({ where: { id: targetLessonId } })
+      lessonName = lesson?.lesson_name || null
+      lessonSpecialtyId = lesson?.specialty_id || null
+    }
+
+    const responseData = {
+      ...updated,
+      lesson_name: lessonName,
+      lesson_specialty_id: lessonSpecialtyId,
+    }
+
+    res.json({
+      success: true,
+      message: 'Package updated successfully.',
+      data: responseData,
+    })
+  } catch (error) {
+    console.error('Error updating package:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error updating package.',
+    })
+  }
+})
+
+// DELETE /api/admin/packages/:id - Delete a package (Admin only)
+router.delete('/packages/:id', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const existing = await prisma.packages.findUnique({
+      where: { id: parseInt(id) },
+    })
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Package not found.',
+      })
+    }
+
+    // Check if package is used by any classes
+    const classCount = await prisma.classes.count({
+      where: { package_id: parseInt(id) },
+    })
+
+    if (classCount > 0) {
+      return res.status(409).json({
+        success: false,
+        message: `Cannot delete package. It is used by ${classCount} class(es).`,
+      })
+    }
+
+    // Check if package is used by any enrollments
+    const enrollmentCount = await prisma.enrollments.count({
+      where: { package_id: parseInt(id) },
+    })
+
+    if (enrollmentCount > 0) {
+      return res.status(409).json({
+        success: false,
+        message: `Cannot delete package. It is used by ${enrollmentCount} enrollment(s).`,
+      })
+    }
+
+    await prisma.packages.delete({
+      where: { id: parseInt(id) },
+    })
+
+    res.json({
+      success: true,
+      message: 'Package deleted successfully.',
+    })
+  } catch (error) {
+    console.error('Error deleting package:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error deleting package.',
+    })
+  }
+})
+
+// GET /api/admin/lessons/:id/available-instructors - Get instructors matching a lesson's specialty (Admin only)
+router.get('/lessons/:id/available-instructors', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const lesson = await prisma.lesson.findUnique({
+      where: { id: parseInt(id) },
+    })
+
+    if (!lesson) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lesson not found.',
+      })
+    }
+
+    if (!lesson.specialty_id) {
+      return res.json({
+        success: true,
+        data: [],
+        message: 'This lesson has no specialty assigned.',
+      })
+    }
+
+    // Find instructors who have this specialty
+    const instructors = await prisma.instructors.findMany({
+      where: {
+        instructor_specialties: {
+          some: {
+            specialty_id: lesson.specialty_id,
+          },
+        },
+      },
+      include: {
+        staff: true,
+        instructor_specialties: {
+          where: {
+            specialty_id: lesson.specialty_id,
+          },
+          include: {
+            specialties: true,
+          },
+        },
+        instructor_schedules: {
+          include: {
+            time_slot: true,
+          },
+          orderBy: [
+            { day_of_week: 'asc' },
+            { time_slot_id: 'asc' },
+          ],
+        },
+      },
+    })
+
+    res.json({
+      success: true,
+      data: instructors,
+    })
+  } catch (error) {
+    console.error('Error fetching available instructors:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error fetching available instructors.',
+    })
+  }
+})
+
 module.exports = router
