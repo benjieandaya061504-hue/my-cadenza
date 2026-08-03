@@ -274,6 +274,63 @@ router.put('/lessons/:id', verifyToken, checkRole(['admin']), async (req, res) =
   }
 })
 
+// DELETE /api/admin/lessons/:id - Delete a lesson (Admin only)
+router.delete('/lessons/:id', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const lesson = await prisma.lesson.findUnique({
+      where: { id: parseInt(id) },
+    })
+
+    if (!lesson) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lesson not found.',
+      })
+    }
+
+    // Check if lesson is used by any packages
+    const packageCount = await prisma.packages.count({
+      where: { lesson_id: parseInt(id) },
+    })
+
+    if (packageCount > 0) {
+      return res.status(409).json({
+        success: false,
+        message: `Cannot delete lesson. It is used by ${packageCount} package(s).`,
+      })
+    }
+
+    // Check if lesson has any learning materials attached
+    const materialCount = await prisma.learning_materials.count({
+      where: { lesson_id: parseInt(id) },
+    })
+
+    if (materialCount > 0) {
+      return res.status(409).json({
+        success: false,
+        message: `Cannot delete lesson. It has ${materialCount} learning material(s) attached.`,
+      })
+    }
+
+    await prisma.lesson.delete({
+      where: { id: parseInt(id) },
+    })
+
+    res.json({
+      success: true,
+      message: 'Lesson deleted successfully.',
+    })
+  } catch (error) {
+    console.error('Error deleting lesson:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error deleting lesson.',
+    })
+  }
+})
+
 // ==================== INSTRUMENT ROUTES ====================
 
 // GET /api/admin/instruments - Get all instruments (Admin only)
@@ -659,6 +716,322 @@ router.get('/roles', verifyToken, checkRole(['admin']), async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching roles.',
+    })
+  }
+})
+
+// ==================== TIME SLOT ROUTES ====================
+
+// GET /api/admin/time-slots - Get all time slots (Admin only)
+router.get('/time-slots', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const timeSlots = await prisma.time_slots.findMany({
+      orderBy: { start_time: 'desc' },
+    })
+
+    res.json({
+      success: true,
+      data: timeSlots,
+    })
+  } catch (error) {
+    console.error('Error fetching time slots:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching time slots.',
+    })
+  }
+})
+
+// ==================== INSTRUCTOR SCHEDULE ROUTES ====================
+
+// GET /api/admin/instructor-schedules - Get all instructor schedules (Admin only)
+router.get('/instructor-schedules', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const schedules = await prisma.instructor_schedule.findMany({
+      include: {
+        instructor: {
+          include: {
+            staff: true,
+          },
+        },
+        time_slot: true,
+      },
+      orderBy: [
+        { instructor_id: 'asc' },
+        { day_of_week: 'asc' },
+        { time_slot_id: 'asc' },
+      ],
+    })
+
+    res.json({
+      success: true,
+      data: schedules,
+    })
+  } catch (error) {
+    console.error('Error fetching instructor schedules:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching instructor schedules.',
+    })
+  }
+})
+
+// POST /api/admin/instructor-schedules - Create instructor schedule entry(ies) (Admin only)
+// Accepts single: { instructor_id, day_of_week, time_slot_id, status }
+// Accepts batch: { instructor_id, day_of_week: string | string[], time_slot_ids: number[], status }
+// When day_of_week is an array, generates the full cross-product of (day × slot) combinations.
+router.post('/instructor-schedules', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { instructor_id, day_of_week, time_slot_id, time_slot_ids, status } = req.body
+
+    // Validate required fields
+    if (!instructor_id || !day_of_week) {
+      return res.status(400).json({
+        success: false,
+        message: 'Instructor and day of week are required.',
+      })
+    }
+
+    const parsedInstructorId = parseInt(instructor_id)
+    const parsedStatus = status || 'Available'
+
+    // ---- BATCH MODE (time_slot_ids array) ----
+    // Supports day_of_week as a single string OR an array of strings for cross-product
+    if (time_slot_ids && Array.isArray(time_slot_ids) && time_slot_ids.length > 0) {
+      const days = Array.isArray(day_of_week) ? day_of_week : [day_of_week]
+      const created = []
+      const skipped = []
+
+      // Generate cross-product of (day × slot) combinations
+      for (const d of days) {
+        for (const rawId of time_slot_ids) {
+          const parsedSlotId = parseInt(rawId)
+          if (isNaN(parsedSlotId)) continue
+
+          // Check for existing
+          const existing = await prisma.instructor_schedule.findFirst({
+            where: {
+              instructor_id: parsedInstructorId,
+              day_of_week: d,
+              time_slot_id: parsedSlotId,
+            },
+          })
+
+          if (existing) {
+            skipped.push({ day_of_week: d, time_slot_id: parsedSlotId, reason: 'Already assigned' })
+            continue
+          }
+
+          // Create new entry
+          const newEntry = await prisma.instructor_schedule.create({
+            data: {
+              instructor_id: parsedInstructorId,
+              day_of_week: d,
+              time_slot_id: parsedSlotId,
+              status: parsedStatus,
+            },
+            include: {
+              instructor: {
+                include: { staff: true },
+              },
+              time_slot: true,
+            },
+          })
+
+          created.push(newEntry)
+        }
+      }
+
+      return res.status(201).json({
+        success: true,
+        message: created.length > 0
+          ? `Created ${created.length} schedule entry(ies).`
+          : 'No new entries were created.',
+        created,
+        skipped,
+      })
+    }
+
+    // ---- SINGLE MODE (time_slot_id scalar) ----
+    if (!time_slot_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Either time_slot_id or time_slot_ids is required.',
+      })
+    }
+
+    // Check for duplicate
+    const existing = await prisma.instructor_schedule.findFirst({
+      where: {
+        instructor_id: parsedInstructorId,
+        day_of_week: day_of_week,
+        time_slot_id: parseInt(time_slot_id),
+      },
+    })
+
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: 'This instructor is already assigned to this day and time slot.',
+      })
+    }
+
+    const newSchedule = await prisma.instructor_schedule.create({
+      data: {
+        instructor_id: parsedInstructorId,
+        day_of_week,
+        time_slot_id: parseInt(time_slot_id),
+        status: parsedStatus,
+      },
+      include: {
+        instructor: {
+          include: {
+            staff: true,
+          },
+        },
+        time_slot: true,
+      },
+    })
+
+    res.status(201).json({
+      success: true,
+      message: 'Instructor schedule created successfully.',
+      data: newSchedule,
+    })
+  } catch (error) {
+    console.error('Error creating instructor schedule:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error creating instructor schedule.',
+    })
+  }
+})
+
+// PUT /api/admin/instructor-schedules/:id - Update an instructor schedule entry (Admin only)
+router.put('/instructor-schedules/:id', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params
+    const { instructor_id, day_of_week, time_slot_id, status } = req.body
+
+    // Check if entry exists
+    const existing = await prisma.instructor_schedule.findUnique({
+      where: { id: parseInt(id) },
+    })
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Instructor schedule entry not found.',
+      })
+    }
+
+    // Check for duplicate if instructor/day/time are being changed
+    if (instructor_id || day_of_week || time_slot_id) {
+      const newInstructorId = instructor_id ? parseInt(instructor_id) : existing.instructor_id
+      const newDayOfWeek = day_of_week || existing.day_of_week
+      const newTimeSlotId = time_slot_id ? parseInt(time_slot_id) : existing.time_slot_id
+
+      const duplicate = await prisma.instructor_schedule.findFirst({
+        where: {
+          instructor_id: newInstructorId,
+          day_of_week: newDayOfWeek,
+          time_slot_id: newTimeSlotId,
+          NOT: { id: parseInt(id) },
+        },
+      })
+
+      if (duplicate) {
+        return res.status(409).json({
+          success: false,
+          message: 'This instructor is already assigned to this day and time slot.',
+        })
+      }
+    }
+
+    const updateData = {}
+    if (instructor_id !== undefined) updateData.instructor_id = parseInt(instructor_id)
+    if (day_of_week !== undefined) updateData.day_of_week = day_of_week
+    if (time_slot_id !== undefined) updateData.time_slot_id = parseInt(time_slot_id)
+    if (status !== undefined) updateData.status = status
+
+    const updated = await prisma.instructor_schedule.update({
+      where: { id: parseInt(id) },
+      data: updateData,
+      include: {
+        instructor: {
+          include: {
+            staff: true,
+          },
+        },
+        time_slot: true,
+      },
+    })
+
+    res.json({
+      success: true,
+      message: 'Instructor schedule updated successfully.',
+      data: updated,
+    })
+  } catch (error) {
+    console.error('Error updating instructor schedule:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error updating instructor schedule.',
+    })
+  }
+})
+
+// DELETE /api/admin/instructor-schedules/:id - Delete an instructor schedule entry (Admin only)
+router.delete('/instructor-schedules/:id', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const existing = await prisma.instructor_schedule.findUnique({
+      where: { id: parseInt(id) },
+    })
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Instructor schedule entry not found.',
+      })
+    }
+
+    await prisma.instructor_schedule.delete({
+      where: { id: parseInt(id) },
+    })
+
+    res.json({
+      success: true,
+      message: 'Instructor schedule deleted successfully.',
+    })
+  } catch (error) {
+    console.error('Error deleting instructor schedule:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error deleting instructor schedule.',
+    })
+  }
+})
+
+// DELETE /api/admin/instructor-schedules/instructor/:instructorId - Delete all schedule entries for an instructor (Admin only)
+router.delete('/instructor-schedules/instructor/:instructorId', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { instructorId } = req.params
+
+    const result = await prisma.instructor_schedule.deleteMany({
+      where: { instructor_id: parseInt(instructorId) },
+    })
+
+    res.json({
+      success: true,
+      deletedCount: result.count,
+    })
+  } catch (error) {
+    console.error('Error clearing instructor schedules:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error clearing instructor schedules.',
     })
   }
 })

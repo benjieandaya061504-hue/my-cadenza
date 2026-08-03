@@ -48,6 +48,7 @@ model instructors {
   staff_id               Int                      @unique(map: "staff_id")
   classes                classes[]
   instructor_specialties instructor_specialties[]
+  instructor_schedules   instructor_schedule[]
   staff                  staff                    @relation(fields: [staff_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_instructors_staff")
 }
 
@@ -81,8 +82,10 @@ model lesson {
   id                 Int                  @id @default(autoincrement())
   lesson_name        String?              @db.VarChar(100)
   status             String?              @db.VarChar(50)
+  specialty_id       Int?
   learning_materials learning_materials[]
   packages           packages[]
+  specialties       specialties?         @relation(fields: [specialty_id], references: [id])
 }
 
 model lesson_rooms {
@@ -298,4 +301,27 @@ model specialties {
   specialty_name         String?                  @db.VarChar(255)
   status                 String?                  @default("Active") @db.VarChar(50)
   instructor_specialties instructor_specialties[]
+  lesson                 lesson[]
+}
+
+model instructor_schedule {
+  id            Int     @id @default(autoincrement())
+  instructor_id Int
+  day_of_week   String  @db.VarChar(20)
+  time_slot_id  Int
+  status        String? @default("Available") @db.VarChar(50)
+
+  instructor instructors @relation(fields: [instructor_id], references: [id])
+  time_slot  time_slots  @relation(fields: [time_slot_id], references: [id])
+
+  @@unique([instructor_id, day_of_week, time_slot_id])
+  @@index([instructor_id], map: "idx_instructor_id")
+  @@index([time_slot_id], map: "idx_time_slot_id")
+}
+
+model time_slots {
+  id                   Int                   @id @default(autoincrement())
+  start_time           DateTime              @db.Time(0)
+  end_time             DateTime              @db.Time(0)
+  instructor_schedules instructor_schedule[]
 }
