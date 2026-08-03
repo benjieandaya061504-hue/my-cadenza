@@ -14,6 +14,9 @@ export default function LessonManagement({ isMobile, isTablet, embedded, searchT
   const [formLoading, setFormLoading] = useState(false)
   const [formError, setFormError] = useState('')
   const [formSuccess, setFormSuccess] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   // Form state
   const [form, setForm] = useState({
@@ -162,6 +165,47 @@ export default function LessonManagement({ isMobile, isTablet, embedded, searchT
     }
   }
 
+  // Delete handlers
+  const openDeleteConfirm = (lesson) => {
+    setDeleteConfirm(lesson)
+    setDeleteError('')
+  }
+
+  const cancelDelete = () => {
+    setDeleteConfirm(null)
+    setDeleteError('')
+    setDeleteLoading(false)
+  }
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return
+
+    setDeleteLoading(true)
+    setDeleteError('')
+
+    try {
+      const res = await fetch(`${API}/lessons/${deleteConfirm.id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        cancelDelete()
+        fetchLessons()
+      } else {
+        setDeleteError(data.message || 'Failed to delete lesson.')
+        setDeleteLoading(false)
+      }
+    } catch (err) {
+      setDeleteError('An error occurred. Please try again.')
+      setDeleteLoading(false)
+    }
+  }
+
   // Modal styles
   const modalOverlayStyle = {
     position: 'fixed', inset: 0, zIndex: 1000,
@@ -264,17 +308,30 @@ export default function LessonManagement({ isMobile, isTablet, embedded, searchT
                         }}>{l.status}</span>
                       </td>
                       <td style={{ padding: '12px 14px' }}>
-                        <button
-                          onClick={() => openEditModal(l)}
-                          style={{
-                            padding: '5px 14px', borderRadius: 8, border: `1.5px solid ${C.royal}`,
-                            background: 'rgba(37,99,235,0.08)', color: C.royal,
-                            fontSize: '0.72rem', fontWeight: 600, fontFamily: C.font,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Edit
-                        </button>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <button
+                            onClick={() => openEditModal(l)}
+                            style={{
+                              padding: '5px 14px', borderRadius: 8, border: `1.5px solid ${C.royal}`,
+                              background: 'rgba(37,99,235,0.08)', color: C.royal,
+                              fontSize: '0.72rem', fontWeight: 600, fontFamily: C.font,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => openDeleteConfirm(l)}
+                            style={{
+                              padding: '5px 12px', borderRadius: 8, border: `1.5px solid ${C.coral}`,
+                              background: 'rgba(248,113,113,0.08)', color: C.coral,
+                              fontSize: '0.72rem', fontWeight: 600, fontFamily: C.font,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -375,6 +432,56 @@ export default function LessonManagement({ isMobile, isTablet, embedded, searchT
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div style={modalOverlayStyle} onClick={cancelDelete}>
+          <div style={{ ...modalStyle, maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontFamily: C.display, fontSize: '1.1rem', fontWeight: 700, color: C.navy, margin: 0 }}>
+                Confirm Deletion
+              </h3>
+              <button onClick={cancelDelete} style={{ background: 'none', border: 'none', fontSize: '1.3rem', cursor: 'pointer', color: C.text3, padding: '0 4px' }}>✕</button>
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: C.text2, lineHeight: 1.5, margin: '0 0 16px 0' }}>
+              Are you sure you want to delete <strong style={{ color: C.navy }}>{deleteConfirm.lesson_name}</strong>?
+            </p>
+
+            {deleteError && (
+              <div style={{ padding: '10px 14px', background: 'rgba(248,113,113,0.1)', borderRadius: 8, marginBottom: 16, fontSize: '0.8rem', color: C.coral }}>
+                {deleteError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={cancelDelete}
+                disabled={deleteLoading}
+                style={{
+                  padding: '10px 20px', borderRadius: 10, border: `1.5px solid ${C.border2}`,
+                  background: '#fff', fontSize: '0.82rem', fontWeight: 600, fontFamily: C.font,
+                  color: C.text2, cursor: deleteLoading ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteLoading}
+                style={{
+                  padding: '10px 24px', borderRadius: 10, border: 'none',
+                  background: `linear-gradient(135deg, ${C.coral}, #dc2626)`,
+                  color: '#fff', fontSize: '0.82rem', fontWeight: 600, fontFamily: C.font,
+                  cursor: deleteLoading ? 'not-allowed' : 'pointer', opacity: deleteLoading ? 0.7 : 1,
+                }}
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
           </div>
         </div>
       )}
