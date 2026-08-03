@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import EnrolledStudents from './EnrolledStudents.jsx'
 import UserManagement from './UserManagement.jsx'
 import InstructorManagement from './InstructorManagement.jsx'
-import LessonManagement from './LessonManagement.jsx'
 import LessonPackageManagement from './LessonPackageManagement.jsx'
 import ScheduleManagement from './ScheduleManagement.jsx'
 import StudioRoomManagement from './StudioRoomManagement.jsx'
@@ -20,7 +19,6 @@ const ADMIN_NAV = [
     { id: 'enrolled',      icon: '🎓', label: 'Enrolled Students' },
     { id: 'users',         icon: '◈', label: 'Users' },
     { id: 'instructors',   icon: '👨‍🏫', label: 'Instructors' },
-    { id: 'lessons',       icon: '♫', label: 'Lessons' },
     { id: 'packages',      icon: '📦', label: 'Lesson Packages' },
     { id: 'scheduling',    icon: '▦', label: 'Schedules' },
     { id: 'studio',        icon: '♬', label: 'Studio Rooms' },
@@ -38,7 +36,6 @@ const PAGE_LABELS = {
   enrolled: 'Enrolled Students',
   users: 'Users',
   instructors: 'Instructors',
-  lessons: 'Lessons',
   packages: 'Lesson Packages',
   scheduling: 'Schedules',
   studio: 'Studio Rooms',
@@ -51,7 +48,12 @@ const PAGE_LABELS = {
 const AdminDashboard = () => {
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth)
   const [activePage, setActivePage] = useState(() => {
-    try { return localStorage.getItem('adminActivePage') || 'dashboard' } catch { return 'dashboard' }
+    try {
+      const saved = localStorage.getItem('adminActivePage')
+      // If user had 'lessons' saved, redirect to settings (Lesson Management moved there)
+      if (saved === 'lessons') return 'settings'
+      return saved || 'dashboard'
+    } catch { return 'dashboard' }
   })
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const isMobile = viewportWidth < 900
@@ -80,7 +82,6 @@ const AdminDashboard = () => {
       case 'enrolled': return <EnrolledStudents isMobile={isMobile} isTablet={isTablet} />
       case 'users': return <UserManagement isMobile={isMobile} isTablet={isTablet} />
       case 'instructors': return <InstructorManagement isMobile={isMobile} isTablet={isTablet} />
-      case 'lessons': return <LessonManagement isMobile={isMobile} isTablet={isTablet} />
       case 'packages': return <LessonPackageManagement isMobile={isMobile} isTablet={isTablet} />
       case 'scheduling': return <ScheduleManagement isMobile={isMobile} isTablet={isTablet} />
       case 'studio': return <StudioRoomManagement isMobile={isMobile} isTablet={isTablet} />

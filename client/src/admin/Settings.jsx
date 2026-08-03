@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import C from './theme.js'
+import LessonManagement from './LessonManagement.jsx'
 
 const API = (import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/admin'
 
 export default function Settings({ isMobile, isTablet }) {
+  const [lessonSearch, setLessonSearch] = useState('')
+  const lessonAddRef = useRef(null)
   const [specialties, setSpecialties] = useState([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -319,6 +322,56 @@ export default function Settings({ isMobile, isTablet }) {
             </table>
           </div>
         )}
+      </div>
+
+      {/* Lesson Management Section */}
+      <div style={{
+        background: '#fff', borderRadius: 18, border: `1px solid ${C.border}`,
+        overflow: 'hidden', marginBottom: 24,
+      }}>
+        <div style={{
+          padding: '18px 22px', borderBottom: `1px solid ${C.border}`,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12,
+        }}>
+          <div>
+            <h3 style={{ fontFamily: C.display, fontSize: '1rem', fontWeight: 700, color: C.navy, margin: 0 }}>
+              Lesson Management
+            </h3>
+            <p style={{ fontSize: '0.75rem', color: C.text3, marginTop: 2 }}>
+              Manage lesson types and their specialty assignments
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              placeholder="Search lessons..."
+              value={lessonSearch}
+              onChange={e => setLessonSearch(e.target.value)}
+              style={{
+                padding: '8px 14px', borderRadius: 10, border: `1.5px solid ${C.border2}`,
+                fontSize: '0.8rem', fontFamily: C.font, outline: 'none', width: 220,
+              }}
+            />
+            <button
+              onClick={() => lessonAddRef.current?.()}
+              style={{
+                padding: '8px 18px', borderRadius: 10, border: 'none',
+                background: `linear-gradient(135deg, ${C.royal}, ${C.purple})`,
+                color: '#fff', fontSize: '0.8rem', fontWeight: 600,
+                fontFamily: C.font, cursor: 'pointer', whiteSpace: 'nowrap',
+              }}
+            >
+              + Add Lesson
+            </button>
+          </div>
+        </div>
+        <LessonManagement
+          isMobile={isMobile}
+          isTablet={isTablet}
+          embedded={true}
+          searchTerm={lessonSearch}
+          onSearchChange={setLessonSearch}
+          addRef={lessonAddRef}
+        />
       </div>
 
       {/* Delete Confirmation Modal */}

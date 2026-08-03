@@ -215,7 +215,7 @@ router.get('/lessons', verifyToken, checkRole(['admin']), async (req, res) => {
 // POST /api/admin/lessons - Create a new lesson (Admin only)
 router.post('/lessons', verifyToken, checkRole(['admin']), async (req, res) => {
   try {
-    const { lesson_name, status } = req.body
+    const { lesson_name, status, specialty_id } = req.body
 
     // Validate required fields
     if (!lesson_name) {
@@ -229,6 +229,7 @@ router.post('/lessons', verifyToken, checkRole(['admin']), async (req, res) => {
       data: {
         lesson_name,
         status: status || 'Active',
+        ...(specialty_id !== undefined && specialty_id !== null && specialty_id !== '' ? { specialty_id: parseInt(specialty_id) } : {}),
       },
     })
 
@@ -250,14 +251,21 @@ router.post('/lessons', verifyToken, checkRole(['admin']), async (req, res) => {
 router.put('/lessons/:id', verifyToken, checkRole(['admin']), async (req, res) => {
   try {
     const { id } = req.params
-    const { lesson_name, status } = req.body
+    const { lesson_name, status, specialty_id } = req.body
+
+    const updateData = {}
+    if (lesson_name !== undefined) updateData.lesson_name = lesson_name
+    if (status !== undefined) updateData.status = status
+    if (specialty_id !== undefined && specialty_id !== null && specialty_id !== '') {
+      updateData.specialty_id = parseInt(specialty_id)
+    } else if (specialty_id !== undefined) {
+      // Explicitly set to null (user cleared the selection)
+      updateData.specialty_id = null
+    }
 
     const updatedLesson = await prisma.lesson.update({
       where: { id: parseInt(id) },
-      data: {
-        ...(lesson_name !== undefined && { lesson_name }),
-        ...(status !== undefined && { status }),
-      },
+      data: updateData,
     })
 
     res.json({

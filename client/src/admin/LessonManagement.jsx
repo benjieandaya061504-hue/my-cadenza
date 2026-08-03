@@ -3,8 +3,9 @@ import C from './theme.js'
 
 const API = (import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/admin'
 
-export default function LessonManagement({ isMobile, isTablet }) {
+export default function LessonManagement({ isMobile, isTablet, embedded, searchTerm, onSearchChange, addRef }) {
   const [lessons, setLessons] = useState([])
+  const [specialties, setSpecialties] = useState([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -18,6 +19,7 @@ export default function LessonManagement({ isMobile, isTablet }) {
   const [form, setForm] = useState({
     lesson_name: '',
     status: 'Active',
+    specialty_id: '',
   })
 
   const getToken = () => localStorage.getItem('cadenza_token')
@@ -41,14 +43,34 @@ export default function LessonManagement({ isMobile, isTablet }) {
     }
   }
 
+  // Fetch specialties
+  const fetchSpecialties = async () => {
+    try {
+      const res = await fetch(`${API}/specialties`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSpecialties(data.data)
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
+
   useEffect(() => {
     fetchLessons()
+    fetchSpecialties()
   }, [])
 
-  // Filter lessons by search
+  // When embedded, use parent's search state (declared before filtered uses it)
+  const effectiveSearch = embedded && searchTerm !== undefined ? searchTerm : search
+  const handleSearchChange = embedded && onSearchChange ? onSearchChange : setSearch
+
+  // Filter lessons by search (use effectiveSearch which respects embedded prop)
   const filtered = lessons.filter(l => {
-    if (!search) return true
-    const s = search.toLowerCase()
+    if (!effectiveSearch) return true
+    const s = effectiveSearch.toLowerCase()
     return (
       l.lesson_name?.toLowerCase().includes(s)
     )
@@ -60,7 +82,7 @@ export default function LessonManagement({ isMobile, isTablet }) {
   }
 
   const resetForm = () => {
-    setForm({ lesson_name: '', status: 'Active' })
+    setForm({ lesson_name: '', status: 'Active', specialty_id: '' })
     setFormError('')
     setFormSuccess('')
     setEditingId(null)
@@ -71,10 +93,15 @@ export default function LessonManagement({ isMobile, isTablet }) {
     setShowModal(true)
   }
 
+  useEffect(() => {
+    if (addRef) addRef.current = openAddModal
+  }, [addRef])
+
   const openEditModal = (lesson) => {
     setForm({
       lesson_name: lesson.lesson_name || '',
       status: lesson.status || 'Active',
+      specialty_id: lesson.specialty_id !== null && lesson.specialty_id !== undefined ? lesson.specialty_id : '',
     })
     setEditingId(lesson.id)
     setFormError('')
@@ -113,6 +140,7 @@ export default function LessonManagement({ isMobile, isTablet }) {
         body: JSON.stringify({
           lesson_name: form.lesson_name,
           status: form.status,
+          specialty_id: form.specialty_id,
         }),
       })
 
@@ -163,36 +191,38 @@ export default function LessonManagement({ isMobile, isTablet }) {
 
   return (
     <div style={{ fontFamily: C.font }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h2 style={{ fontFamily: C.display, fontSize: '1.3rem', fontWeight: 700, color: C.navy, margin: 0 }}>Lesson Management</h2>
-          <p style={{ fontSize: '0.8rem', color: C.text3, marginTop: 2 }}>
-            {loading ? 'Loading...' : `${filtered.length} lessons`}
-          </p>
+      {!embedded && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h2 style={{ fontFamily: C.display, fontSize: '1.3rem', fontWeight: 700, color: C.navy, margin: 0 }}>Lesson Management</h2>
+            <p style={{ fontSize: '0.8rem', color: C.text3, marginTop: 2 }}>
+              {loading ? 'Loading...' : `${filtered.length} lessons`}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              placeholder="Search lessons..."
+              value={effectiveSearch}
+              onChange={e => handleSearchChange(e.target.value)}
+              style={{
+                padding: '8px 14px', borderRadius: 10, border: `1.5px solid ${C.border2}`,
+                fontSize: '0.8rem', fontFamily: C.font, outline: 'none', width: 220,
+              }}
+            />
+            <button
+              onClick={openAddModal}
+              style={{
+                padding: '8px 18px', borderRadius: 10, border: 'none',
+                background: `linear-gradient(135deg, ${C.royal}, ${C.purple})`,
+                color: '#fff', fontSize: '0.8rem', fontWeight: 600,
+                fontFamily: C.font, cursor: 'pointer', whiteSpace: 'nowrap',
+              }}
+            >
+              + Add Lesson
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input
-            placeholder="Search lessons..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{
-              padding: '8px 14px', borderRadius: 10, border: `1.5px solid ${C.border2}`,
-              fontSize: '0.8rem', fontFamily: C.font, outline: 'none', width: 220,
-            }}
-          />
-          <button
-            onClick={openAddModal}
-            style={{
-              padding: '8px 18px', borderRadius: 10, border: 'none',
-              background: `linear-gradient(135deg, ${C.royal}, ${C.purple})`,
-              color: '#fff', fontSize: '0.8rem', fontWeight: 600,
-              fontFamily: C.font, cursor: 'pointer', whiteSpace: 'nowrap',
-            }}
-          >
-            + Add Lesson
-          </button>
-        </div>
-      </div>
+      )}
 
       {error && (
         <div style={{ padding: '12px 16px', background: 'rgba(248,113,113,0.1)', borderRadius: 10, marginBottom: 16, fontSize: '0.8rem', color: C.coral }}>
@@ -289,6 +319,21 @@ export default function LessonManagement({ isMobile, isTablet }) {
                   placeholder="e.g. Piano Fundamentals"
                   style={inputStyle}
                 />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={labelStyle}>Specialty</label>
+                <select
+                  name="specialty_id"
+                  value={form.specialty_id}
+                  onChange={handleInputChange}
+                  style={inputStyle}
+                >
+                  <option value="">-- No specialty --</option>
+                  {specialties.filter(s => s.status === 'Active').map(s => (
+                    <option key={s.id} value={s.id}>{s.specialty_name}</option>
+                  ))}
+                </select>
               </div>
 
               <div style={{ marginBottom: 16 }}>
