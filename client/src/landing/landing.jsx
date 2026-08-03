@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import EnrollmentModal from '../enrollment/EnrollmentModal.jsx'
 
 const roleConfig = {
   admin: {
@@ -18,6 +19,8 @@ const roleConfig = {
 }
 
 function LandingPage() {
+  const [enrollOpen, setEnrollOpen] = useState(false)
+  const [enrollInitialPackage, setEnrollInitialPackage] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [currentRole, setCurrentRole] = useState('admin')
   const [email, setEmail] = useState('')
@@ -40,13 +43,13 @@ function LandingPage() {
   const emailRef = useRef(null)
 
   useEffect(() => {
-    if (modalOpen || forgotOpen) {
+    if (modalOpen || forgotOpen || enrollOpen) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
     }
     return () => { document.body.style.overflow = '' }
-  }, [modalOpen, forgotOpen])
+  }, [modalOpen, forgotOpen, enrollOpen])
 
   // Check backend server health on mount
   useEffect(() => {
@@ -104,6 +107,11 @@ function LandingPage() {
 
   function closeLogin() {
     setModalOpen(false)
+  }
+
+  function openEnroll(pkg) {
+    setEnrollInitialPackage(pkg || null)
+    setEnrollOpen(true)
   }
 
   function handleOverlayClick(e) {
@@ -277,7 +285,7 @@ function LandingPage() {
           <ul>
             <li><a href="#home" className="active">Home</a></li>
             <li><a href="#registration">Registration</a></li>
-            <li><a href="#enroll">Enroll</a></li>
+            <li><a href="#enroll" onClick={(e) => { e.preventDefault(); openEnroll() }}>Enroll</a></li>
             <li><a href="#rental">Instrument Rental</a></li>
             <li><a href="#studio">Studio Booking</a></li>
             <li><a href="#app">Download App</a></li>
@@ -314,7 +322,7 @@ function LandingPage() {
           <p className="subtitle">"Lessons • Performances • Creativity for Every Age"</p>
           <p className="desc">Cadenza Music Center offers professional music education, individualized instrument training, ensemble programs, and performance opportunities for students of every age and level — guided by a faculty devoted to musicianship and craft.</p>
           <div className="hero-cta">
-            <a href="#registration" className="btn-primary">Enroll Today</a>
+            <a href="#registration" className="btn-primary" onClick={(e) => { e.preventDefault(); openEnroll() }}>Enroll Today</a>
             <a href="#enroll" className="btn-outline">View Classes</a>
           </div>
         </div>
@@ -389,37 +397,37 @@ function LandingPage() {
               <div className="program-icon">🎹</div>
               <h3>Piano & Keyboard</h3>
               <p>Classical foundations through contemporary improvisation, taught in private and duet formats.</p>
-              <a href="#registration">Enroll now</a>
+              <a href="#enroll" onClick={(e) => { e.preventDefault(); openEnroll('piano-keyboard') }}>Enroll now</a>
             </div>
             <div className="program-card">
               <div className="program-icon">🎸</div>
               <h3>Guitar & Bass</h3>
               <p>Acoustic, electric, and bass technique with rhythm, theory, and songwriting built in.</p>
-              <a href="#registration">Enroll now</a>
+              <a href="#enroll" onClick={(e) => { e.preventDefault(); openEnroll('guitar-bass') }}>Enroll now</a>
             </div>
             <div className="program-card">
               <div className="program-icon">🎤</div>
               <h3>Voice & Performance</h3>
               <p>Vocal technique, breath control, and stage presence for solo and ensemble singers.</p>
-              <a href="#registration">Enroll now</a>
+              <a href="#enroll" onClick={(e) => { e.preventDefault(); openEnroll('voice-performance') }}>Enroll now</a>
             </div>
             <div className="program-card">
               <div className="program-icon">🎻</div>
               <h3>Strings</h3>
               <p>Violin, viola, and cello instruction from beginner posture to chamber ensemble repertoire.</p>
-              <a href="#registration">Enroll now</a>
+              <a href="#enroll" onClick={(e) => { e.preventDefault(); openEnroll('strings') }}>Enroll now</a>
             </div>
             <div className="program-card">
               <div className="program-icon">🥁</div>
               <h3>Percussion</h3>
               <p>Drum kit, rudiments, and rhythm section training for band and ensemble players.</p>
-              <a href="#registration">Enroll now</a>
+              <a href="#enroll" onClick={(e) => { e.preventDefault(); openEnroll('percussion') }}>Enroll now</a>
             </div>
             <div className="program-card">
               <div className="program-icon">🎼</div>
               <h3>Ensemble & Theory</h3>
               <p>Group performance, music theory, and composition for students ready to play together.</p>
-              <a href="#registration">Enroll now</a>
+              <a href="#enroll" onClick={(e) => { e.preventDefault(); openEnroll('ensemble-theory') }}>Enroll now</a>
             </div>
           </div>
         </div>
@@ -639,6 +647,13 @@ function LandingPage() {
           </form>
         </div>
       </div>
+
+      {/* ENROLLMENT MODAL */}
+      <EnrollmentModal
+        isOpen={enrollOpen}
+        onClose={() => setEnrollOpen(false)}
+        initialPackage={enrollInitialPackage}
+      />
 
       <style>{`
         :root{
