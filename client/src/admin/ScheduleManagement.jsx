@@ -254,6 +254,11 @@ export default function ScheduleManagement({ isMobile, isTablet }) {
   // Get time slot label
   const getTimeSlotLabel = (slot) => {
     if (!slot) return ''
+    // Use server-formatted 12-hour fields if available
+    if (slot.formatted_start && slot.formatted_end) {
+      return `${slot.formatted_start} - ${slot.formatted_end}`
+    }
+    // Fallback to raw formatting for legacy data
     return `${formatTime(slot.start_time)} - ${formatTime(slot.end_time)}`
   }
 

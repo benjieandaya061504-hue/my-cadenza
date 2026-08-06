@@ -39,9 +39,9 @@ model equipments {
 model instructors {
   id                     Int                      @id @default(autoincrement())
   staff_id               Int                      @unique(map: "staff_id")
-  instructor_schedules   instructor_schedule[]
+  instructor_schedule    instructor_schedule[]
   instructor_specialties instructor_specialties[]
-  staff                  staff                    @relation(fields: [staff_id], references: [id], map: "fk_instructors_staff")
+  staff                  staff                    @relation(fields: [staff_id], references: [id])
 }
 
 model instruments {
@@ -85,18 +85,15 @@ model lesson_rooms {
 }
 
 model packages {
-  id            Int     @id @default(autoincrement())
-  package_name  String? @db.VarChar(100)
-  duration      String? @db.VarChar(100)
-  session       Int?
-  fee           Decimal @db.Decimal(10, 2)
-  status        String? @db.VarChar(50)
-  total_session Int?
-  lesson_id     Int
-  level_name    String? @db.VarChar(100)
-  description   String? @db.Text
+  id              Int     @id @default(autoincrement())
+  fee             Decimal @db.Decimal(10, 2)
+  status          String? @db.VarChar(50)
+  lesson_id       Int
+  description     String? @db.Text
+  package_type_id Int
 
   @@index([lesson_id], map: "fk_packages_lesson")
+  @@index([package_type_id], map: "fk_packages_package_type")
 }
 
 model rental_items {
@@ -172,8 +169,8 @@ model users {
   staff_id   Int?
   status     String?   @db.VarChar(50)
   created_at DateTime? @default(now()) @db.DateTime(0)
-  role       role      @relation(fields: [role_id], references: [id], map: "fk_users_role")
-  staff      staff?    @relation(fields: [staff_id], references: [id], map: "fk_users_staff")
+  role       role      @relation(fields: [role_id], references: [id])
+  staff      staff?    @relation(fields: [staff_id], references: [id])
 
   @@index([role_id], map: "fk_users_role")
   @@index([staff_id], map: "fk_users_staff")
@@ -229,8 +226,8 @@ model instructor_specialties {
   id            Int         @id @default(autoincrement())
   instructor_id Int
   specialty_id  Int
-  instructors   instructors @relation(fields: [instructor_id], references: [id], map: "fk_instructor_specialty_instructor")
-  specialties   specialties @relation(fields: [specialty_id], references: [id], map: "fk_instructor_specialty_specialty")
+  instructors   instructors @relation(fields: [instructor_id], references: [id])
+  specialties   specialties @relation(fields: [specialty_id], references: [id])
 
   @@index([instructor_id], map: "fk_instructor_specialty_instructor")
   @@index([specialty_id], map: "fk_instructor_specialty_specialty")
@@ -278,8 +275,17 @@ model instructor_schedule {
 }
 
 model time_slots {
-  id                   Int                   @id @default(autoincrement())
-  start_time           DateTime              @db.Time(0)
-  end_time             DateTime              @db.Time(0)
-  instructor_schedules instructor_schedule[]
+  id                  Int                   @id @default(autoincrement())
+  start_time          DateTime              @db.Time(0)
+  end_time            DateTime              @db.Time(0)
+  instructor_schedule instructor_schedule[]
+}
+
+model package_type {
+  id                Int     @id @default(autoincrement())
+  package_type_name String  @db.VarChar(100)
+  session           Int
+  frequency         String  @db.VarChar(100)
+  duration          String  @db.VarChar(100)
+  status            String? @default("Active") @db.VarChar(50)
 }

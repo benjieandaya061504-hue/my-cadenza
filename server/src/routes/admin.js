@@ -734,12 +734,27 @@ router.get('/roles', verifyToken, checkRole(['admin']), async (req, res) => {
 router.get('/time-slots', verifyToken, checkRole(['admin']), async (req, res) => {
   try {
     const timeSlots = await prisma.time_slots.findMany({
-      orderBy: { start_time: 'desc' },
+      orderBy: { start_time: 'asc' },
     })
+
+    // Format start_time/end_time to 12-hour format (e.g. "7:00am", "8:00pm")
+    const formatTime12 = (date) => {
+      return new Date(date).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      }).toLowerCase().replace(' ', '')
+    }
+
+    const result = timeSlots.map(slot => ({
+      ...slot,
+      formatted_start: formatTime12(slot.start_time),
+      formatted_end: formatTime12(slot.end_time),
+    }))
 
     res.json({
       success: true,
-      data: timeSlots,
+      data: result,
     })
   } catch (error) {
     console.error('Error fetching time slots:', error)
@@ -1322,6 +1337,346 @@ router.get('/lessons/:id/available-instructors', verifyToken, checkRole(['admin'
       success: false,
       message: error.message || 'Error fetching available instructors.',
     })
+  }
+})
+
+// ==================== PACKAGE TYPE ROUTES ====================
+
+// GET /api/admin/package-types - Get all package types (Admin only)
+router.get('/package-types', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const packageTypes = await prisma.package_type.findMany({
+      orderBy: { id: 'asc' },
+    })
+
+    res.json({
+      success: true,
+      data: packageTypes,
+    })
+  } catch (error) {
+    console.error('Error fetching package types:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching package types.',
+    })
+  }
+})
+
+// POST /api/admin/package-types - Create a new package type (Admin only)
+router.post('/package-types', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { package_type_name, session, frequency, duration, status } = req.body
+
+    if (!package_type_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Package type name is required.',
+      })
+    }
+
+    if (!session || !frequency || !duration) {
+      return res.status(400).json({
+        success: false,
+        message: 'Session, frequency, and duration are required.',
+      })
+    }
+
+    // Uniqueness check
+    const existing = await prisma.package_type.findFirst({
+      where: { package_type_name },
+    })
+
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: `Package type "${package_type_name}" already exists.`,
+      })
+    }
+
+    const newPackageType = await prisma.package_type.create({
+      data: {
+        package_type_name,
+        session: parseInt(session),
+        frequency,
+        duration,
+        status: status || 'Active',
+      },
+    })
+
+    res.status(201).json({
+      success: true,
+      message: 'Package type created successfully.',
+      data: newPackageType,
+    })
+  } catch (error) {
+    console.error('Error creating package type:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error creating package type.',
+    })
+  }
+})
+
+// PUT /api/admin/package-types/:id - Update a package type (Admin only)
+router.put('/package-types/:id', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params
+    const { package_type_name, session, frequency, duration, status } = req.body
+
+    const existing = await prisma.package_type.findUnique({
+      where: { id: parseInt(id) },
+    })
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Package type not found.',
+      })
+    }
+
+    // Uniqueness check (if name is being changed)
+    if (package_type_name !== undefined && package_type_name !== existing.package_type_name) {
+      const duplicate = await prisma.package_type.findFirst({
+        where: { package_type_name, NOT: { id: parseInt(id) } },
+      })
+      if (duplicate) {
+        return res.status(409).json({
+          success: false,
+          message: `Package type "${package_type_name}" already exists.`,
+        })
+      }
+    }
+
+    const updateData = {}
+    if (package_type_name !== undefined) updateData.package_type_name = package_type_name
+    if (session !== undefined) updateData.session = parseInt(session)
+    if (frequency !== undefined) updateData.frequency = frequency
+    if (duration !== undefined) updateData.duration = duration
+    if (status !== undefined) updateData.status = status
+
+    const updated = await prisma.package_type.update({
+      where: { id: parseInt(id) },
+      data: updateData,
+    })
+
+    res.json({
+      success: true,
+      message: 'Package type updated successfully.',
+      data: updated,
+    })
+  } catch (error) {
+    console.error('Error updating package type:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error updating package type.',
+    })
+  }
+})
+
+// DELETE /api/admin/package-types/:id - Delete a package type (Admin only)
+router.delete('/package-types/:id', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const existing = await prisma.package_type.findUnique({
+      where: { id: parseInt(id) },
+    })
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Package type not found.',
+      })
+    }
+
+    // Check if any packages reference this package_type_id
+    const packageCount = await prisma.packages.count({
+      where: { package_type_id: parseInt(id) },
+    })
+
+    if (packageCount > 0) {
+      return res.status(409).json({
+        success: false,
+        message: `Cannot delete package type. It is used by ${packageCount} package(s).`,
+      })
+    }
+
+    await prisma.package_type.delete({
+      where: { id: parseInt(id) },
+    })
+
+    res.json({
+      success: true,
+      message: 'Package type deleted successfully.',
+    })
+  } catch (error) {
+    console.error('Error deleting package type:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error deleting package type.',
+    })
+  }
+})
+
+// GET /api/admin/lesson-package-fees/:lesson_id - Get package_type templates merged with existing fees
+router.get('/lesson-package-fees/:lesson_id', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const lessonId = parseInt(req.params.lesson_id)
+
+    // Fetch all package_type templates (the 4 fixed ones)
+    const packageTypes = await prisma.package_type.findMany({ orderBy: { id: 'asc' } })
+
+    // Fetch any existing packages for this lesson
+    const existingPackages = await prisma.packages.findMany({
+      where: { lesson_id: lessonId },
+    })
+
+    // Merge: for each package_type, attach the fee from matching packages row (or null)
+    const result = packageTypes.map(pt => {
+      const match = existingPackages.find(p => p.package_type_id === pt.id)
+      return {
+        package_type_id: pt.id,
+        package_type_name: pt.package_type_name,
+        session: pt.session,
+        frequency: pt.frequency,
+        duration: pt.duration,
+        fee: match ? Number(match.fee) : null,
+        package_id: match ? match.id : null,
+        status: match ? match.status : null,
+      }
+    })
+
+    res.json({ success: true, data: result })
+  } catch (error) {
+    console.error('Error fetching lesson package fees:', error)
+    res.status(500).json({ success: false, message: 'Error fetching lesson package fees.' })
+  }
+})
+
+// ==================== LESSON PACKAGE FEE UPSERT ====================
+
+// PUT /api/admin/lesson-package-fees - Upsert a package fee for a lesson + package_type combination
+router.put('/lesson-package-fees', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { lesson_id, package_type_id, fee } = req.body
+
+    // Validate required fields
+    if (!lesson_id || !package_type_id || fee === undefined || fee === null) {
+      return res.status(400).json({
+        success: false,
+        message: 'lesson_id, package_type_id, and fee are required.',
+      })
+    }
+
+    // Validate fee is a positive number
+    const parsedFee = parseFloat(fee)
+    if (isNaN(parsedFee) || parsedFee <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Fee must be a positive number.',
+      })
+    }
+
+    const parsedLessonId = parseInt(lesson_id)
+    const parsedPackageTypeId = parseInt(package_type_id)
+
+    // Check if a packages row already exists for this combination
+    const existing = await prisma.packages.findFirst({
+      where: {
+        lesson_id: parsedLessonId,
+        package_type_id: parsedPackageTypeId,
+      },
+    })
+
+    if (existing) {
+      // UPDATE existing row
+      const updated = await prisma.packages.update({
+        where: { id: existing.id },
+        data: { fee: parsedFee },
+      })
+
+      return res.json({
+        success: true,
+        message: 'Package fee updated successfully.',
+        data: {
+          id: updated.id,
+          lesson_id: updated.lesson_id,
+          package_type_id: updated.package_type_id,
+          fee: Number(updated.fee),
+          status: updated.status,
+          description: updated.description,
+          isNew: false,
+        },
+      })
+    } else {
+      // INSERT new row with sensible defaults
+      const created = await prisma.packages.create({
+        data: {
+          lesson_id: parsedLessonId,
+          package_type_id: parsedPackageTypeId,
+          fee: parsedFee,
+          status: 'Active',
+          description: null,
+        },
+      })
+
+      return res.status(201).json({
+        success: true,
+        message: 'Package fee created successfully.',
+        data: {
+          id: created.id,
+          lesson_id: created.lesson_id,
+          package_type_id: created.package_type_id,
+          fee: Number(created.fee),
+          status: created.status,
+          description: created.description,
+          isNew: true,
+        },
+      })
+    }
+  } catch (error) {
+    console.error('Error upserting package fee:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error saving package fee.',
+    })
+  }
+})
+
+// ==================== LESSON PACKAGES SUMMARY ====================
+
+// GET /api/admin/lesson-packages-summary - Get all saved packages with lesson + package_type joins
+router.get('/lesson-packages-summary', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const packages = await prisma.packages.findMany({ orderBy: { id: 'desc' } })
+
+    // Fetch lesson and package_type lookup tables
+    const [lessons, packageTypes] = await Promise.all([
+      prisma.lesson.findMany(),
+      prisma.package_type.findMany(),
+    ])
+
+    const result = packages.map(pkg => {
+      const lesson = lessons.find(l => l.id === pkg.lesson_id)
+      const pt = packageTypes.find(t => t.id === pkg.package_type_id)
+      return {
+        id: pkg.id,
+        lesson_id: pkg.lesson_id,
+        lesson_name: lesson?.lesson_name || null,
+        package_type_id: pkg.package_type_id,
+        package_type_name: pt?.package_type_name || null,
+        session: pt?.session || null,
+        frequency: pt?.frequency || null,
+        duration: pt?.duration || null,
+        fee: Number(pkg.fee),
+        status: pkg.status || 'Active',
+      }
+    })
+
+    res.json({ success: true, data: result })
+  } catch (error) {
+    console.error('Error fetching lesson packages summary:', error)
+    res.status(500).json({ success: false, message: 'Error fetching lesson packages summary.' })
   }
 })
 
