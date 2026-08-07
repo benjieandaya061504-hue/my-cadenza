@@ -1315,7 +1315,7 @@ router.get('/lessons/:id/available-instructors', verifyToken, checkRole(['admin'
             specialties: true,
           },
         },
-        instructor_schedules: {
+        instructor_schedule: {
           include: {
             time_slot: true,
           },
