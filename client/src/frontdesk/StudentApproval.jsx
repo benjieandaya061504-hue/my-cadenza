@@ -18,7 +18,7 @@ export default function StudentApproval({ isMobile, isTablet }) {
     setLoading(true)
     setError('')
     try {
-      const res = await authenticatedFetch(`${API}/api/admin/enrollments/pending`)
+      const res = await authenticatedFetch(`${API}/api/admin/enrollments`)
       const data = await res.json()
       if (data.success) {
         setStudents(data.data)
@@ -256,8 +256,16 @@ export default function StudentApproval({ isMobile, isTablet }) {
               </div>
             </div>
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: '0.7rem', color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: C.font, fontWeight: 500, marginBottom: 8 }}>Personal Information</div>
+              <div style={{ fontSize: '0.7rem', color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: C.font, fontWeight: 500, marginBottom: 8 }}>Student Contact</div>
               <div style={{ display: 'grid', gap: 8 }}>
+                <div style={{ padding: 12, borderRadius: 10, background: C.mist, border: `1px solid ${C.border}` }}>
+                  <span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Email:</span>
+                  <span style={{ fontSize: '0.82rem', color: C.text, fontFamily: C.font, marginLeft: 8 }}>{selectedStudent.email}</span>
+                </div>
+                <div style={{ padding: 12, borderRadius: 10, background: C.mist, border: `1px solid ${C.border}` }}>
+                  <span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Phone:</span>
+                  <span style={{ fontSize: '0.82rem', color: C.text, fontFamily: C.font, marginLeft: 8 }}>{selectedStudent.phone}</span>
+                </div>
                 <div style={{ padding: 12, borderRadius: 10, background: C.mist, border: `1px solid ${C.border}` }}>
                   <span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Age:</span>
                   <span style={{ fontSize: '0.82rem', color: C.text, fontFamily: C.font, marginLeft: 8 }}>{selectedStudent.age}</span>
@@ -266,18 +274,29 @@ export default function StudentApproval({ isMobile, isTablet }) {
                   <span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Address:</span>
                   <span style={{ fontSize: '0.82rem', color: C.text, fontFamily: C.font, marginLeft: 8 }}>{selectedStudent.address}</span>
                 </div>
-                <div style={{ padding: 12, borderRadius: 10, background: C.mist, border: `1px solid ${C.border}` }}>
-                  <span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Emergency Contact:</span>
-                  <span style={{ fontSize: '0.82rem', color: C.text, fontFamily: C.font, marginLeft: 8 }}>{selectedStudent.emergency_contact}</span>
-                </div>
-                {selectedStudent.notes && (
-                  <div style={{ padding: 12, borderRadius: 10, background: C.mist, border: `1px solid ${C.border}` }}>
-                    <span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Notes:</span>
-                    <span style={{ fontSize: '0.82rem', color: C.text, fontFamily: C.font, marginLeft: 8 }}>{selectedStudent.notes}</span>
-                  </div>
-                )}
               </div>
             </div>
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: '0.7rem', color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: C.font, fontWeight: 500, marginBottom: 8 }}>Emergency Contact</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <div style={{ padding: 12, borderRadius: 10, background: C.mist, border: `1px solid ${C.border}` }}>
+                  <span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Name:</span>
+                  <span style={{ fontSize: '0.82rem', color: C.text, fontFamily: C.font, marginLeft: 8 }}>{selectedStudent.emergency_contact_name}</span>
+                </div>
+                <div style={{ padding: 12, borderRadius: 10, background: C.mist, border: `1px solid ${C.border}` }}>
+                  <span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Contact Number:</span>
+                  <span style={{ fontSize: '0.82rem', color: C.text, fontFamily: C.font, marginLeft: 8 }}>{selectedStudent.emergency_contact_number}</span>
+                </div>
+              </div>
+            </div>
+            {selectedStudent.notes && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: '0.7rem', color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: C.font, fontWeight: 500, marginBottom: 8 }}>Notes</div>
+                <div style={{ padding: 12, borderRadius: 10, background: C.mist, border: `1px solid ${C.border}` }}>
+                  <span style={{ fontSize: '0.82rem', color: C.text, fontFamily: C.font }}>{selectedStudent.notes}</span>
+                </div>
+              </div>
+            )}
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: '0.7rem', color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: C.font, fontWeight: 500, marginBottom: 8 }}>Enrollment Details</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
@@ -312,6 +331,10 @@ export default function StudentApproval({ isMobile, isTablet }) {
                 <div style={{ padding: 12, borderRadius: 10, background: C.mist, border: `1px solid ${C.border}` }}>
                   <span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Payment Method:</span>
                   <span style={{ fontSize: '0.82rem', color: C.text, fontFamily: C.font, marginLeft: 4 }}>{selectedStudent.payment_method}</span>
+                </div>
+                <div style={{ padding: 12, borderRadius: 10, background: C.mist, border: `1px solid ${C.border}` }}>
+                  <span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Reference No.:</span>
+                  <span style={{ fontSize: '0.82rem', color: C.text, fontFamily: C.font, marginLeft: 4 }}>{selectedStudent.payment_reference}</span>
                 </div>
               </div>
             </div>

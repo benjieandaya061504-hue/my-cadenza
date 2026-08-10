@@ -1683,6 +1683,153 @@ router.get('/lesson-packages-summary', verifyToken, checkRole(['admin']), async 
 // ==================== ENROLLMENT APPROVAL ROUTES ====================
 
 /**
+ * GET /api/admin/enrollments
+ * Returns all enrollments (pending, approved, rejected) with full joined data.
+ * Accessible by admin and frontdesk roles.
+ */
+router.get('/enrollments', verifyToken, checkRole(['admin', 'frontdesk']), async (req, res) => {
+  try {
+    // Fetch enrollments first (no Prisma relations defined for students/packages/payments)
+    const enrollments = await prisma.enrollments.findMany({
+      orderBy: { enrollment_date: 'desc' },
+    })
+
+    if (enrollments.length === 0) {
+      return res.json({ success: true, data: [] })
+    }
+
+    // Fetch lookup data manually
+    const studentIds = [...new Set(enrollments.map((e) => e.student_id))]
+    const packageIds = [...new Set(enrollments.map((e) => e.package_id))]
+    const enrollmentIds = enrollments.map((e) => e.id)
+
+    const [students, clients, packages, lessons, packageTypes, enrollmentSchedules, payments] = await Promise.all([
+      prisma.students.findMany({
+        where: { id: { in: studentIds } },
+      }),
+      prisma.clients.findMany({
+        where: { id: { in: studentIds } },  // students.client_id points to clients.id
+      }),
+      prisma.packages.findMany({
+        where: { id: { in: packageIds } },
+      }),
+      prisma.lesson.findMany(),
+      prisma.package_type.findMany(),
+      prisma.enrollment_schedule.findMany({
+        where: { enrollment_id: { in: enrollmentIds } },
+        include: {
+          time_slots: true,
+          instructors: { include: { staff: true } },
+        },
+      }),
+      prisma.payments.findMany({
+        where: { enrollment_id: { in: enrollmentIds } },
+      }),
+    ])
+
+    // Build lookup maps
+    const studentMap = {}
+    for (const s of students) studentMap[s.id] = s
+
+    const clientMap = {}
+    for (const c of clients) clientMap[c.id] = c
+
+    const packageMap = {}
+    for (const p of packages) packageMap[p.id] = p
+
+    const scheduleMap = {}
+    for (const s of enrollmentSchedules) {
+      if (!scheduleMap[s.enrollment_id]) scheduleMap[s.enrollment_id] = []
+      scheduleMap[s.enrollment_id].push(s)
+    }
+
+    const paymentMap = {}
+    for (const p of payments) {
+      if (!paymentMap[p.enrollment_id]) paymentMap[p.enrollment_id] = []
+      paymentMap[p.enrollment_id].push(p)
+    }
+
+    // Build lesson and package_type lookup maps
+    const lessonMap = {}
+    for (const l of lessons) lessonMap[l.id] = l
+    const pkgTypeMap = {}
+    for (const pt of packageTypes) pkgTypeMap[pt.id] = pt
+
+    const result = enrollments.map((e) => {
+      const student = studentMap[e.student_id] || {}
+      const client = clientMap[student.client_id] || {}
+      const pkg = packageMap[e.package_id] || {}
+      const lesson = lessonMap[pkg.lesson_id] || {}
+      const pkgType = pkgTypeMap[pkg.package_type_id] || {}
+      const schedule = scheduleMap[e.id] || []
+      const payment = paymentMap[e.id]?.[0] || {}
+
+      // Build schedule display string
+      const scheduleStr = schedule
+        .map((s) => {
+          const start = s.time_slots?.start_time
+            ? new Date(s.time_slots.start_time).toISOString().slice(11, 16)
+            : ''
+          const end = s.time_slots?.end_time
+            ? new Date(s.time_slots.end_time).toISOString().slice(11, 16)
+            : ''
+          const timeStr = start && end ? `${start}-${end}` : ''
+          return `${s.day_of_week} ${timeStr}`
+        })
+        .join(', ')
+
+      // Instructor name from first schedule entry
+      const instructorName = schedule[0]?.instructors?.staff
+        ? `${schedule[0].instructors.staff.f_name || ''} ${schedule[0].instructors.staff.l_name || ''}`.trim()
+        : ''
+
+      return {
+        id: e.id,
+        student_id: e.student_id,
+        name: `${client.f_name || ''} ${client.l_name || ''}`.trim(),
+        email: client.email || '',
+        phone: client.phone || '',
+        age: client.age ? String(client.age) : '',
+        address: client.address || '',
+        level: client.level || '',
+        notes: client.notes || '',
+        emergency_contact_name: student.guardian_name || null,
+        emergency_contact_number: student.guardian_no || null,
+        course: lesson.lesson_name || '',
+        package: pkgType.package_type_name || '',
+        instructor: instructorName,
+        schedule: scheduleStr,
+        schedule_detail: schedule.map((s) => ({
+          day_of_week: s.day_of_week,
+          start_time: s.time_slots?.start_time || null,
+          end_time: s.time_slots?.end_time || null,
+          instructor_name: s.instructors?.staff
+            ? `${s.instructors.staff.f_name || ''} ${s.instructors.staff.l_name || ''}`.trim()
+            : '',
+        })),
+        total_amount: Number(e.amount) || 0,
+        payment_method: payment.payment_method || '',
+        payment_reference: payment.refnum || '',
+        payment_status: payment.status || '',
+        status: e.status ? e.status.toLowerCase() : 'pending',
+        submitted: e.enrollment_date
+          ? new Date(e.enrollment_date).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })
+          : '',
+      }
+    })
+
+    res.json({ success: true, data: result })
+  } catch (error) {
+    console.error('Error fetching enrollments:', error)
+    res.status(500).json({ success: false, message: 'Error fetching enrollments.' })
+  }
+})
+
+/**
  * GET /api/admin/enrollments/pending
  * Returns all pending enrollments with full joined data for frontdesk review.
  * Accessible by admin and frontdesk roles.
@@ -1794,7 +1941,8 @@ router.get('/enrollments/pending', verifyToken, checkRole(['admin', 'frontdesk']
         address: client.address || '',
         level: client.level || '',
         notes: client.notes || '',
-        emergency_contact: [student.guardian_name, student.guardian_no].filter(Boolean).join(' / '),
+        emergency_contact_name: student.guardian_name || null,
+        emergency_contact_number: student.guardian_no || null,
         course: lesson.lesson_name || '',
         package: pkgType.package_type_name || '',
         instructor: instructorName,

@@ -40,7 +40,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null)
   const [form, setForm] = useState({
     fname: '', lname: '', email: '', phone: '', age: '',
-    level: '', notes: '', refnum: '', paymethod: '', address: '', emergency: '',
+    level: '', notes: '', refnum: '', paymethod: '', address: '', emergency: '', guardianName: '',
   })
   const [errors, setErrors] = useState({})
   const [touched, setTouched] = useState({})
@@ -83,7 +83,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
       setSelectedTimeSlot(null)
       setForm({
         fname: '', lname: '', email: '', phone: '', age: '',
-        level: '', notes: '', refnum: '', paymethod: '', address: '', emergency: '',
+        level: '', notes: '', refnum: '', paymethod: '', address: '', emergency: '', guardianName: '',
       })
       setErrors({})
       setTouched({})
@@ -296,7 +296,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
         address: form.address,
         age: form.age,
         level: form.level,
-        emergency_name: form.emergency,
+        emergency_name: form.guardianName,
         emergency_no: form.emergency,
         notes: form.notes,
         lesson_id: selectedLesson?.id,
@@ -788,6 +788,10 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
                   <option>Intermediate</option>
                   <option>Advanced</option>
                 </select>
+              </div>
+              <div className="en-fg en-fg-full">
+                <label>Guardian Name</label>
+                <input value={form.guardianName} onChange={(e) => handleFieldChange('guardianName', e.target.value)} placeholder="e.g. Maria dela Cruz" />
               </div>
               <div className="en-fg en-fg-full">
                 <label>Emergency Contact Number</label>
