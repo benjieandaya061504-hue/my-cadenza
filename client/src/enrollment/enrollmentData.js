@@ -1,6 +1,6 @@
 /**
  * Live lesson package data — fetched from the public API endpoint.
- * Replaces the previous hardcoded MOCK_PROGRAMS.
+ * Replaces the previous flat-package approach with a lesson-grouped structure.
  */
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000'
@@ -34,24 +34,28 @@ function getIcon(category) {
   return ICON_MAP[key] || DEFAULT_ICON
 }
 
-function slugify(name) {
-  if (!name) return ''
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .replace(/-+/g, '-')
-}
-
-function makePackageGroup(levelName) {
-  if (!levelName) return 'General'
-  return `${levelName} Packages`
-}
-
 /**
- * Fetch all active lesson packages from the public endpoint.
- * Returns a promise that resolves to the hierarchical program structure
- * (same shape the EnrollmentModal Step 1 expects).
+ * Fetch all active lessons with their package types and instructors.
+ * Returns a promise that resolves to the lesson-grouped structure
+ * the EnrollmentModal Step 1 expects.
+ *
+ * Response shape (per lesson):
+ * {
+ *   id: number,
+ *   lesson_name: string,
+ *   specialty: string,
+ *   specialty_id: number | null,
+ *   icon: string,
+ *   instructors: [{ id, first_name, last_name, specialization }],
+ *   package_types: [{
+ *     package_type_id: number,
+ *     package_type_name: string,
+ *     session: number,
+ *     fee: number,
+ *     sessions_per_week: number,
+ *     duration_label: string,
+ *   }]
+ * }
  */
 export async function fetchLessonPackages() {
   const res = await fetch(`${API_BASE}/api/public/lesson-packages`)
@@ -62,50 +66,9 @@ export async function fetchLessonPackages() {
   if (!json.success) {
     throw new Error(json.message || 'Failed to load lesson packages')
   }
-  return transformPackages(json.data)
-}
-
-/**
- * Transform flat API response into hierarchical program structure.
- */
-function transformPackages(data) {
-  const programMap = new Map()
-
-  data.forEach((pkg) => {
-    const lessonName = pkg.lesson_name || 'Uncategorized'
-    const programId = slugify(lessonName)
-    const packageGroup = makePackageGroup(pkg.level_name)
-
-    if (!programMap.has(programId)) {
-      programMap.set(programId, {
-        id: programId,
-        name: lessonName,
-        icon: getIcon(pkg.category),
-        category: pkg.category || '',
-        packageGroup,
-        description: pkg.description || `${lessonName} lessons available.`,
-        packages: [],
-      })
-    }
-
-    const program = programMap.get(programId)
-    program.packages.push({
-      id: pkg.id,
-      name: pkg.package_name,
-      packageGroup,
-      rate: Number(pkg.fee),
-      sessionLimit: pkg.total_session || 4,
-      sessionsPerWeek: pkg.sessions_per_week || 1,
-      durationMinutes: 45,
-      description: pkg.description || '',
-      instructors: (pkg.instructors || []).map((inst) => ({
-        id: inst.id,
-        first_name: inst.first_name,
-        last_name: inst.last_name,
-        specialization: inst.specialization,
-      })),
-    })
-  })
-
-  return Array.from(programMap.values())
+  // Attach icon to each lesson based on specialty
+  return (json.data || []).map((lesson) => ({
+    ...lesson,
+    icon: getIcon(lesson.specialty),
+  }))
 }

@@ -1,30 +1,83 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { authenticatedFetch, getApiBase } from '../utils/authUtils'
 import C from '../admin/theme.js'
 
 export default function StudentApproval({ isMobile, isTablet }) {
   const [filter, setFilter] = useState('all')
-  const [students, setStudents] = useState([
-    { id: 1, name: 'Maria Santos', email: 'maria@email.com', phone: '0917-123-4567', course: 'Guitar', level: 'Beginner', package: 'Standard', status: 'pending', submitted: 'Mar 10, 2026', age: '22', address: '123 Rizal St., Manila', emergency_contact: '0917-111-2222', instructor: 'Mr. Cruz', schedule: 'Mon 9AM', total_amount: '4000', payment_method: 'GCash', payment_reference: 'GCASH-123' },
-    { id: 2, name: 'John Reyes', email: 'john@email.com', phone: '0928-234-5678', course: 'Piano', level: 'Intermediate', package: 'Premium', status: 'pending', submitted: 'Mar 9, 2026', age: '25', address: '456 Mabini St., QC', emergency_contact: '0928-222-3333', instructor: 'Ms. Lim', schedule: 'Tue 10AM', total_amount: '6000', payment_method: 'Cash', payment_reference: 'N/A' },
-    { id: 3, name: 'Ana Cruz', email: 'ana@email.com', phone: '0935-345-6789', course: 'Voice', level: 'Beginner', package: 'Standard', status: 'approved', submitted: 'Mar 8, 2026', age: '19', address: '789 Luna St., Makati', emergency_contact: '0935-333-4444', instructor: 'Mr. Cruz', schedule: 'Wed 11AM', total_amount: '4000', payment_method: 'Maya', payment_reference: 'MAYA-456' },
-    { id: 4, name: 'Carlos Tan', email: 'carlos@email.com', phone: '0912-456-7890', course: 'Drums', level: 'Beginner', package: 'Standard', status: 'rejected', submitted: 'Mar 7, 2026', age: '28', address: '321 Bonifacio St., BGC', emergency_contact: '0912-444-5555', instructor: 'Mr. Bautista', schedule: 'Thu 1PM', total_amount: '5000', payment_method: 'Bank Transfer', payment_reference: 'BANK-789' },
-  ])
+  const [students, setStudents] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [selectedStudent, setSelectedStudent] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [actionMsg, setActionMsg] = useState('')
+  const [actionError, setActionError] = useState('')
 
-  const filteredStudents = filter === 'all' ? students : students.filter(s => s.status === filter)
+  const API = getApiBase()
 
-  const handleApprove = (id) => {
-    setStudents(students.map(s => s.id === id ? { ...s, status: 'approved' } : s))
-    setActionMsg('Enrollment approved successfully')
-    setTimeout(() => setActionMsg(''), 3000)
+  const fetchEnrollments = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await authenticatedFetch(`${API}/api/admin/enrollments/pending`)
+      const data = await res.json()
+      if (data.success) {
+        setStudents(data.data)
+      } else {
+        setError(data.message || 'Failed to load enrollments.')
+      }
+    } catch (err) {
+      setError(err.message || 'Network error loading enrollments.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleReject = (id) => {
-    setStudents(students.map(s => s.id === id ? { ...s, status: 'rejected' } : s))
-    setActionMsg('Enrollment rejected successfully')
-    setTimeout(() => setActionMsg(''), 3000)
+  useEffect(() => {
+    fetchEnrollments()
+  }, [])
+
+  const filteredStudents = filter === 'all'
+    ? students
+    : students.filter(s => s.status === filter)
+
+  const handleApprove = async (id) => {
+    setActionMsg('')
+    setActionError('')
+    try {
+      const res = await authenticatedFetch(`${API}/api/admin/enrollments/${id}/approve`, {
+        method: 'PUT',
+      })
+      const data = await res.json()
+      if (data.success) {
+        setActionMsg('Enrollment approved successfully')
+        fetchEnrollments()
+      } else {
+        setActionError(data.message || 'Failed to approve enrollment.')
+      }
+    } catch (err) {
+      setActionError(err.message || 'Network error approving enrollment.')
+    }
+    setTimeout(() => { setActionMsg(''); setActionError('') }, 3000)
+  }
+
+  const handleReject = async (id) => {
+    setActionMsg('')
+    setActionError('')
+    try {
+      const res = await authenticatedFetch(`${API}/api/admin/enrollments/${id}/reject`, {
+        method: 'PUT',
+      })
+      const data = await res.json()
+      if (data.success) {
+        setActionMsg('Enrollment rejected successfully')
+        fetchEnrollments()
+      } else {
+        setActionError(data.message || 'Failed to reject enrollment.')
+      }
+    } catch (err) {
+      setActionError(err.message || 'Network error rejecting enrollment.')
+    }
+    setTimeout(() => { setActionMsg(''); setActionError('') }, 3000)
   }
 
   const handleView = (student) => {
@@ -57,6 +110,16 @@ export default function StudentApproval({ isMobile, isTablet }) {
           {actionMsg}
         </div>
       )}
+      {actionError && (
+        <div style={{ padding: '10px 16px', marginBottom: 16, borderRadius: 10, background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', color: C.coral, fontSize: '0.82rem', fontFamily: C.font, fontWeight: 500 }}>
+          {actionError}
+        </div>
+      )}
+      {error && (
+        <div style={{ padding: '10px 16px', marginBottom: 16, borderRadius: 10, background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', color: C.coral, fontSize: '0.82rem', fontFamily: C.font, fontWeight: 500 }}>
+          {error}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
         {['all', 'pending', 'approved', 'rejected'].map(f => (
@@ -76,84 +139,90 @@ export default function StudentApproval({ isMobile, isTablet }) {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 14 }}>
-        {filteredStudents.map(student => {
-          const sc = statusColors[student.status]
-          return (
-            <div key={student.id} style={{
-              background: '#fff', borderRadius: 18, border: `1px solid ${C.border}`,
-              padding: '1.2rem', boxShadow: '0 4px 12px rgba(30,41,59,0.04)',
-              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-            }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(30,41,59,0.08)' }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(30,41,59,0.04)' }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <div style={{
-                    width: 48, height: 48, borderRadius: 12,
-                    background: `linear-gradient(135deg, ${C.royal}, ${C.purple})`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 18, fontWeight: 700, color: '#fff', fontFamily: C.font,
-                  }}>
-                    {student.name.split(' ').map(n => n[0]).join('')}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: C.text3, fontSize: '0.85rem' }}>Loading enrollments...</div>
+      ) : filteredStudents.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 40, color: C.text3, fontSize: '0.85rem' }}>No {filter === 'all' ? '' : filter} enrollments found.</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 14 }}>
+          {filteredStudents.map(student => {
+            const sc = statusColors[student.status] || statusColors.pending
+            return (
+              <div key={student.id} style={{
+                background: '#fff', borderRadius: 18, border: `1px solid ${C.border}`,
+                padding: '1.2rem', boxShadow: '0 4px 12px rgba(30,41,59,0.04)',
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(30,41,59,0.08)' }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(30,41,59,0.04)' }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <div style={{
+                      width: 48, height: 48, borderRadius: 12,
+                      background: `linear-gradient(135deg, ${C.royal}, ${C.purple})`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 18, fontWeight: 700, color: '#fff', fontFamily: C.font,
+                    }}>
+                      {student.name.split(' ').map(n => n[0]).join('')}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 600, color: C.navy, fontFamily: C.font }}>{student.name}</div>
+                      <div style={{ fontSize: '0.75rem', color: C.text2, fontFamily: C.font }}>{student.email}</div>
+                      <div style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font, marginTop: 2 }}>{student.phone}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: C.navy, fontFamily: C.font }}>{student.name}</div>
-                    <div style={{ fontSize: '0.75rem', color: C.text2, fontFamily: C.font }}>{student.email}</div>
-                    <div style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font, marginTop: 2 }}>{student.phone}</div>
+                  <span style={{
+                    fontSize: '0.65rem', fontWeight: 700, color: sc.c,
+                    background: sc.bg, padding: '4px 10px', borderRadius: 20,
+                    fontFamily: C.font, letterSpacing: '.05em',
+                  }}>{sc.label}</span>
+                </div>
+
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: '0.7rem', color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: C.font, fontWeight: 500, marginBottom: 8 }}>Enrollment Details</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
+                    <div><span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Course:</span><span style={{ fontSize: '0.75rem', color: C.text, fontFamily: C.font, marginLeft: 4 }}>{student.course}</span></div>
+                    <div><span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Level:</span><span style={{ fontSize: '0.75rem', color: C.text, fontFamily: C.font, marginLeft: 4 }}>{student.level}</span></div>
+                    <div><span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Package:</span><span style={{ fontSize: '0.75rem', color: C.text, fontFamily: C.font, marginLeft: 4 }}>{student.package}</span></div>
+                    <div><span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Submitted:</span><span style={{ fontSize: '0.75rem', color: C.text, fontFamily: C.font, marginLeft: 4 }}>{student.submitted}</span></div>
                   </div>
                 </div>
-                <span style={{
-                  fontSize: '0.65rem', fontWeight: 700, color: sc.c,
-                  background: sc.bg, padding: '4px 10px', borderRadius: 20,
-                  fontFamily: C.font, letterSpacing: '.05em',
-                }}>{sc.label}</span>
-              </div>
 
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: '0.7rem', color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontFamily: C.font, fontWeight: 500, marginBottom: 8 }}>Enrollment Details</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
-                  <div><span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Course:</span><span style={{ fontSize: '0.75rem', color: C.text, fontFamily: C.font, marginLeft: 4 }}>{student.course}</span></div>
-                  <div><span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Level:</span><span style={{ fontSize: '0.75rem', color: C.text, fontFamily: C.font, marginLeft: 4 }}>{student.level}</span></div>
-                  <div><span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Package:</span><span style={{ fontSize: '0.75rem', color: C.text, fontFamily: C.font, marginLeft: 4 }}>{student.package}</span></div>
-                  <div><span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Submitted:</span><span style={{ fontSize: '0.75rem', color: C.text, fontFamily: C.font, marginLeft: 4 }}>{student.submitted}</span></div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => handleView(student)} style={{
+                    flex: 1, padding: '8px 12px', borderRadius: 10,
+                    border: `1px solid ${C.border2}`, background: '#fff',
+                    color: C.text2, cursor: 'pointer', fontSize: '0.75rem',
+                    fontFamily: C.font, fontWeight: 500, transition: 'all 0.15s ease',
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = C.royal; e.currentTarget.style.color = C.royal }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.text2 }}
+                  >
+                    View Details
+                  </button>
+                  {student.status === 'pending' && (
+                    <>
+                      <button onClick={() => handleApprove(student.id)} style={{
+                        flex: 1, padding: '8px 12px', borderRadius: 10, border: 'none',
+                        background: `linear-gradient(135deg, ${C.green}, #059669)`,
+                        color: '#fff', cursor: 'pointer', fontSize: '0.75rem',
+                        fontFamily: C.font, fontWeight: 600,
+                      }}>Approve</button>
+                      <button onClick={() => handleReject(student.id)} style={{
+                        flex: 1, padding: '8px 12px', borderRadius: 10,
+                        border: `1px solid rgba(248,113,113,0.3)`,
+                        background: 'rgba(248,113,113,0.08)', color: C.coral,
+                        cursor: 'pointer', fontSize: '0.75rem', fontFamily: C.font, fontWeight: 500,
+                      }}>Reject</button>
+                    </>
+                  )}
                 </div>
               </div>
-
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => handleView(student)} style={{
-                  flex: 1, padding: '8px 12px', borderRadius: 10,
-                  border: `1px solid ${C.border2}`, background: '#fff',
-                  color: C.text2, cursor: 'pointer', fontSize: '0.75rem',
-                  fontFamily: C.font, fontWeight: 500, transition: 'all 0.15s ease',
-                }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = C.royal; e.currentTarget.style.color = C.royal }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = C.border2; e.currentTarget.style.color = C.text2 }}
-                >
-                  View Details
-                </button>
-                {student.status === 'pending' && (
-                  <>
-                    <button onClick={() => handleApprove(student.id)} style={{
-                      flex: 1, padding: '8px 12px', borderRadius: 10, border: 'none',
-                      background: `linear-gradient(135deg, ${C.green}, #059669)`,
-                      color: '#fff', cursor: 'pointer', fontSize: '0.75rem',
-                      fontFamily: C.font, fontWeight: 600,
-                    }}>Approve</button>
-                    <button onClick={() => handleReject(student.id)} style={{
-                      flex: 1, padding: '8px 12px', borderRadius: 10,
-                      border: `1px solid rgba(248,113,113,0.3)`,
-                      background: 'rgba(248,113,113,0.08)', color: C.coral,
-                      cursor: 'pointer', fontSize: '0.75rem', fontFamily: C.font, fontWeight: 500,
-                    }}>Reject</button>
-                  </>
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      )}
 
       {showModal && selectedStudent && (
         <div style={{
@@ -201,6 +270,12 @@ export default function StudentApproval({ isMobile, isTablet }) {
                   <span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Emergency Contact:</span>
                   <span style={{ fontSize: '0.82rem', color: C.text, fontFamily: C.font, marginLeft: 8 }}>{selectedStudent.emergency_contact}</span>
                 </div>
+                {selectedStudent.notes && (
+                  <div style={{ padding: 12, borderRadius: 10, background: C.mist, border: `1px solid ${C.border}` }}>
+                    <span style={{ fontSize: '0.7rem', color: C.text3, fontFamily: C.font }}>Notes:</span>
+                    <span style={{ fontSize: '0.82rem', color: C.text, fontFamily: C.font, marginLeft: 8 }}>{selectedStudent.notes}</span>
+                  </div>
+                )}
               </div>
             </div>
             <div style={{ marginBottom: 16 }}>

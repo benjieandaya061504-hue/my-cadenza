@@ -12,28 +12,6 @@ import { fetchLessonPackages } from './enrollmentData'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
-// ─── Helper to flatten programs into a single package array ──────
-function flattenPrograms(programs) {
-  const result = []
-  ;(programs || []).forEach((prog) => {
-    ;(prog.packages || []).forEach((pkg) => {
-      result.push({ ...pkg, programId: prog.id, programName: prog.name, category: prog.category })
-    })
-  })
-  return result
-}
-
-const TIME_BLOCKS = [
-  ['08:00', '09:00'],
-  ['09:00', '10:00'],
-  ['10:00', '11:00'],
-  ['11:00', '12:00'],
-  ['13:00', '14:00'],
-  ['14:00', '15:00'],
-  ['15:00', '16:00'],
-  ['16:00', '17:00'],
-]
-
 const FIELD_LABELS = {
   fname: 'First Name',
   lname: 'Last Name',
@@ -45,16 +23,18 @@ const FIELD_LABELS = {
   refnum: 'Payment Reference Number',
 }
 
+const STEP_LABELS = ['Lesson', 'Instructor', 'Schedule', 'Your Info', 'Payment', 'Done']
+
 export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
   // ── Data fetching state ────────────────────────────────────────
-  const [programs, setPrograms] = useState([])
+  const [lessons, setLessons] = useState([])
   const [loading, setLoading] = useState(false)
   const [fetchError, setFetchError] = useState(null)
 
   // ── Step state ──────────────────────────────────────────────────
   const [step, setStep] = useState(1)
-  const [selectedPackageGroup, setSelectedPackageGroup] = useState(null)
-  const [lesson, setLesson] = useState(null)
+  const [selectedLesson, setSelectedLesson] = useState(null)
+  const [selectedPackageType, setSelectedPackageType] = useState(null)
   const [selectedInstructor, setSelectedInstructor] = useState(null)
   const [selectedWeekdays, setSelectedWeekdays] = useState([])
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null)
@@ -65,6 +45,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
   const [errors, setErrors] = useState({})
   const [touched, setTouched] = useState({})
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState(null)
   const confirmRef = useRef({ form: {}, lesson: null, instructor: null, requiredSlots: 0, totalAmount: 0, scheduleText: '—' })
 
   // ── Instructor availability state ──────────────────────────────
@@ -72,32 +53,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
   const [availLoading, setAvailLoading] = useState(false)
   const [availError, setAvailError] = useState(null)
 
-  // Fetch instructor availability when an instructor is selected
-  useEffect(() => {
-    if (!selectedInstructor) {
-      setAvailability([])
-      setAvailError(null)
-      return
-    }
-    setAvailLoading(true)
-    setAvailError(null)
-    setSelectedWeekdays([])
-    setSelectedTimeSlot(null)
-    fetch(`${API_BASE}/api/public/instructor-availability/${selectedInstructor.id}`)
-      .then(res => res.json())
-      .then(json => {
-        if (json.success) {
-          setAvailability(json.data)
-        } else {
-          setAvailError(json.message || 'Failed to load availability.')
-        }
-        setAvailLoading(false)
-      })
-      .catch(err => {
-        setAvailError(err.message || 'Network error.')
-        setAvailLoading(false)
-      })
-  }, [selectedInstructor])
+  // ── Lifecycle ──────────────────────────────────────────────────
 
   // Fetch data when modal opens
   useEffect(() => {
@@ -106,7 +62,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
       setFetchError(null)
       fetchLessonPackages()
         .then((data) => {
-          setPrograms(data)
+          setLessons(data)
           setLoading(false)
         })
         .catch((err) => {
@@ -116,15 +72,12 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
     }
   }, [isOpen])
 
-  // Derived: flattened packages from live programs
-  const allPackages = useMemo(() => flattenPrograms(programs), [programs])
-
-  // Reset step state when modal opens, and pre-select package if initialPackage is provided
+  // Reset state on open
   useEffect(() => {
     if (isOpen) {
       setStep(1)
-      setSelectedPackageGroup(null)
-      setLesson(null)
+      setSelectedLesson(null)
+      setSelectedPackageType(null)
       setSelectedInstructor(null)
       setSelectedWeekdays([])
       setSelectedTimeSlot(null)
@@ -138,42 +91,56 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
     }
   }, [isOpen])
 
-  // Pre-select package once programs are loaded and initialPackage is set
+  // Pre-select from initialPackage
   useEffect(() => {
-    if (isOpen && initialPackage && programs.length > 0) {
-      const program = programs.find(p => p.id === initialPackage)
-      if (program && program.packages && program.packages.length > 0) {
-        setSelectedPackageGroup(program.packageGroup)
-        const firstPkg = allPackages.find(
-          p => p.programId === initialPackage || p.category === program.category
-        )
-        if (firstPkg) setLesson(firstPkg)
+    if (isOpen && initialPackage && lessons.length > 0) {
+      const lesson = lessons.find((l) => l.id === initialPackage)
+      if (lesson) {
+        setSelectedLesson(lesson)
+        if (lesson.package_types && lesson.package_types.length > 0) {
+          setSelectedPackageType(lesson.package_types[0])
+        }
       }
     }
-  }, [isOpen, initialPackage, programs, allPackages])
+  }, [isOpen, initialPackage, lessons])
+
+  // Fetch instructor availability
+  useEffect(() => {
+    if (!selectedInstructor) {
+      setAvailability([])
+      setAvailError(null)
+      return
+    }
+    setAvailLoading(true)
+    setAvailError(null)
+    setSelectedWeekdays([])
+    setSelectedTimeSlot(null)
+    fetch(`${API_BASE}/api/public/instructor-availability/${selectedInstructor.id}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success) {
+          setAvailability(json.data)
+        } else {
+          setAvailError(json.message || 'Failed to load availability.')
+        }
+        setAvailLoading(false)
+      })
+      .catch((err) => {
+        setAvailError(err.message || 'Network error.')
+        setAvailLoading(false)
+      })
+  }, [selectedInstructor])
 
   // ── Derived data ────────────────────────────────────────────────
-  const packageGroups = useMemo(() => {
-    const groups = new Set()
-    allPackages.forEach(p => {
-      const g = p.packageGroup
-      if (g) groups.add(g)
-    })
-    return [...groups].sort((a, b) => {
-      const na = parseInt(a.match(/\d+/)?.[0] || 0)
-      const nb = parseInt(b.match(/\d+/)?.[0] || 0)
-      return na - nb
-    })
-  }, [allPackages])
+  const instructorsForLesson = selectedLesson?.instructors || []
+  const requiredSlots = selectedPackageType?.session ?? 4
+  const sessionsPerWeek = selectedPackageType?.sessions_per_week ?? 1
+  const totalAmount = selectedPackageType ? Number(selectedPackageType.fee) : 0
 
-  const filteredLessonsByGroup = useMemo(() => {
-    if (!selectedPackageGroup) return []
-    return allPackages.filter(p => p.packageGroup === selectedPackageGroup)
-  }, [selectedPackageGroup, allPackages])
-
-  const requiredSlots = lesson?.sessionLimit ?? 4
-  const sessionsPerWeek = lesson?.sessionsPerWeek ?? 1
-  const totalAmount = lesson ? Number(lesson.rate) : 0
+  // ── Available weekdays from instructor's actual schedule ──────────
+  const availableWeekdays = useMemo(() => {
+    return new Set(availability.map((s) => s.day_of_week))
+  }, [availability])
 
   const computedStartDate = useMemo(() => {
     if (selectedWeekdays.length === 0) return null
@@ -188,7 +155,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
 
   const scheduleTextRecurring = useMemo(() => {
     if (selectedWeekdays.length === 0 || !computedStartDate || !computedEndDate) return '—'
-    const dayNames = [...selectedWeekdays].sort().map(wd => DAY_NAMES[wd]).join(', ')
+    const dayNames = [...selectedWeekdays].sort().map((wd) => DAY_NAMES[wd]).join(', ')
     const timeStr = selectedTimeSlot ? selectedTimeSlot.label : 'TBD'
     return `${dayNames} — ${timeStr}\n${formatDateShort(computedStartDate)} – ${formatDateShort(computedEndDate)} (${requiredSlots} sessions)`
   }, [selectedWeekdays, computedStartDate, computedEndDate, selectedTimeSlot, requiredSlots])
@@ -205,12 +172,12 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
     })
   }
 
-  const selectTimeSlot = (start, end) => {
+  const selectTimeSlot = (start, end, timeSlotId) => {
     const label = `${start} – ${end}`
     if (selectedTimeSlot && selectedTimeSlot.start === start) {
       setSelectedTimeSlot(null)
     } else {
-      setSelectedTimeSlot({ start, end, label })
+      setSelectedTimeSlot({ start, end, label, time_slot_id: timeSlotId })
     }
   }
 
@@ -285,7 +252,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
     }
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const requiredFields = [
       { key: 'fname', label: 'First Name' },
       { key: 'lname', label: 'Last Name' },
@@ -301,10 +268,16 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
       .map((f) => f.label)
     if (emptyFields.length > 0) return
 
-    // Save confirmation data
+    // Build a descriptor for the confirmation
+    const lessonDesc = selectedLesson?.lesson_name || '—'
+    const pkgDesc = selectedPackageType?.package_type_name || ''
+
     confirmRef.current = {
       form: { ...form },
-      lesson: lesson ? { ...lesson } : null,
+      lesson: {
+        name: pkgDesc ? `${lessonDesc} (${pkgDesc})` : lessonDesc,
+        category: selectedLesson?.specialty || '',
+      },
       instructor: selectedInstructor ? { ...selectedInstructor } : null,
       requiredSlots,
       totalAmount,
@@ -312,11 +285,49 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
     }
 
     setSubmitting(true)
-    // Simulate submission
-    setTimeout(() => {
-      setSubmitting(false)
+    setSubmitError(null)
+
+    try {
+      const payload = {
+        fname: form.fname,
+        lname: form.lname,
+        email: form.email,
+        phone: form.phone,
+        address: form.address,
+        age: form.age,
+        level: form.level,
+        emergency_name: form.emergency,
+        emergency_no: form.emergency,
+        notes: form.notes,
+        lesson_id: selectedLesson?.id,
+        package_type_id: selectedPackageType?.package_type_id,
+        instructor_id: selectedInstructor?.id,
+        selectedWeekdays,
+        time_slot_id: selectedTimeSlot?.time_slot_id,
+        paymethod: form.paymethod,
+        refnum: form.refnum,
+        amount: totalAmount,
+      }
+
+      const res = await fetch(`${API_BASE}/api/public/enrollments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json()
+
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || 'Failed to submit enrollment.')
+      }
+
+      // Store the returned enrollment ID for the confirmation screen
+      confirmRef.current.enrollmentId = json.data.enrollmentId
       setStep(6)
-    }, 800)
+    } catch (err) {
+      setSubmitError(err.message || 'Network error. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleOverlayClick = (e) => {
@@ -328,7 +339,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
     setFetchError(null)
     fetchLessonPackages()
       .then((data) => {
-        setPrograms(data)
+        setLessons(data)
         setLoading(false)
       })
       .catch((err) => {
@@ -352,9 +363,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
     }
   }
 
-  const stepLabels = ['Lesson', 'Instructor', 'Schedule', 'Your Info', 'Payment', 'Done']
-
-  // ── Close on Escape ─────────────────────────────────────────────
+  // Close on Escape
   useEffect(() => {
     if (!isOpen) return
     const handleKey = (e) => {
@@ -377,7 +386,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
             <div key={n} className="en-step-item">
               <div className={stepClass(n)}>
                 <div className="en-si-num">{n === 6 ? '✓' : n}</div>
-                <span className="en-si-label">{stepLabels[i]}</span>
+                <span className="en-si-label">{STEP_LABELS[i]}</span>
               </div>
               {n < 6 && <div className="en-step-sep" />}
             </div>
@@ -388,128 +397,141 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
         <div className="en-modal-body">
 
         {/* ═══════════════════════════════════════════════════════════
-           STEP 1 – Choose Lesson Package
+           STEP 1 – Choose a Lesson, then a Package Type
            ═══════════════════════════════════════════════════════════ */}
         {step === 1 && (
           <div className="en-step-content">
-            <h2 className="en-step-title">Choose Your Lesson Package</h2>
-            <p className="en-step-desc">
-              Select a lesson package to enroll in. Each package includes a fixed number of sessions at a set price.
-            </p>
-
-            {/* Loading state */}
-            {loading && (
-              <div className="en-empty-state">
-                <div style={{ marginBottom: 8 }}>⏳</div>
-                Loading available lesson packages...
-              </div>
-            )}
-
-            {/* Error state */}
-            {fetchError && !loading && (
-              <div className="en-empty-state">
-                <div style={{ marginBottom: 8, fontSize: '1.2rem' }}>⚠️</div>
-                <p style={{ marginBottom: 12, color: 'var(--coral, #DC2626)' }}>
-                  Could not load lesson packages. {fetchError}
-                </p>
-                <button
-                  type="button"
-                  className="en-btn en-btn-primary en-btn-sm"
-                  onClick={handleRetry}
-                >
-                  Try Again
-                </button>
-              </div>
-            )}
-
-            {/* Empty state — no packages at all */}
-            {!loading && !fetchError && allPackages.length === 0 && (
-              <div className="en-empty-state">
-                <div style={{ marginBottom: 8, fontSize: '1.2rem' }}>📭</div>
-                No lesson packages are available at this time. Please check back later or contact the front desk for assistance.
-              </div>
-            )}
-
-            {/* Normal state — package groups */}
-            {!loading && !fetchError && allPackages.length > 0 && !selectedPackageGroup && (
+            {!selectedLesson && (
               <>
-                <p className="en-step-desc" style={{ marginBottom: 16 }}>
-                  Choose a package group, then select your preferred instrument or course within it.
+                <h2 className="en-step-title">Choose a Lesson</h2>
+                <p className="en-step-desc">
+                  Select an instrument or course you'd like to study. After choosing a lesson, you'll pick a package type.
                 </p>
-                <div className="en-card-grid">
-                  {packageGroups.map((group) => {
-                    const lessonsInGroup = allPackages.filter(p => p.packageGroup === group)
-                    const minRate = Math.min(...lessonsInGroup.map(p => Number(p.rate)).filter(r => r > 0))
-                    return (
+
+                {/* Loading */}
+                {loading && (
+                  <div className="en-empty-state">
+                    <div style={{ marginBottom: 8 }}>⏳</div>
+                    Loading available lessons...
+                  </div>
+                )}
+
+                {/* Error */}
+                {fetchError && !loading && (
+                  <div className="en-empty-state">
+                    <div style={{ marginBottom: 8, fontSize: '1.2rem' }}>⚠️</div>
+                    <p style={{ marginBottom: 12, color: 'var(--coral, #DC2626)' }}>
+                      Could not load lessons. {fetchError}
+                    </p>
+                    <button type="button" className="en-btn en-btn-primary en-btn-sm" onClick={handleRetry}>
+                      Try Again
+                    </button>
+                  </div>
+                )}
+
+                {/* Empty */}
+                {!loading && !fetchError && lessons.length === 0 && (
+                  <div className="en-empty-state">
+                    <div style={{ marginBottom: 8, fontSize: '1.2rem' }}>📭</div>
+                    No lessons are available at this time. Please check back later.
+                  </div>
+                )}
+
+                {/* Lesson cards */}
+                {!loading && !fetchError && lessons.length > 0 && (
+                  <div className="en-card-grid">
+                    {lessons.map((lesson) => (
                       <button
-                        key={group}
+                        key={lesson.id}
                         type="button"
                         className="en-card"
-                        onClick={() => setSelectedPackageGroup(group)}
+                        onClick={() => {
+                          setSelectedLesson(lesson)
+                          setSelectedPackageType(null)
+                        }}
                       >
-                        <div className="en-card-name">{group}</div>
-                        <div className="en-card-meta">
-                          {lessonsInGroup.length} lesson{lessonsInGroup.length > 1 ? 's' : ''} available
-                        </div>
-                        <div className="en-card-cats">
-                          {lessonsInGroup.map(l => l.category).join(', ')}
-                        </div>
-                        {minRate > 0 && (
-                          <div className="en-card-price">From ₱{minRate.toLocaleString()}</div>
+                        <div className="en-card-icon">{lesson.icon || '🎵'}</div>
+                        <div className="en-card-name">{lesson.lesson_name}</div>
+                        {lesson.specialty && (
+                          <div className="en-card-cats">{lesson.specialty}</div>
                         )}
+                        <div className="en-card-meta">
+                          {lesson.package_types?.length || 0} package type{(lesson.package_types?.length || 0) !== 1 ? 's' : ''} available
+                        </div>
                       </button>
-                    )
-                  })}
-                </div>
+                    ))}
+                  </div>
+                )}
               </>
             )}
 
-            {/* Selected package group — show individual packages */}
-            {!loading && !fetchError && allPackages.length > 0 && selectedPackageGroup && (
+            {/* Level B — Choose a Package Type */}
+            {selectedLesson && (
               <>
                 <div className="en-back-row">
-                  <button type="button" className="en-btn en-btn-secondary en-btn-sm" onClick={() => { setSelectedPackageGroup(null); setLesson(null) }}>
-                    ← Back to all packages
+                  <button
+                    type="button"
+                    className="en-btn en-btn-secondary en-btn-sm"
+                    onClick={() => {
+                      setSelectedLesson(null)
+                      setSelectedPackageType(null)
+                    }}
+                  >
+                    ← Back to lessons
                   </button>
-                  <span className="en-badge-group">{selectedPackageGroup}</span>
+                  <span className="en-badge-group">{selectedLesson.lesson_name}</span>
                 </div>
+
+                <h2 className="en-step-title">Choose Your Package</h2>
                 <p className="en-step-desc" style={{ marginBottom: 16 }}>
-                  Select a specific lesson within {selectedPackageGroup}.
+                  Select a package type for {selectedLesson.lesson_name}.
                 </p>
-                <div className="en-card-grid">
-                  {filteredLessonsByGroup.map((P) => {
-                    const rate = Number(P.rate)
-                    const spw = P.sessionsPerWeek ?? 1
-                    return (
-                      <button
-                        key={P.id}
-                        type="button"
-                        className={`en-card${lesson?.id === P.id ? ' selected' : ''}`}
-                        onClick={() => setLesson(P)}
-                      >
-                        <div className="en-card-check">✓</div>
-                        <div className="en-card-name">{P.name}</div>
-                        <div className="en-card-cats">{P.category}</div>
-                        <div className="en-card-meta">
-                          {P.durationMinutes} min · {P.sessionLimit} sessions · {getFrequencyLabel(spw)}
-                        </div>
-                        <div className="en-card-price">
-                          {rate > 0 ? `₱${rate.toLocaleString()}` : 'Price TBD'}
-                        </div>
-                        {P.description && (
-                          <div className="en-card-desc">{P.description}</div>
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
+
+                {(!selectedLesson.package_types || selectedLesson.package_types.length === 0) && (
+                  <div className="en-empty-state">
+                    No package types are available for this lesson yet.
+                  </div>
+                )}
+
+                {selectedLesson.package_types && selectedLesson.package_types.length > 0 && (
+                  <div className="en-card-grid">
+                    {selectedLesson.package_types.map((pt) => {
+                      const isSelected = selectedPackageType?.package_type_id === pt.package_type_id
+                      return (
+                        <button
+                          key={pt.package_type_id}
+                          type="button"
+                          className={`en-card${isSelected ? ' selected' : ''}`}
+                          onClick={() => setSelectedPackageType(pt)}
+                        >
+                          <div className="en-card-check">✓</div>
+                          <div className="en-card-name">{pt.package_type_name}</div>
+                          <div className="en-card-meta">
+                            {pt.session} session{pt.session > 1 ? 's' : ''} · {getFrequencyLabel(pt.sessions_per_week)}
+                          </div>
+                          {pt.duration_label && (
+                            <div className="en-card-desc">{pt.duration_label}</div>
+                          )}
+                          <div className="en-card-price">
+                            ₱{Number(pt.fee).toLocaleString()}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </>
             )}
 
             <div className="en-actions">
-              <button type="button" className="en-btn en-btn-secondary" onClick={onClose}>← Cancel</button>
-              {selectedPackageGroup && (
-                <button type="button" className="en-btn en-btn-primary" disabled={!lesson} onClick={() => goStep(2)}>
+              <button type="button" className="en-btn en-btn-secondary" onClick={onClose}>Cancel</button>
+              {selectedLesson && (
+                <button
+                  type="button"
+                  className="en-btn en-btn-primary"
+                  disabled={!selectedPackageType}
+                  onClick={() => goStep(2)}
+                >
                   Next: Instructor →
                 </button>
               )}
@@ -522,28 +544,35 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
            ═══════════════════════════════════════════════════════════ */}
         {step === 2 && (
           <div className="en-step-content">
+            <div className="en-back-row">
+              <span className="en-badge-group">
+                {selectedLesson?.lesson_name} · {selectedPackageType?.package_type_name}
+              </span>
+            </div>
             <h2 className="en-step-title">Choose Your Instructor</h2>
             <p className="en-step-desc">
-              {lesson?.instructors && lesson.instructors.length > 0
-                ? `These instructors are assigned to teach "${lesson.name}". Select your preferred instructor.`
+              {instructorsForLesson.length > 0
+                ? `These instructors teach "${selectedLesson?.lesson_name}". Select your preferred instructor.`
                 : 'Select your preferred instructor.'}
             </p>
-            {(!lesson?.instructors || lesson.instructors.length === 0) ? (
+            {instructorsForLesson.length === 0 ? (
               <div className="en-empty-state">
-                No instructors have been assigned to this package yet. Please contact the admin for assistance.
+                No instructors have been assigned to this lesson yet. Please contact the admin for assistance.
               </div>
             ) : (
               <div className="en-card-grid">
-                {lesson.instructors.map((inst) => (
+                {instructorsForLesson.map((inst) => (
                   <button
                     key={inst.id}
                     type="button"
                     className={`en-card${selectedInstructor?.id === inst.id ? ' selected' : ''}`}
-                    onClick={() => setSelectedInstructor({
-                      id: inst.id,
-                      name: `${inst.first_name} ${inst.last_name}`,
-                      desc: inst.specialization || 'Instructor',
-                    })}
+                    onClick={() =>
+                      setSelectedInstructor({
+                        id: inst.id,
+                        name: `${inst.first_name} ${inst.last_name}`,
+                        desc: inst.specialization || 'Instructor',
+                      })
+                    }
                   >
                     <div className="en-card-check">✓</div>
                     <div className="en-card-icon">🎵</div>
@@ -560,7 +589,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
               <button
                 type="button"
                 className="en-btn en-btn-primary"
-                disabled={!selectedInstructor || !lesson?.instructors || lesson.instructors.length === 0}
+                disabled={!selectedInstructor || instructorsForLesson.length === 0}
                 onClick={() => goStep(3)}
               >
                 Next: Schedule →
@@ -576,7 +605,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
           <div className="en-step-content">
             <div className="en-schedule-header">
               <div className="en-schedule-badge">
-                {lesson ? `${lesson.name} Lessons` : 'Lessons'}
+                {selectedLesson?.lesson_name} · {selectedPackageType?.package_type_name}
               </div>
               <h2 className="en-step-title" style={{ marginTop: 4 }}>Set Your Recurring Schedule</h2>
             </div>
@@ -598,13 +627,21 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
                 {DAY_SHORT.map((name, idx) => {
                   const isSelected = selectedWeekdays.includes(idx)
                   const isMaxed = !isSelected && selectedWeekdays.length >= sessionsPerWeek
+                  const isUnavailable = !availLoading && !isSelected && !availableWeekdays.has(name)
+                  const isDisabled = (isMaxed || isUnavailable) && !isSelected
+                  const title = isUnavailable
+                    ? `${name} — No availability for this instructor`
+                    : isMaxed
+                      ? `Maximum ${sessionsPerWeek} day(s) selected`
+                      : name
                   return (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => toggleWeekday(idx)}
-                      disabled={!isSelected && isMaxed}
-                      className={`en-day-btn${isSelected ? ' selected' : ''}${isMaxed ? ' maxed' : ''}`}
+                      disabled={isDisabled}
+                      title={title}
+                      className={`en-day-btn${isSelected ? ' selected' : ''}${isMaxed ? ' maxed' : ''}${isUnavailable ? ' unavailable' : ''}`}
                     >
                       {name}
                     </button>
@@ -613,7 +650,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
               </div>
               {selectedWeekdays.length > 0 && (
                 <div className="en-selected-days">
-                  Selected: {[...selectedWeekdays].sort().map(wd => DAY_NAMES[wd]).join(', ')}
+                  Selected: {[...selectedWeekdays].sort().map((wd) => DAY_NAMES[wd]).join(', ')}
                 </div>
               )}
             </div>
@@ -626,7 +663,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
                   Pick a time slot that will apply to <strong>all</strong> your selected day(s).
                 </p>
 
-                {/* Loading state for availability */}
                 {availLoading && (
                   <div className="en-empty-state" style={{ padding: '20px 10px' }}>
                     <div style={{ marginBottom: 8 }}>⏳</div>
@@ -634,7 +670,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
                   </div>
                 )}
 
-                {/* Error state */}
                 {availError && !availLoading && (
                   <div className="en-empty-state" style={{ padding: '20px 10px' }}>
                     <div style={{ marginBottom: 8, fontSize: '1.2rem' }}>⚠️</div>
@@ -644,7 +679,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
                   </div>
                 )}
 
-                {/* Empty state — instructor has no available slots */}
                 {!availLoading && !availError && availability.length === 0 && (
                   <div className="en-empty-state" style={{ padding: '20px 10px' }}>
                     <div style={{ marginBottom: 8, fontSize: '1.2rem' }}>📭</div>
@@ -654,11 +688,10 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
                   </div>
                 )}
 
-                {/* Available time slots — filtered by selected day(s) */}
                 {!availLoading && !availError && availability.length > 0 && (
                   <div className="en-time-grid">
                     {availability
-                      .filter(slot => selectedWeekdays.some(wd => DAY_SHORT[wd] === slot.day_of_week))
+                      .filter((slot) => selectedWeekdays.some((wd) => DAY_SHORT[wd] === slot.day_of_week))
                       .map((slot) => {
                         const startStr = slot.label.split(' – ')[0]
                         const isSelected = selectedTimeSlot?.start === startStr
@@ -667,7 +700,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
                             key={`${slot.day_of_week}|${startStr}`}
                             type="button"
                             className={`en-time-slot${isSelected ? ' selected' : ''}`}
-                            onClick={() => selectTimeSlot(startStr, slot.label.split(' – ')[1])}
+                            onClick={() => selectTimeSlot(startStr, slot.label.split(' – ')[1], slot.time_slot_id)}
                           >
                             {slot.label}
                           </button>
@@ -683,7 +716,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
               <div className="en-schedule-summary">
                 <div className="en-schedule-summary-title">📅 Your Recurring Schedule</div>
                 <div className="en-schedule-summary-line">
-                  Every {[...selectedWeekdays].sort().map(wd => DAY_NAMES[wd]).join(', ')} — {selectedTimeSlot.label}
+                  Every {[...selectedWeekdays].sort().map((wd) => DAY_NAMES[wd]).join(', ')} — {selectedTimeSlot.label}
                 </div>
                 {computedStartDate && computedEndDate && (
                   <div className="en-schedule-summary-dates">
@@ -794,12 +827,12 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
                   <span className="en-summary-value">{form.email || '—'}</span>
                 </div>
                 <div className="en-summary-row">
-                  <span className="en-summary-label">Package</span>
-                  <span className="en-summary-value">{lesson ? lesson.name : '—'}</span>
+                  <span className="en-summary-label">Lesson</span>
+                  <span className="en-summary-value">{selectedLesson?.lesson_name || '—'}</span>
                 </div>
                 <div className="en-summary-row">
-                  <span className="en-summary-label">Category</span>
-                  <span className="en-summary-value">{lesson ? lesson.category : '—'}</span>
+                  <span className="en-summary-label">Package</span>
+                  <span className="en-summary-value">{selectedPackageType?.package_type_name || '—'}</span>
                 </div>
                 <div className="en-summary-row">
                   <span className="en-summary-label">Instructor</span>
@@ -807,11 +840,11 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
                 </div>
                 <div className="en-summary-row">
                   <span className="en-summary-label">Package Sessions</span>
-                  <span className="en-summary-value">{lesson ? requiredSlots : '—'}</span>
+                  <span className="en-summary-value">{requiredSlots}</span>
                 </div>
                 <div className="en-summary-row">
                   <span className="en-summary-label">Frequency</span>
-                  <span className="en-summary-value">{lesson ? getFrequencyLabel(sessionsPerWeek) : '—'}</span>
+                  <span className="en-summary-value">{getFrequencyLabel(sessionsPerWeek)}</span>
                 </div>
                 <div className="en-summary-row">
                   <span className="en-summary-label">Recurring Schedule</span>
@@ -820,13 +853,13 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
                 <div className="en-summary-row en-summary-total">
                   <span className="en-summary-label" style={{ fontSize: 15, fontWeight: 700 }}>Package Price</span>
                   <span className="en-summary-value en-price">
-                    {lesson && totalAmount > 0 ? `₱${totalAmount.toLocaleString()}` : 'Price TBD'}
+                    {totalAmount > 0 ? `₱${totalAmount.toLocaleString()}` : 'Price TBD'}
                   </span>
                 </div>
                 <div className="en-summary-row">
                   <span className="en-summary-label">Full Payment Required</span>
                   <span className="en-summary-value en-price-sub">
-                    {lesson && totalAmount > 0 ? `₱${totalAmount.toLocaleString()}` : 'Price TBD'}
+                    {totalAmount > 0 ? `₱${totalAmount.toLocaleString()}` : 'Price TBD'}
                   </span>
                 </div>
               </div>
@@ -870,6 +903,13 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
                 </div>
               </div>
             </div>
+
+            {submitError && (
+              <div className="en-info-banner" style={{ background: 'rgba(248,113,113,0.1)', borderColor: 'rgba(248,113,113,0.3)', color: '#DC2626' }}>
+                <span aria-hidden>❌</span>
+                <span><strong>Submission failed:</strong> {submitError}</span>
+              </div>
+            )}
 
             <div className="en-info-banner en-warning-banner">
               <span aria-hidden>⚠️</span>
@@ -949,7 +989,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
           transition: opacity 0.25s ease, visibility 0.25s ease;
         }
         .en-modal-overlay { opacity: 1; visibility: visible; }
-
         .en-modal-box {
           position: relative;
           width: 90vw; max-width: 960px;
@@ -964,8 +1003,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
           transition: transform 0.25s ease-out, opacity 0.25s ease-out;
         }
         .en-modal-overlay .en-modal-box { transform: translateY(0) scale(1); opacity: 1; }
-
-        /* Scrollable body area inside the modal */
         .en-modal-body {
           flex: 1; overflow-y: auto;
           padding-right: 4px;
@@ -974,7 +1011,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
         .en-modal-body::-webkit-scrollbar { width: 5px; }
         .en-modal-body::-webkit-scrollbar-track { background: transparent; }
         .en-modal-body::-webkit-scrollbar-thumb { background: rgba(30,41,59,0.15); border-radius: 10px; }
-
         .en-modal-box::before {
           content: '';
           position: absolute;
@@ -984,7 +1020,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
           background: radial-gradient(circle, rgba(96,165,250,0.20), transparent 70%);
           z-index: 0; pointer-events: none;
         }
-
         .en-modal-close {
           position: absolute; top: 1.2rem; right: 1.2rem;
           width: 32px; height: 32px; border-radius: 50%;
@@ -994,8 +1029,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
           transition: background 0.2s ease, transform 0.2s ease; z-index: 5;
         }
         .en-modal-close:hover { background: rgba(37,99,235,0.12); color: var(--royal); transform: rotate(90deg); }
-
-        /* ── Step Indicator Bar (sticky at top) ── */
         .en-step-bar {
           display: flex; align-items: center; gap: 0;
           padding: 0 0 16px; margin-bottom: 16px;
@@ -1028,8 +1061,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
           background: rgba(30,41,59,0.1);
         }
         .en-si.done + .en-step-sep { background: var(--royal); }
-
-        /* ── Step Content ── */
         .en-step-content {
           position: relative; z-index: 1;
           animation: enStepFadeIn 0.2s ease-out;
@@ -1048,8 +1079,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
           font-size: 0.9rem; line-height: 1.6;
           color: var(--text); margin-bottom: 20px;
         }
-
-        /* ── Card Grid ── */
         .en-card-grid {
           display: grid; grid-template-columns: 1fr 1fr;
           gap: 12px; margin-bottom: 20px;
@@ -1078,7 +1107,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
         .en-card-meta { font-size: 0.75rem; color: var(--text); }
         .en-card-price { font-size: 0.95rem; font-weight: 700; color: var(--royal); margin-top: 6px; }
         .en-card-desc { font-size: 0.75rem; color: var(--text); margin-top: 6px; line-height: 1.5; }
-
         .en-back-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
         .en-badge-group {
           font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px;
@@ -1088,8 +1116,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
           text-align: center; padding: 40px 20px;
           color: var(--text); font-size: 0.9rem; font-style: italic;
         }
-
-        /* ── Buttons ── */
         .en-actions {
           display: flex; justify-content: space-between; gap: 12px;
           padding-top: 16px; border-top: 1px solid rgba(30,41,59,0.08);
@@ -1115,8 +1141,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
         .en-btn-secondary:hover { border-color: var(--royal); color: var(--royal); background: rgba(37,99,235,0.06); }
         .en-btn-submit { background: var(--teal, #0f766e); }
         .en-btn-submit:hover:not(:disabled) { background: var(--teal, #0f766e); filter: brightness(1.1); }
-
-        /* ── Schedule Step ── */
         .en-schedule-header { margin-bottom: 12px; }
         .en-schedule-badge {
           font-size: 0.7rem; font-weight: 700; letter-spacing: 1px;
@@ -1137,6 +1161,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
         .en-day-btn:hover { border-color: var(--royal); }
         .en-day-btn.selected { border-color: var(--royal); background: rgba(37,99,235,0.1); color: var(--royal); font-weight: 700; }
         .en-day-btn.maxed { opacity: 0.4; cursor: not-allowed; }
+        .en-day-btn.unavailable { opacity: 0.25; cursor: not-allowed; background: rgba(30,41,59,0.03); border-style: dashed; }
         .en-selected-days { margin-top: 8px; font-size: 0.8rem; font-weight: 600; color: var(--royal); }
         .en-time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         @media (min-width: 500px) { .en-time-grid { grid-template-columns: 1fr 1fr 1fr; } }
@@ -1154,8 +1179,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
         .en-schedule-summary-title { font-size: 0.8rem; font-weight: 700; color: var(--royal); margin-bottom: 6px; }
         .en-schedule-summary-line { font-size: 0.85rem; font-weight: 600; color: var(--navy); }
         .en-schedule-summary-dates { font-size: 0.78rem; color: var(--text); margin-top: 4px; }
-
-        /* ── Info Banner ── */
         .en-info-banner {
           display: flex; align-items: flex-start; gap: 10px;
           background: rgba(37,99,235,0.06); border: 1px solid rgba(37,99,235,0.2);
@@ -1163,8 +1186,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
           font-size: 0.82rem; line-height: 1.65; color: var(--text);
         }
         .en-warning-banner { background: rgba(255,107,107,0.07); border-color: rgba(255,107,107,0.3); color: var(--coral, #DC2626); }
-
-        /* ── Form ── */
         .en-form-grid {
           display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
           margin-bottom: 20px;
@@ -1185,8 +1206,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
         .en-fg textarea { resize: vertical; min-height: 44px; }
         .en-field-error { display: block; font-size: 0.7rem; color: var(--coral, #DC2626); margin-top: 4px; }
         .en-field-hint { display: block; font-size: 0.7rem; color: var(--text); margin-top: 2px; opacity: 0.7; }
-
-        /* ── Summary Card ── */
         .en-summary-card {
           border: 1px solid rgba(30,41,59,0.1); border-radius: 14px;
           margin-bottom: 16px; overflow: hidden;
@@ -1209,8 +1228,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
         .en-price { color: var(--purple); font-size: 1.1rem; }
         .en-price-sub { color: var(--royal); }
         .en-schedule-pre { white-space: pre-line; line-height: 1.7; font-size: 0.75rem; }
-
-        /* ── Payment Info ── */
         .en-payment-info {
           background: rgba(37,99,235,0.06); border: 1px solid rgba(37,99,235,0.2);
           border-radius: 12px; padding: 16px 20px; margin-bottom: 16px;
@@ -1223,8 +1240,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
           font-size: 0.78rem; color: var(--text);
         }
         .en-pay-acct strong { color: var(--navy); min-width: 100px; }
-
-        /* ── Done / Confirmation ── */
         .en-done-step { text-align: center; padding: 40px 20px; }
         .en-done-icon {
           font-size: 3.5rem; margin-bottom: 16px;
@@ -1249,8 +1264,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
           padding: 4px 12px; border-radius: 20px; letter-spacing: 1px;
           text-transform: uppercase; white-space: nowrap;
         }
-
-        /* ── Mobile Full-Screen ── */
         @media (max-width: 600px) {
           .en-modal-box {
             width: 100vw; height: 100vh;
@@ -1259,8 +1272,6 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
           }
           .en-modal-overlay { padding: 0; }
         }
-
-        /* ── Scrollbar ── */
         .en-modal-box::-webkit-scrollbar { width: 5px; }
         .en-modal-box::-webkit-scrollbar-track { background: transparent; }
         .en-modal-box::-webkit-scrollbar-thumb { background: rgba(30,41,59,0.15); border-radius: 10px; }
