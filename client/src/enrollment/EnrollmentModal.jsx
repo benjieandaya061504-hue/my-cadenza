@@ -72,9 +72,22 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
     }
   }, [isOpen])
 
-  // Reset state on open
+  // Reset state on open (or pre-fill email for logged-in clients)
   useEffect(() => {
     if (isOpen) {
+      const userData = localStorage.getItem('cadenza_user')
+      let prefillEmail = ''
+      if (userData) {
+        try {
+          const user = JSON.parse(userData)
+          if (user.role === 'client' && user.email) {
+            prefillEmail = user.email
+          }
+        } catch (e) {
+          // ignore parse errors
+        }
+      }
+
       setStep(1)
       setSelectedLesson(null)
       setSelectedPackageType(null)
@@ -82,7 +95,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
       setSelectedWeekdays([])
       setSelectedTimeSlot(null)
       setForm({
-        fname: '', lname: '', email: '', phone: '', age: '',
+        fname: '', lname: '', email: prefillEmail, phone: '', age: '',
         level: '', notes: '', refnum: '', paymethod: '', address: '', emergency: '', guardianName: '',
       })
       setErrors({})
@@ -307,6 +320,14 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
         paymethod: form.paymethod,
         refnum: form.refnum,
         amount: totalAmount,
+        users_id: (() => {
+          try {
+            const u = JSON.parse(localStorage.getItem('cadenza_user') || 'null')
+            return u?.role === 'client' && u?.id ? u.id : undefined
+          } catch (e) {
+            return undefined
+          }
+        })(),
       }
 
       const res = await fetch(`${API_BASE}/api/public/enrollments`, {
@@ -760,7 +781,7 @@ export default function EnrollmentModal({ isOpen, onClose, initialPackage }) {
               </div>
               <div className="en-fg">
                 <label>Gmail Address <span className="en-required">*</span></label>
-                <input type="email" value={form.email} onChange={(e) => handleFieldChange('email', e.target.value)} onBlur={() => handleFieldBlur('email')} placeholder="yourname@gmail.com" style={inputStyle('email')} />
+                <input type="email" value={form.email} onChange={(e) => handleFieldChange('email', e.target.value)} onBlur={() => handleFieldBlur('email')} placeholder="yourname@gmail.com" style={inputStyle('email')} readOnly={!!form.email} />
                 {touched.email && errors.email && <span className="en-field-error">{errors.email}</span>}
                 <span className="en-field-hint">Confirmation and updates will be sent here</span>
               </div>

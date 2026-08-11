@@ -15,6 +15,13 @@ const roleConfig = {
     eyebrow: 'Staff Access',
     badge: '🎧',
     placeholder: 'e.g. frontdesk@cadenzamusic.com'
+  },
+  client: {
+    title: 'Client Login',
+    sub: 'Sign in to enroll in programs, book studios, and manage your lessons.',
+    eyebrow: 'Student Access',
+    badge: '🎵',
+    placeholder: 'e.g. student@example.com'
   }
 }
 
@@ -39,6 +46,16 @@ function LandingPage() {
   const [forgotShake, setForgotShake] = useState(false)
   const [serverOnline, setServerOnline] = useState(false)
   const [serverChecking, setServerChecking] = useState(true)
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return localStorage.getItem('cadenza_user') !== null
+  })
+  const pendingAction = useRef(null)
+  const [authMode, setAuthMode] = useState('login') // 'login' | 'signup' — only for client role
+  // Sign-up fields (client only)
+  const [signupFname, setSignupFname] = useState('')
+  const [signupLname, setSignupLname] = useState('')
+  const [signupConfirmPass, setSignupConfirmPass] = useState('')
+  const [signupConfirmPassError, setSignupConfirmPassError] = useState('')
   const forgotRef = useRef(null)
   const emailRef = useRef(null)
 
@@ -102,6 +119,12 @@ function LandingPage() {
     setPassError('')
     setStatus({ text: '', type: '' })
     setLoading(false)
+    // Reset sign-up fields
+    setSignupFname('')
+    setSignupLname('')
+    setSignupConfirmPass('')
+    setSignupConfirmPassError('')
+    setAuthMode('login')
     setModalOpen(true)
   }
 
@@ -112,6 +135,88 @@ function LandingPage() {
   function openEnroll(pkg) {
     setEnrollInitialPackage(pkg || null)
     setEnrollOpen(true)
+  }
+
+  function requireAuth(type, pkg) {
+    if (isLoggedIn) {
+      openEnroll(pkg)
+    } else {
+      pendingAction.current = { type, package: pkg || null }
+      openLogin('client')
+      setAuthMode('login')
+    }
+  }
+
+  function handleClientLogout() {
+    localStorage.removeItem('cadenza_token')
+    localStorage.removeItem('cadenza_user')
+    setIsLoggedIn(false)
+  }
+
+  function handleClientAuth() {
+    setLoading(true)
+    setSignupConfirmPassError('')
+
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+    const endpoint = authMode === 'signup'
+      ? `${API_BASE}/api/auth/client-register`
+      : `${API_BASE}/api/auth/login`
+
+    const body = authMode === 'signup'
+      ? { email: email.trim(), password, confirmPassword: signupConfirmPass, fname: signupFname.trim(), lname: signupLname.trim() }
+      : { email: email.trim(), password }
+
+    fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then(res => res.json())
+      .then(data => {
+        setLoading(false)
+        if (data.success) {
+          // Store token and user in localStorage
+          if (data.token) {
+            localStorage.setItem('cadenza_token', data.token)
+          }
+          const userToStore = data.user
+          localStorage.setItem('cadenza_user', JSON.stringify(userToStore))
+          setIsLoggedIn(true)
+
+          setStatus({
+            text: data.message,
+            type: 'success',
+          })
+
+          setTimeout(() => {
+            closeLogin()
+            const action = pendingAction.current
+            if (action) {
+              pendingAction.current = null
+              if (action.type === 'enroll') {
+                openEnroll(action.package)
+              }
+            }
+          }, 1400)
+        } else {
+          setStatus({
+            text: data.message || 'Authentication failed.',
+            type: 'error',
+          })
+          setShake(true)
+          setTimeout(() => setShake(false), 400)
+        }
+      })
+      .catch(err => {
+        setLoading(false)
+        setStatus({
+          text: 'Could not connect to server. Please make sure the server is running.',
+          type: 'error',
+        })
+        setShake(true)
+        setTimeout(() => setShake(false), 400)
+        console.error('Client auth error:', err)
+      })
   }
 
   function handleOverlayClick(e) {
@@ -146,6 +251,33 @@ function LandingPage() {
     if (!valid) {
       setShake(true)
       setTimeout(() => setShake(false), 400)
+      return
+    }
+
+    // ── Client auth (no admin-username shortcut — clients must use a real email) ──
+    if (currentRole === 'client') {
+      if (!email.trim() || !/\S+@\S+\.\S+/.test(email.trim())) {
+        setEmailError('Please enter a valid email address.')
+        setPassError('')
+        setShake(true)
+        setTimeout(() => setShake(false), 400)
+        setLoading(false)
+        return
+      }
+
+      // Validate sign-up confirm password
+      if (authMode === 'signup') {
+        if (!signupFname.trim() || !signupLname.trim()) {
+          setEmailError('')
+          setPassError('')
+          setShake(true)
+          setTimeout(() => setShake(false), 400)
+          setLoading(false)
+          return
+        }
+      }
+
+      handleClientAuth()
       return
     }
 
@@ -270,6 +402,16 @@ function LandingPage() {
     }, 1200)
   }
 
+  const loggedInUser = (() => {
+    try {
+      const u = localStorage.getItem('cadenza_user')
+      return u ? JSON.parse(u) : null
+    } catch {
+      return null
+    }
+  })()
+  const loggedInUserLabel = loggedInUser?.name || loggedInUser?.email || ''
+
   const cfg = roleConfig[currentRole]
 
   return (
@@ -285,7 +427,7 @@ function LandingPage() {
           <ul>
             <li><a href="#home" className="active">Home</a></li>
             <li><a href="#registration">Registration</a></li>
-            <li><a href="#enroll" onClick={(e) => { e.preventDefault(); openEnroll() }}>Enroll</a></li>
+            <li><a href="#enroll" onClick={(e) => { e.preventDefault(); requireAuth('enroll') }}>Enroll</a></li>
             <li><a href="#rental">Instrument Rental</a></li>
             <li><a href="#studio">Studio Booking</a></li>
             <li><a href="#app">Download App</a></li>
@@ -296,8 +438,17 @@ function LandingPage() {
             <span className="status-dot"></span>
             <span className="status-text">{serverChecking ? 'Checking...' : serverOnline ? 'Online' : 'Offline'}</span>
           </div>
-          <a href="#" className="btn-login" onClick={(e) => { e.preventDefault(); openLogin('frontdesk') }}>Frontdesk <span className="full">Login</span></a>
-          <a href="#" className="btn-login admin" onClick={(e) => { e.preventDefault(); openLogin('admin') }}>Admin <span className="full">Login</span></a>
+          {isLoggedIn ? (
+            <div className="logged-in-badge">
+              <span className="logged-in-user">👤 {loggedInUserLabel}</span>
+              <button type="button" className="btn-logout" onClick={handleClientLogout}>Logout</button>
+            </div>
+          ) : (
+            <>
+              <a href="#" className="btn-login" onClick={(e) => { e.preventDefault(); openLogin('frontdesk') }}>Frontdesk <span className="full">Login</span></a>
+              <a href="#" className="btn-login admin" onClick={(e) => { e.preventDefault(); openLogin('admin') }}>Admin <span className="full">Login</span></a>
+            </>
+          )}
         </div>
         <button className="nav-toggle" aria-label="Menu">☰</button>
       </header>
@@ -322,7 +473,7 @@ function LandingPage() {
           <p className="subtitle">"Lessons • Performances • Creativity for Every Age"</p>
           <p className="desc">Cadenza Music Center offers professional music education, individualized instrument training, ensemble programs, and performance opportunities for students of every age and level — guided by a faculty devoted to musicianship and craft.</p>
           <div className="hero-cta">
-            <a href="#registration" className="btn-primary" onClick={(e) => { e.preventDefault(); openEnroll() }}>Enroll Today</a>
+            <a href="#registration" className="btn-primary" onClick={(e) => { e.preventDefault(); requireAuth('enroll') }}>Enroll Today</a>
             <a href="#enroll" className="btn-outline">View Classes</a>
           </div>
         </div>
@@ -397,37 +548,37 @@ function LandingPage() {
               <div className="program-icon">🎹</div>
               <h3>Piano & Keyboard</h3>
               <p>Classical foundations through contemporary improvisation, taught in private and duet formats.</p>
-              <a href="#enroll" onClick={(e) => { e.preventDefault(); openEnroll('piano-keyboard') }}>Enroll now</a>
+              <a href="#enroll" onClick={(e) => { e.preventDefault(); requireAuth('enroll', 'piano-keyboard') }}>Enroll now</a>
             </div>
             <div className="program-card">
               <div className="program-icon">🎸</div>
               <h3>Guitar & Bass</h3>
               <p>Acoustic, electric, and bass technique with rhythm, theory, and songwriting built in.</p>
-              <a href="#enroll" onClick={(e) => { e.preventDefault(); openEnroll('guitar-bass') }}>Enroll now</a>
+              <a href="#enroll" onClick={(e) => { e.preventDefault(); requireAuth('enroll', 'guitar-bass') }}>Enroll now</a>
             </div>
             <div className="program-card">
               <div className="program-icon">🎤</div>
               <h3>Voice & Performance</h3>
               <p>Vocal technique, breath control, and stage presence for solo and ensemble singers.</p>
-              <a href="#enroll" onClick={(e) => { e.preventDefault(); openEnroll('voice-performance') }}>Enroll now</a>
+              <a href="#enroll" onClick={(e) => { e.preventDefault(); requireAuth('enroll', 'voice-performance') }}>Enroll now</a>
             </div>
             <div className="program-card">
               <div className="program-icon">🎻</div>
               <h3>Strings</h3>
               <p>Violin, viola, and cello instruction from beginner posture to chamber ensemble repertoire.</p>
-              <a href="#enroll" onClick={(e) => { e.preventDefault(); openEnroll('strings') }}>Enroll now</a>
+              <a href="#enroll" onClick={(e) => { e.preventDefault(); requireAuth('enroll', 'strings') }}>Enroll now</a>
             </div>
             <div className="program-card">
               <div className="program-icon">🥁</div>
               <h3>Percussion</h3>
               <p>Drum kit, rudiments, and rhythm section training for band and ensemble players.</p>
-              <a href="#enroll" onClick={(e) => { e.preventDefault(); openEnroll('percussion') }}>Enroll now</a>
+              <a href="#enroll" onClick={(e) => { e.preventDefault(); requireAuth('enroll', 'percussion') }}>Enroll now</a>
             </div>
             <div className="program-card">
               <div className="program-icon">🎼</div>
               <h3>Ensemble & Theory</h3>
               <p>Group performance, music theory, and composition for students ready to play together.</p>
-              <a href="#enroll" onClick={(e) => { e.preventDefault(); openEnroll('ensemble-theory') }}>Enroll now</a>
+              <a href="#enroll" onClick={(e) => { e.preventDefault(); requireAuth('enroll', 'ensemble-theory') }}>Enroll now</a>
             </div>
           </div>
         </div>
@@ -547,7 +698,66 @@ function LandingPage() {
           <h2 id="modalTitle">{cfg.title}</h2>
           <p className="modal-sub">{cfg.sub}</p>
 
+          {/* ── Log In / Sign Up toggle (client only) ── */}
+          {currentRole === 'client' && (
+            <div className="modal-auth-toggle">
+              <button
+                type="button"
+                className={`modal-auth-tab${authMode === 'login' ? ' active' : ''}`}
+                onClick={() => {
+                  setAuthMode('login')
+                  setEmailError('')
+                  setPassError('')
+                  setSignupConfirmPassError('')
+                  setStatus({ text: '', type: '' })
+                }}
+              >
+                Log In
+              </button>
+              <button
+                type="button"
+                className={`modal-auth-tab${authMode === 'signup' ? ' active' : ''}`}
+                onClick={() => {
+                  setAuthMode('signup')
+                  setEmailError('')
+                  setPassError('')
+                  setSignupConfirmPassError('')
+                  setStatus({ text: '', type: '' })
+                }}
+              >
+                Sign Up
+              </button>
+            </div>
+          )}
+
           <form className="modal-form" onSubmit={handleSubmit} noValidate>
+
+            {/* ── Sign-up fields (client only) ── */}
+            {currentRole === 'client' && authMode === 'signup' && (
+              <>
+                <div className="field-group">
+                  <label htmlFor="signupFname">First Name</label>
+                  <input
+                    type="text"
+                    id="signupFname"
+                    placeholder="e.g. Juan"
+                    value={signupFname}
+                    onChange={(e) => setSignupFname(e.target.value)}
+                  />
+                </div>
+                <div className="field-group">
+                  <label htmlFor="signupLname">Last Name</label>
+                  <input
+                    type="text"
+                    id="signupLname"
+                    placeholder="e.g. dela Cruz"
+                    value={signupLname}
+                    onChange={(e) => setSignupLname(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+
             <div className="field-group">
               <label htmlFor="loginEmail">Email Address</label>
               <input
@@ -569,7 +779,7 @@ function LandingPage() {
                 type="password"
                 id="loginPass"
                 name="password"
-                autoComplete="current-password"
+                autoComplete={currentRole === 'client' && authMode === 'signup' ? 'new-password' : 'current-password'}
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -577,25 +787,51 @@ function LandingPage() {
               <div className={`field-error${passError ? ' show' : ''}`}>{passError || 'Password must be at least 6 characters.'}</div>
             </div>
 
-            <div className="modal-row-between">
-              <label className="modal-remember">
-                <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} style={{ width: 'auto' }} />
-                Remember me
-              </label>
-              <a href="#" className="modal-forgot" onClick={openForgot}>Forgot password?</a>
-            </div>
+            {/* ── Confirm Password (sign-up only) ── */}
+            {currentRole === 'client' && authMode === 'signup' && (
+              <div className="field-group">
+                <label htmlFor="signupConfirmPass">Confirm Password</label>
+                <input
+                  type="password"
+                  id="signupConfirmPass"
+                  autoComplete="new-password"
+                  placeholder="Re-enter your password"
+                  value={signupConfirmPass}
+                  onChange={(e) => setSignupConfirmPass(e.target.value)}
+                />
+                <div className={`field-error${signupConfirmPassError ? ' show' : ''}`}>{signupConfirmPassError || 'Passwords must match.'}</div>
+              </div>
+            )}
 
-            <div className={`modal-server-offline${!serverChecking && !serverOnline ? ' show' : ''}`}>
-              <span>⚠️</span> Server is offline. Please start the backend server.
-            </div>
+            {currentRole !== 'client' && (
+              <div className="modal-row-between">
+                <label className="modal-remember">
+                  <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} style={{ width: 'auto' }} />
+                  Remember me
+                </label>
+                <a href="#" className="modal-forgot" onClick={openForgot}>Forgot password?</a>
+              </div>
+            )}
+
+            {currentRole !== 'client' && (
+              <div className={`modal-server-offline${!serverChecking && !serverOnline ? ' show' : ''}`}>
+                <span>⚠️</span> Server is offline. Please start the backend server.
+              </div>
+            )}
 
             <div className={`modal-status${status.text ? ' show' : ''}${status.type === 'error' ? ' error' : ''}${status.type === 'success' ? ' success' : ''}`}>
               {status.text}
             </div>
 
-            <button type="submit" className={`modal-submit${loading ? ' loading' : ''}`} disabled={loading || (!serverChecking && !serverOnline)}>
+            <button type="submit" className={`modal-submit${loading ? ' loading' : ''}`} disabled={loading || (currentRole !== 'client' && !serverChecking && !serverOnline)}>
               <span className="spinner"></span>
-              <span className="btn-label">{!serverChecking && !serverOnline ? 'Server Offline' : 'Sign In'}</span>
+              <span className="btn-label">
+                {currentRole !== 'client' && !serverChecking && !serverOnline
+                  ? 'Server Offline'
+                  : currentRole === 'client' && authMode === 'signup'
+                    ? 'Create Account'
+                    : 'Sign In'}
+              </span>
             </button>
           </form>
         </div>
@@ -766,6 +1002,31 @@ function LandingPage() {
           color:#fff;
           transform:translateY(-1px);
           box-shadow:0 10px 22px rgba(37,99,235,0.32);
+        }
+
+        .logged-in-badge{
+          display:flex; align-items:center; gap:0.7rem;
+        }
+        .logged-in-user{
+          font-size:0.75rem; font-weight:600; color:var(--navy);
+          white-space:nowrap;
+        }
+        .btn-logout{
+          padding:0.45rem 1rem;
+          border-radius:999px;
+          font-size:0.65rem;
+          font-weight:700;
+          letter-spacing:1px;
+          text-transform:uppercase;
+          border:1.5px solid rgba(220,38,38,0.3);
+          color:#DC2626;
+          background:transparent;
+          white-space:nowrap;
+          transition:all 0.25s ease;
+        }
+        .btn-logout:hover{
+          border-color:#DC2626;
+          background:rgba(220,38,38,0.06);
         }
         @media (max-width: 980px){
           .header-actions{gap:0.5rem;}
@@ -1161,6 +1422,23 @@ function LandingPage() {
           max-height:60px;
           opacity:1;
         }
+
+        /* ── Auth Toggle (client) ── */
+        .modal-auth-toggle{
+          display:flex; gap:0; margin-bottom:1.5rem; position:relative; z-index:1;
+          border-radius:12px; background:rgba(30,41,59,0.06); padding:3px; overflow:hidden;
+        }
+        .modal-auth-tab{
+          flex:1; padding:0.55rem 0.5rem; border-radius:10px; border:none;
+          font-family:'Inter', sans-serif; font-size:0.78rem; font-weight:600; letter-spacing:0.5px;
+          text-transform:uppercase; color:var(--text); opacity:0.7;
+          background:transparent; cursor:pointer; transition:all 0.25s ease;
+        }
+        .modal-auth-tab.active{
+          background:#fff; color:var(--royal); opacity:1;
+          box-shadow:0 2px 8px rgba(30,41,59,0.10);
+        }
+        .modal-auth-tab:hover:not(.active){opacity:1; color:var(--navy);}
 
         .modal-shake{animation:shake 0.4s ease;}
         @keyframes shake{

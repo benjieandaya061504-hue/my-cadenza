@@ -280,6 +280,7 @@ router.post('/enrollments', async (req, res) => {
       lesson_id, package_type_id, instructor_id,
       selectedWeekdays, time_slot_id,
       paymethod, refnum, amount,
+      users_id,
     } = req.body
 
     // ── Validation ──
@@ -328,21 +329,75 @@ router.post('/enrollments', async (req, res) => {
     const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
     const dayNames = selectedWeekdays.map((wd) => DAY_SHORT[parseInt(wd)])
 
+    // ── If users_id provided, verify it exists ──
+    if (users_id) {
+      const userExists = await prisma.users.findUnique({
+        where: { id: parseInt(users_id) },
+      })
+      if (!userExists) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid user reference.',
+        })
+      }
+    }
+
     // ── Transaction: all-or-nothing (30s timeout) ──
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Create client
-      const client = await tx.clients.create({
-        data: {
-          f_name: fname,
-          l_name: lname,
-          email,
-          phone,
-          address,
-          age: age ? parseInt(age) : null,
-          level: level || null,
-          notes: notes || null,
-        },
-      })
+      // 1. Create or update client
+      let client
+      if (users_id) {
+        // Logged-in client — look up existing clients row
+        const existingClient = await tx.clients.findFirst({
+          where: { users_id: parseInt(users_id) },
+        })
+        if (existingClient) {
+          // Update existing row with enrollment form data
+          client = await tx.clients.update({
+            where: { id: existingClient.id },
+            data: {
+              f_name: fname,
+              l_name: lname,
+              email,
+              phone,
+              address,
+              age: age ? parseInt(age) : null,
+              level: level || null,
+              notes: notes || null,
+            },
+          })
+        } else {
+          // users_id provided but no clients row yet (graceful fallback)
+          client = await tx.clients.create({
+            data: {
+              f_name: fname,
+              l_name: lname,
+              email,
+              phone,
+              address,
+              age: age ? parseInt(age) : null,
+              level: level || null,
+              notes: notes || null,
+              users_id: parseInt(users_id),
+            },
+          })
+        }
+      } else {
+        // Guest enrollment — create fresh clients row (unchanged)
+        client = await tx.clients.create({
+          data: {
+            f_name: fname,
+            l_name: lname,
+            email,
+            phone,
+            address,
+            age: age ? parseInt(age) : null,
+            level: level || null,
+            notes: notes || null,
+            users_id: null,
+          },
+        })
+      }
 
       // 2. Create student (guest — no users_id)
       const student = await tx.students.create({
