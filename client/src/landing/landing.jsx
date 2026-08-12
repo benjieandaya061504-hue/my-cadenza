@@ -1212,6 +1212,7 @@ function LandingPage() {
           position:relative;
           width:100%;
           max-width:400px;
+          max-height:90vh;
           background:var(--white);
           border-radius:28px;
           box-shadow:0 40px 80px -20px rgba(15,23,42,0.45);
@@ -1220,6 +1221,8 @@ function LandingPage() {
           opacity:0;
           transition:transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.32s ease;
           overflow:hidden;
+          display:flex;
+          flex-direction:column;
         }
         .modal-overlay.active .modal-box{
           transform:translateY(0) scale(1);
@@ -1301,6 +1304,11 @@ function LandingPage() {
         .modal-form{
           display:flex; flex-direction:column; gap:1.1rem;
           position:relative; z-index:1;
+          overflow-y:auto;
+          flex:1;
+          min-height:0;
+          padding-right:0.4rem;
+          scrollbar-width:thin;
         }
 
         .field-group{display:flex; flex-direction:column; gap:0.45rem;}
@@ -1427,6 +1435,7 @@ function LandingPage() {
         .modal-auth-toggle{
           display:flex; gap:0; margin-bottom:1.5rem; position:relative; z-index:1;
           border-radius:12px; background:rgba(30,41,59,0.06); padding:3px; overflow:hidden;
+          flex-shrink:0;
         }
         .modal-auth-tab{
           flex:1; padding:0.55rem 0.5rem; border-radius:10px; border:none;
