@@ -339,6 +339,92 @@ router.delete('/lessons/:id', verifyToken, checkRole(['admin']), async (req, res
   }
 })
 
+// ==================== ROOM ROUTES ====================
+
+// GET /api/admin/rooms - Get all rooms (Admin only)
+router.get('/rooms', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const rooms = await prisma.band_rooms.findMany({
+      orderBy: { id: 'desc' },
+    })
+
+    res.json({
+      success: true,
+      data: rooms,
+    })
+  } catch (error) {
+    console.error('Error fetching rooms:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching rooms.',
+    })
+  }
+})
+
+// POST /api/admin/rooms - Create a new room (Admin only)
+router.post('/rooms', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { room_name, hourly_rate, status } = req.body
+
+    // Validate required fields
+    if (!room_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Room name is required.',
+      })
+    }
+
+    const newRoom = await prisma.band_rooms.create({
+      data: {
+        room_name,
+        hourly_rate: hourly_rate ? parseFloat(hourly_rate) : null,
+        status: status || 'Active',
+      },
+    })
+
+    res.status(201).json({
+      success: true,
+      message: 'Room created successfully.',
+      data: newRoom,
+    })
+  } catch (error) {
+    console.error('Error creating room:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error creating room.',
+    })
+  }
+})
+
+// PUT /api/admin/rooms/:id - Update a room (Admin only)
+router.put('/rooms/:id', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params
+    const { room_name, hourly_rate, status } = req.body
+
+    const updatedRoom = await prisma.band_rooms.update({
+      where: { id: parseInt(id) },
+      data: {
+        ...(room_name !== undefined && { room_name }),
+        ...(hourly_rate !== undefined && { hourly_rate: hourly_rate ? parseFloat(hourly_rate) : null }),
+        ...(status !== undefined && { status }),
+      },
+    })
+
+    res.json({
+      success: true,
+      message: 'Room updated successfully.',
+      data: updatedRoom,
+    })
+  } catch (error) {
+    console.error('Error updating room:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error updating room.',
+    })
+  }
+})
+
 // ==================== INSTRUMENT ROUTES ====================
 
 // GET /api/admin/instruments - Get all instruments (Admin only)
@@ -1703,12 +1789,16 @@ router.get('/enrollments', verifyToken, checkRole(['admin', 'frontdesk']), async
     const packageIds = [...new Set(enrollments.map((e) => e.package_id))]
     const enrollmentIds = enrollments.map((e) => e.id)
 
-    const [students, clients, packages, lessons, packageTypes, enrollmentSchedules, payments] = await Promise.all([
-      prisma.students.findMany({
-        where: { id: { in: studentIds } },
-      }),
+    const students = await prisma.students.findMany({
+      where: { id: { in: studentIds } },
+    })
+
+    // Extract actual client_id values from the student records
+    const clientIds = [...new Set(students.map((s) => s.client_id).filter((id) => id != null))]
+
+    const [clients, packages, lessons, packageTypes, enrollmentSchedules, payments] = await Promise.all([
       prisma.clients.findMany({
-        where: { id: { in: studentIds } },  // students.client_id points to clients.id
+        where: { id: { in: clientIds } },
       }),
       prisma.packages.findMany({
         where: { id: { in: packageIds } },
@@ -1851,12 +1941,16 @@ router.get('/enrollments/pending', verifyToken, checkRole(['admin', 'frontdesk']
     const packageIds = [...new Set(enrollments.map((e) => e.package_id))]
     const enrollmentIds = enrollments.map((e) => e.id)
 
-    const [students, clients, packages, lessons, packageTypes, enrollmentSchedules, payments] = await Promise.all([
-      prisma.students.findMany({
-        where: { id: { in: studentIds } },
-      }),
+    const students = await prisma.students.findMany({
+      where: { id: { in: studentIds } },
+    })
+
+    // Extract actual client_id values from the student records
+    const clientIds = [...new Set(students.map((s) => s.client_id).filter((id) => id != null))]
+
+    const [clients, packages, lessons, packageTypes, enrollmentSchedules, payments] = await Promise.all([
       prisma.clients.findMany({
-        where: { id: { in: studentIds } },  // students.client_id points to clients.id
+        where: { id: { in: clientIds } },
       }),
       prisma.packages.findMany({
         where: { id: { in: packageIds } },
@@ -2086,6 +2180,180 @@ router.put('/enrollments/:id/reject', verifyToken, checkRole(['admin', 'frontdes
   } catch (error) {
     console.error('Error rejecting enrollment:', error)
     res.status(500).json({ success: false, message: 'Error rejecting enrollment.' })
+  }
+})
+
+// ==================== CLIENT ROUTES ====================
+
+// GET /api/admin/clients - Get all clients (Admin only)
+router.get('/clients', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const clients = await prisma.clients.findMany({
+      orderBy: { f_name: 'asc' },
+    })
+
+    res.json({
+      success: true,
+      data: clients,
+    })
+  } catch (error) {
+    console.error('Error fetching clients:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching clients.',
+    })
+  }
+})
+
+// ==================== BAND ROOM RENTAL ROUTES ====================
+
+// GET /api/admin/band-room-rentals - Get all band room rentals (Admin only)
+router.get('/band-room-rentals', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const rentals = await prisma.band_room_rentals.findMany({
+      orderBy: { id: 'desc' },
+    })
+
+    if (rentals.length === 0) {
+      return res.json({ success: true, data: [] })
+    }
+
+    // Extract client_ids and band_room_ids for manual join
+    const clientIds = [...new Set(rentals.map(r => r.client_id).filter(id => id != null))]
+    const roomIds = [...new Set(rentals.map(r => r.band_room_id).filter(id => id != null))]
+
+    const [clients, rooms] = await Promise.all([
+      prisma.clients.findMany({ where: { id: { in: clientIds } } }),
+      prisma.band_rooms.findMany({ where: { id: { in: roomIds } } }),
+    ])
+
+    const clientMap = {}
+    for (const c of clients) clientMap[c.id] = c
+
+    const roomMap = {}
+    for (const r of rooms) roomMap[r.id] = r
+
+    const result = rentals.map(rental => ({
+      ...rental,
+      total_amount: rental.total_amount != null ? Number(rental.total_amount) : null,
+      client_name: clientMap[rental.client_id]
+        ? `${clientMap[rental.client_id].f_name || ''} ${clientMap[rental.client_id].l_name || ''}`.trim()
+        : null,
+      client_email: clientMap[rental.client_id]?.email || null,
+      room_name: roomMap[rental.band_room_id]?.room_name || null,
+    }))
+
+    res.json({ success: true, data: result })
+  } catch (error) {
+    console.error('Error fetching band room rentals:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching band room rentals.',
+    })
+  }
+})
+
+// POST /api/admin/band-room-rentals - Create a new band room rental (Admin only)
+router.post('/band-room-rentals', verifyToken, checkRole(['admin']), async (req, res) => {
+  console.log('POST /band-room-rentals body:', JSON.stringify(req.body))
+  try {
+    const { client_id, band_room_id, rental_date, start_time, end_time, total_amount, status } = req.body
+
+    // Validate required fields (NOT NULL in schema)
+    if (!client_id) {
+      return res.status(400).json({ success: false, message: 'Client is required.' })
+    }
+    if (!band_room_id) {
+      return res.status(400).json({ success: false, message: 'Room is required.' })
+    }
+
+    // Convert time strings to ISO-8601 DateTime for Prisma's db.Time(0)
+    const parseTime = (timeStr) => {
+      if (!timeStr) return null
+      // If it's already a full ISO string, use it directly
+      if (timeStr.includes('T')) return new Date(timeStr)
+      // <input type="time"> produces "HH:mm" — add ":00" seconds if missing
+      const parts = timeStr.split(':')
+      const padded = parts.length === 2 ? `${timeStr}:00` : timeStr
+      // Otherwise treat as HH:mm or HH:mm:ss and combine with rental_date or today
+      const baseDate = rental_date || new Date().toISOString().slice(0, 10)
+      return new Date(`${baseDate}T${padded}.000Z`)
+    }
+
+    const newRental = await prisma.band_room_rentals.create({
+      data: {
+        client_id: parseInt(client_id),
+        band_room_id: parseInt(band_room_id),
+        rental_date: rental_date ? new Date(rental_date) : null,
+        start_time: parseTime(start_time),
+        end_time: parseTime(end_time),
+        total_amount: total_amount != null ? parseFloat(total_amount) : null,
+        status: status || 'Pending',
+      },
+    })
+
+    res.status(201).json({
+      success: true,
+      message: 'Band room rental created successfully.',
+      data: { ...newRental, total_amount: newRental.total_amount != null ? Number(newRental.total_amount) : null },
+    })
+  } catch (error) {
+    console.error('Error creating band room rental:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error creating band room rental.',
+    })
+  }
+})
+
+// PUT /api/admin/band-room-rentals/:id - Update a band room rental (Admin only)
+router.put('/band-room-rentals/:id', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params
+    const { client_id, band_room_id, rental_date, start_time, end_time, total_amount, status } = req.body
+
+    const existing = await prisma.band_room_rentals.findUnique({
+      where: { id: parseInt(id) },
+    })
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Band room rental not found.' })
+    }
+
+    const parseTime = (timeStr) => {
+      if (!timeStr) return null
+      if (timeStr.includes('T')) return new Date(timeStr)
+      const parts = timeStr.split(':')
+      const padded = parts.length === 2 ? `${timeStr}:00` : timeStr
+      const baseDate = rental_date || new Date().toISOString().slice(0, 10)
+      return new Date(`${baseDate}T${padded}.000Z`)
+    }
+
+    const updateData = {}
+    if (client_id !== undefined) updateData.client_id = parseInt(client_id)
+    if (band_room_id !== undefined) updateData.band_room_id = parseInt(band_room_id)
+    if (rental_date !== undefined) updateData.rental_date = rental_date ? new Date(rental_date) : null
+    if (start_time !== undefined) updateData.start_time = parseTime(start_time)
+    if (end_time !== undefined) updateData.end_time = parseTime(end_time)
+    if (total_amount !== undefined) updateData.total_amount = total_amount != null ? parseFloat(total_amount) : null
+    if (status !== undefined) updateData.status = status
+
+    const updated = await prisma.band_room_rentals.update({
+      where: { id: parseInt(id) },
+      data: updateData,
+    })
+
+    res.json({
+      success: true,
+      message: 'Band room rental updated successfully.',
+      data: { ...updated, total_amount: updated.total_amount != null ? Number(updated.total_amount) : null },
+    })
+  } catch (error) {
+    console.error('Error updating band room rental:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error updating band room rental.',
+    })
   }
 })
 

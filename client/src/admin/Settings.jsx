@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import C from './theme.js'
 import LessonManagement from './LessonManagement.jsx'
+import StudioRoomManagement from './StudioRoomManagement.jsx'
 
 const API = (import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/admin'
 
@@ -960,6 +961,27 @@ export default function Settings({ isMobile, isTablet }) {
           </div>
         </div>
       )}
+
+      {/* Studio Room Management Section */}
+      <div style={{
+        background: '#fff', borderRadius: 18, border: `1px solid ${C.border}`,
+        overflow: 'hidden', marginBottom: 24,
+      }}>
+        <div style={{
+          padding: '18px 22px', borderBottom: `1px solid ${C.border}`,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12,
+        }}>
+          <div>
+            <h3 style={{ fontFamily: C.display, fontSize: '1rem', fontWeight: 700, color: C.navy, margin: 0 }}>
+              Studio Room Management
+            </h3>
+            <p style={{ fontSize: '0.75rem', color: C.text3, marginTop: 2 }}>
+              Manage studio rooms and their hourly rates
+            </p>
+          </div>
+        </div>
+        <StudioRoomManagement isMobile={isMobile} isTablet={isTablet} />
+      </div>
     </div>
   )
 }
