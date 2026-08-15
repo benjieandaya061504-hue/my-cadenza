@@ -1,0 +1,35 @@
+◇ injected env (5) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+Database Running ✅:5000
+Error creating band room rental: PrismaClientValidationError: 
+Invalid `prisma.band_room_rentals.create()` invocation in
+c:\Users\user\Desktop\Capstone-Cadenza\server\src\routes\admin.js:2279:54
+
+  2276   return new Date(`${baseDate}T${timeStr}.000Z`)
+  2277 }
+  2278 
+→ 2279 const newRental = await prisma.band_room_rentals.create({
+         data: {
+           client_id: 10,
+           band_room_id: 2,
+           rental_date: new Date("2026-08-12T00:00:00.000Z"),
+           start_time: new Date("Invalid Date"),
+                       ~~~~~~~~~~~~~~~~~~~~~~~~
+           end_time: new Date("Invalid Date"),
+           total_amount: 1200,
+           status: "Pending"
+         }
+       })
+
+Invalid value for argument `start_time`: Provided Date object is invalid. Expected Date.
+    at Nn (c:\Users\user\Desktop\Capstone-Cadenza\server\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at e.throwValidationError (c:\Users\user\Desktop\Capstone-Cadenza\server\node_modules\@prisma\client\runtime\library.js:29:10051)
+    at Sa (c:\Users\user\Desktop\Capstone-Cadenza\server\node_modules\@prisma\client\runtime\library.js:29:7488)
+    at Ra (c:\Users\user\Desktop\Capstone-Cadenza\server\node_modules\@prisma\client\runtime\library.js:29:8741)
+    at Sa (c:\Users\user\Desktop\Capstone-Cadenza\server\node_modules\@prisma\client\runtime\library.js:29:8272)
+    at Ra (c:\Users\user\Desktop\Capstone-Cadenza\server\node_modules\@prisma\client\runtime\library.js:29:8741)
+    at Et (c:\Users\user\Desktop\Capstone-Cadenza\server\node_modules\@prisma\client\runtime\library.js:29:5845)
+    at $n (c:\Users\user\Desktop\Capstone-Cadenza\server\node_modules\@prisma\client\runtime\library.js:29:5747)
+    at c:\Users\user\Desktop\Capstone-Cadenza\server\node_modules\@prisma\client\runtime\library.js:130:10104
+    at Object.runInChildSpan (c:\Users\user\Desktop\Capstone-Cadenza\server\node_modules\@prisma\client\runtime\library.js:121:1549) {
+  clientVersion: '6.19.3'
+}

@@ -1,0 +1,369 @@
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19-11.8.6-MariaDB, for debian-linux-gnu (x86_64)
+--
+-- Host: sakura.proxy.rlwy.net    Database: railway
+-- ------------------------------------------------------
+-- Server version	9.4.0
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*M!100616 SET @OLD_NOTE_VERBOSITY=@@NOTE_VERBOSITY, NOTE_VERBOSITY=0 */;
+
+--
+-- Table structure for table `_prisma_migrations`
+--
+
+DROP TABLE IF EXISTS `_prisma_migrations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `_prisma_migrations` (
+  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `checksum` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `finished_at` datetime(3) DEFAULT NULL,
+  `migration_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `logs` text COLLATE utf8mb4_unicode_ci,
+  `rolled_back_at` datetime(3) DEFAULT NULL,
+  `started_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `applied_steps_count` int unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `_prisma_migrations`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `_prisma_migrations` WRITE;
+/*!40000 ALTER TABLE `_prisma_migrations` DISABLE KEYS */;
+INSERT INTO `_prisma_migrations` VALUES
+('1c220c6b-5649-45b9-b1ca-9c103e04360b','9472e7b7e05bb6a6e73fb9c999e7e87283509c9ff78028ed19ef61c417e25d37','2026-08-06 08:25:06.010','20260806082502_init',NULL,NULL,'2026-08-06 08:25:03.207',1);
+/*!40000 ALTER TABLE `_prisma_migrations` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `band_room_rentals`
+--
+
+DROP TABLE IF EXISTS `band_room_rentals`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `band_room_rentals` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `client_id` int NOT NULL,
+  `band_room_id` int NOT NULL,
+  `rental_date` date DEFAULT NULL,
+  `start_time` time DEFAULT NULL,
+  `end_time` time DEFAULT NULL,
+  `total_amount` decimal(10,2) DEFAULT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fk_band_room_rental_client` (`client_id`),
+  KEY `fk_band_room_rental_room` (`band_room_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `band_room_rentals`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `band_room_rentals` WRITE;
+/*!40000 ALTER TABLE `band_room_rentals` DISABLE KEYS */;
+INSERT INTO `band_room_rentals` VALUES
+(2,9,2,'2026-08-15','14:00:00','16:00:00',200.00,'Cancelled');
+/*!40000 ALTER TABLE `band_room_rentals` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `band_rooms`
+--
+
+DROP TABLE IF EXISTS `band_rooms`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `band_rooms` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `room_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `hourly_rate` decimal(10,2) DEFAULT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `band_rooms`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `band_rooms` WRITE;
+/*!40000 ALTER TABLE `band_rooms` DISABLE KEYS */;
+INSERT INTO `band_rooms` VALUES
+(2,'Studio A',100.00,'Active'),
+(3,'Studio B',100.00,'Active');
+/*!40000 ALTER TABLE `band_rooms` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `classes`
+--
+
+DROP TABLE IF EXISTS `classes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `classes` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `package_id` int NOT NULL,
+  `instructor_id` int NOT NULL,
+  `lesson_room_id` int NOT NULL,
+  `class_date` date NOT NULL,
+  `start_time` time NOT NULL,
+  `end_time` time NOT NULL,
+  `capacity` int DEFAULT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'Open',
+  PRIMARY KEY (`id`),
+  KEY `fk_classes_instructor` (`instructor_id`),
+  KEY `fk_classes_package` (`package_id`),
+  KEY `fk_classes_room` (`lesson_room_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `classes`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `classes` WRITE;
+/*!40000 ALTER TABLE `classes` DISABLE KEYS */;
+/*!40000 ALTER TABLE `classes` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `clients`
+--
+
+DROP TABLE IF EXISTS `clients`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `clients` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `f_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `m_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `l_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `address` text COLLATE utf8mb4_unicode_ci,
+  `users_id` int DEFAULT NULL,
+  `age` int DEFAULT NULL,
+  `level` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notes` text COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_clients_users_id` (`users_id`),
+  KEY `fk_clients_users` (`users_id`),
+  CONSTRAINT `fk_clients_users` FOREIGN KEY (`users_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `clients`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `clients` WRITE;
+/*!40000 ALTER TABLE `clients` DISABLE KEYS */;
+INSERT INTO `clients` VALUES
+(3,'Juan',NULL,'dela Cruz','09171234567','juan@gmail.com','123 Rizal St., Manila',NULL,22,'Beginner','First time learning guitar'),
+(4,'Jeoan',NULL,'Gran','09465426','benjieandaya061504@gmail.com','qwe',NULL,23,'Advanced',NULL),
+(5,'Jeoan',NULL,'Gran','0912346','benjieandaya061504@gmail.com','qwe',NULL,12,'Intermediate',NULL),
+(6,'Jeoan',NULL,'Gran','09123','benjieandaya061504@gmail.com','qwe',NULL,13,'Some Experience',NULL),
+(7,'Testing sho',NULL,'Sho Han','0912456514','sho@gmail.com','Balay Lang',NULL,75,'Some Experience','Test bi'),
+(8,'Hannah ',NULL,'Ogues','09658593523','hannahisabellaogues626@gmail.com','Prk Riverside, Brgy, Sto. Nino',NULL,21,'Complete Beginner','none. '),
+(9,'Alexander',NULL,'AhDadi','+639638375443','alexanderroxassajol24@gmail.com','Pantua',NULL,30,'Advanced','Secret'),
+(10,'Ben',NULL,'Jamin','09123456789','janw@gmail.com','Balay ni janjan',NULL,25,'Some Experience',NULL),
+(12,'Test',NULL,'User','09123456789','verify_1786446080276@test.com','123 Test St',6,20,NULL,NULL),
+(15,'Blademere',NULL,'Limo','09509393945','suico@gmail.com','sa puso mo',12,3,'Advanced',NULL),
+(16,'hehe',NULL,'huhu',NULL,'limo@gmail.com',NULL,13,NULL,NULL,NULL),
+(17,'qwe',NULL,'qwe','12312312','jan123@gmail.com','qwewe',14,23,'Complete Beginner',NULL),
+(18,'Test ',NULL,'New','09123456789','Test123@gmail.com','qwe',8,32,'Some Experience',NULL),
+(19,'New F',NULL,'New Test L','0789456','client@gmail.com','ewr',16,234,'Advanced',NULL);
+/*!40000 ALTER TABLE `clients` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `enrollment_schedule`
+--
+
+DROP TABLE IF EXISTS `enrollment_schedule`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `enrollment_schedule` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `enrollment_id` int NOT NULL,
+  `day_of_week` varchar(10) NOT NULL,
+  `time_slot_id` int NOT NULL,
+  `instructor_id` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `enrollment_id` (`enrollment_id`),
+  KEY `time_slot_id` (`time_slot_id`),
+  KEY `fk_enrollment_schedule_instructor` (`instructor_id`),
+  CONSTRAINT `enrollment_schedule_ibfk_1` FOREIGN KEY (`enrollment_id`) REFERENCES `enrollments` (`id`),
+  CONSTRAINT `enrollment_schedule_ibfk_2` FOREIGN KEY (`time_slot_id`) REFERENCES `time_slots` (`id`),
+  CONSTRAINT `fk_enrollment_schedule_instructor` FOREIGN KEY (`instructor_id`) REFERENCES `instructors` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `enrollment_schedule`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `enrollment_schedule` WRITE;
+/*!40000 ALTER TABLE `enrollment_schedule` DISABLE KEYS */;
+INSERT INTO `enrollment_schedule` VALUES
+(3,3,'Mon',1,NULL),
+(4,3,'Wed',1,NULL),
+(5,4,'Mon',1,NULL),
+(6,5,'Mon',1,1),
+(7,6,'Mon',1,1),
+(8,7,'Tue',1,1),
+(9,8,'Tue',2,1),
+(10,9,'Mon',1,1),
+(11,10,'Mon',1,1),
+(12,11,'Mon',1,1),
+(13,12,'Wed',2,2),
+(14,13,'Tue',1,1),
+(15,14,'Mon',1,1),
+(16,15,'Mon',1,2),
+(17,16,'Mon',1,1),
+(18,17,'Mon',2,1),
+(19,18,'Mon',1,1),
+(20,19,'Wed',1,1);
+/*!40000 ALTER TABLE `enrollment_schedule` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `enrollments`
+--
+
+DROP TABLE IF EXISTS `enrollments`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `enrollments` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `student_id` int NOT NULL,
+  `class_id` int DEFAULT NULL,
+  `package_id` int NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `enrollment_date` date DEFAULT NULL,
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'Active',
+  PRIMARY KEY (`id`),
+  KEY `fk_enrollments_class` (`class_id`),
+  KEY `fk_enrollments_package` (`package_id`),
+  KEY `fk_enrollments_student` (`student_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `enrollments`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `enrollments` WRITE;
+/*!40000 ALTER TABLE `enrollments` DISABLE KEYS */;
+INSERT INTO `enrollments` VALUES
+(3,3,NULL,1,1000.00,'2026-08-10',NULL,NULL,'Approved'),
+(4,4,NULL,4,3000.00,'2026-08-10',NULL,NULL,'Rejected'),
+(5,5,NULL,1,1000.00,'2026-08-10',NULL,NULL,'Approved'),
+(6,6,NULL,1,1000.00,'2026-08-10',NULL,NULL,'Approved'),
+(7,7,NULL,1,1000.00,'2026-08-10',NULL,NULL,'Rejected'),
+(8,8,NULL,1,1000.00,'2026-08-10',NULL,NULL,'Approved'),
+(9,9,NULL,6,4000.00,'2026-08-10',NULL,NULL,'Approved'),
+(10,10,NULL,1,1000.00,'2026-08-10',NULL,NULL,'Approved'),
+(11,11,NULL,1,1000.00,'2026-08-11',NULL,NULL,'Pending'),
+(12,12,NULL,18,1500.00,'2026-08-11',NULL,NULL,'Pending'),
+(13,13,NULL,1,1000.00,'2026-08-12',NULL,NULL,'Rejected'),
+(14,14,NULL,6,4000.00,'2026-08-12',NULL,NULL,'Rejected'),
+(15,15,NULL,10,7000.00,'2026-08-12',NULL,NULL,'Rejected'),
+(16,16,NULL,1,1000.00,'2026-08-12',NULL,NULL,'Pending'),
+(17,17,NULL,4,3000.00,'2026-08-12',NULL,NULL,'Pending'),
+(18,18,NULL,4,3000.00,'2026-08-12',NULL,NULL,'Pending'),
+(19,19,NULL,1,1000.00,'2026-08-12',NULL,NULL,'Approved');
+/*!40000 ALTER TABLE `enrollments` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `equipments`
+--
+
+DROP TABLE IF EXISTS `equipments`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `equipments` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `equipment_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `quantity` int DEFAULT NULL,
+  `brand` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `rental_rate` decimal(10,2) DEFAULT NULL,
+  `rate_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `equipments`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `equipments` WRITE;
+/*!40000 ALTER TABLE `equipments` DISABLE KEYS */;
+/*!40000 ALTER TABLE `equipments` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `instructor_schedule`
+--
+
+DROP TABLE IF EXISTS `instructor_schedule`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `instructor_schedule` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `instructor_id` int NOT NULL,
+  `day_of_week` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `time_slot_id` int NOT NULL,
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'Available',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `instructor_schedule_instructor_id_day_of_week_time_slot_id_key` (`instructor_id`,`day_of_week`,`time_slot_id`),
+  KEY `idx_instructor_id` (`instructor_id`),
+  KEY `idx_time_slot_id` (`time_slot_id`),
+  CONSTRAINT `instructor_schedule_instructor_id_fkey` FOREIGN KEY (`instructor_id`) REFERENCES `instructors` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `instructor_schedule_time_slot_id_fkey` FOREIGN KEY (`time_slot_id`) REFERENCES `time_slots` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=166 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+[... File contains 45KB total - copy complete SQL from the code block above]

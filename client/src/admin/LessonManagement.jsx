@@ -3,7 +3,7 @@ import C from './theme.js'
 
 const API = (import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/admin'
 
-export default function LessonManagement({ isMobile, isTablet }) {
+export default function LessonManagement({ isMobile, isTablet, embedded, searchTerm, onSearchChange, addRef }) {
   const [lessons, setLessons] = useState([])
   const [specialties, setSpecialties] = useState([])
   const [search, setSearch] = useState('')
@@ -15,12 +15,14 @@ export default function LessonManagement({ isMobile, isTablet }) {
   const [formError, setFormError] = useState('')
   const [formSuccess, setFormSuccess] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   // Form state
   const [form, setForm] = useState({
     lesson_name: '',
-    specialty_id: '',
     status: 'Active',
+    specialty_id: '',
   })
 
   const getToken = () => localStorage.getItem('cadenza_token')
@@ -44,6 +46,7 @@ export default function LessonManagement({ isMobile, isTablet }) {
     }
   }
 
+  // Fetch specialties
   const fetchSpecialties = async () => {
     try {
       const res = await fetch(`${API}/specialties`, {
@@ -63,10 +66,14 @@ export default function LessonManagement({ isMobile, isTablet }) {
     fetchSpecialties()
   }, [])
 
-  // Filter lessons by search
+  // When embedded, use parent's search state (declared before filtered uses it)
+  const effectiveSearch = embedded && searchTerm !== undefined ? searchTerm : search
+  const handleSearchChange = embedded && onSearchChange ? onSearchChange : setSearch
+
+  // Filter lessons by search (use effectiveSearch which respects embedded prop)
   const filtered = lessons.filter(l => {
-    if (!search) return true
-    const s = search.toLowerCase()
+    if (!effectiveSearch) return true
+    const s = effectiveSearch.toLowerCase()
     return (
       l.lesson_name?.toLowerCase().includes(s)
     )
@@ -78,7 +85,7 @@ export default function LessonManagement({ isMobile, isTablet }) {
   }
 
   const resetForm = () => {
-    setForm({ lesson_name: '', specialty_id: '', status: 'Active' })
+    setForm({ lesson_name: '', status: 'Active', specialty_id: '' })
     setFormError('')
     setFormSuccess('')
     setEditingId(null)
@@ -89,11 +96,15 @@ export default function LessonManagement({ isMobile, isTablet }) {
     setShowModal(true)
   }
 
+  useEffect(() => {
+    if (addRef) addRef.current = openAddModal
+  }, [addRef])
+
   const openEditModal = (lesson) => {
     setForm({
       lesson_name: lesson.lesson_name || '',
-      specialty_id: lesson.specialty_id ? String(lesson.specialty_id) : '',
       status: lesson.status || 'Active',
+      specialty_id: lesson.specialty_id !== null && lesson.specialty_id !== undefined ? lesson.specialty_id : '',
     })
     setEditingId(lesson.id)
     setFormError('')
@@ -131,8 +142,8 @@ export default function LessonManagement({ isMobile, isTablet }) {
         },
         body: JSON.stringify({
           lesson_name: form.lesson_name,
-          specialty_id: form.specialty_id,
           status: form.status,
+          specialty_id: form.specialty_id,
         }),
       })
 
@@ -154,33 +165,48 @@ export default function LessonManagement({ isMobile, isTablet }) {
     }
   }
 
-  const handleDelete = async (id) => {
+  // Delete handlers
+  const openDeleteConfirm = (lesson) => {
+    setDeleteConfirm(lesson)
+    setDeleteError('')
+  }
+
+  const cancelDelete = () => {
+    setDeleteConfirm(null)
+    setDeleteError('')
+    setDeleteLoading(false)
+  }
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return
+
+    setDeleteLoading(true)
+    setDeleteError('')
+
     try {
-      const res = await fetch(`${API}/lessons/${id}`, {
+      const res = await fetch(`${API}/lessons/${deleteConfirm.id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${getToken()}` },
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
       })
+
       const data = await res.json()
+
       if (data.success) {
-        setDeleteConfirm(null)
+        cancelDelete()
         fetchLessons()
       } else {
-        setError(data.message || 'Failed to delete lesson.')
+        setDeleteError(data.message || 'Failed to delete lesson.')
+        setDeleteLoading(false)
       }
     } catch (err) {
-      setError('An error occurred while deleting.')
+      setDeleteError('An error occurred. Please try again.')
+      setDeleteLoading(false)
     }
   }
 
-  const statusStyle = (status) => {
-    switch (status) {
-      case 'Active': return { bg: 'rgba(16,185,129,0.1)', c: C.green }
-      case 'Inactive': return { bg: 'rgba(248,113,113,0.1)', c: C.coral }
-      default: return { bg: 'rgba(148,163,184,0.1)', c: C.text3 }
-    }
-  }
-
-  // Modal styles (matching Settings.jsx exactly)
+  // Modal styles
   const modalOverlayStyle = {
     position: 'fixed', inset: 0, zIndex: 1000,
     background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(4px)',
@@ -209,45 +235,41 @@ export default function LessonManagement({ isMobile, isTablet }) {
 
   return (
     <div style={{ fontFamily: C.font }}>
-      {/* Card header — matching Specialty Management exactly */}
-      <div style={{
-        padding: '18px 22px', borderBottom: `1px solid ${C.border}`,
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12,
-      }}>
-        <div>
-          <h3 style={{ fontFamily: C.display, fontSize: '1rem', fontWeight: 700, color: C.navy, margin: 0 }}>
-            Lesson Management
-          </h3>
-          <p style={{ fontSize: '0.75rem', color: C.text3, marginTop: 2 }}>
-            {loading ? 'Loading...' : `${filtered.length} lessons`}
-          </p>
+      {!embedded && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h2 style={{ fontFamily: C.display, fontSize: '1.3rem', fontWeight: 700, color: C.navy, margin: 0 }}>Lesson Management</h2>
+            <p style={{ fontSize: '0.8rem', color: C.text3, marginTop: 2 }}>
+              {loading ? 'Loading...' : `${filtered.length} lessons`}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              placeholder="Search lessons..."
+              value={effectiveSearch}
+              onChange={e => handleSearchChange(e.target.value)}
+              style={{
+                padding: '8px 14px', borderRadius: 10, border: `1.5px solid ${C.border2}`,
+                fontSize: '0.8rem', fontFamily: C.font, outline: 'none', width: 220,
+              }}
+            />
+            <button
+              onClick={openAddModal}
+              style={{
+                padding: '8px 18px', borderRadius: 10, border: 'none',
+                background: `linear-gradient(135deg, ${C.royal}, ${C.purple})`,
+                color: '#fff', fontSize: '0.8rem', fontWeight: 600,
+                fontFamily: C.font, cursor: 'pointer', whiteSpace: 'nowrap',
+              }}
+            >
+              + Add Lesson
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input
-            placeholder="Search lessons..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{
-              padding: '8px 14px', borderRadius: 10, border: `1.5px solid ${C.border2}`,
-              fontSize: '0.8rem', fontFamily: C.font, outline: 'none', width: 220,
-            }}
-          />
-          <button
-            onClick={openAddModal}
-            style={{
-              padding: '8px 18px', borderRadius: 10, border: 'none',
-              background: `linear-gradient(135deg, ${C.royal}, ${C.purple})`,
-              color: '#fff', fontSize: '0.8rem', fontWeight: 600,
-              fontFamily: C.font, cursor: 'pointer', whiteSpace: 'nowrap',
-            }}
-          >
-            + Add Lesson
-          </button>
-        </div>
-      </div>
+      )}
 
       {error && (
-        <div style={{ padding: '12px 22px', background: 'rgba(248,113,113,0.1)', fontSize: '0.8rem', color: C.coral }}>
+        <div style={{ padding: '12px 16px', background: 'rgba(248,113,113,0.1)', borderRadius: 10, marginBottom: 16, fontSize: '0.8rem', color: C.coral }}>
           {error}
         </div>
       )}
@@ -257,39 +279,36 @@ export default function LessonManagement({ isMobile, isTablet }) {
           Loading lessons...
         </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: C.mist }}>
-                {['Lesson', 'Specialty', 'Status', 'Action'].map(h => (
-                  <th key={h} style={{ padding: '12px 14px', fontSize: '0.7rem', fontWeight: 700, color: C.text3, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'left' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-                {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={4} style={{ padding: 40, textAlign: 'center', color: C.text3, fontSize: '0.85rem' }}>
-                    No lessons found.
-                  </td>
+        <div style={{ background: '#fff', borderRadius: 18, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: C.mist }}>
+                  {['Lesson', 'Status', 'Action'].map(h => (
+                    <th key={h} style={{ padding: '12px 14px', fontSize: '0.7rem', fontWeight: 700, color: C.text3, textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'left' }}>{h}</th>
+                  ))}
                 </tr>
-              ) : (
-                filtered.map(l => {
-                  const ss = statusStyle(l.status)
-                  return (
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} style={{ padding: 40, textAlign: 'center', color: C.text3, fontSize: '0.85rem' }}>
+                      No lessons found.
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map(l => (
                     <tr key={l.id} style={{ borderBottom: `1px solid ${C.border}` }}>
                       <td style={{ padding: '12px 14px', fontSize: '0.85rem', fontWeight: 600, color: C.navy }}>{l.lesson_name}</td>
-                      <td style={{ padding: '12px 14px', fontSize: '0.8rem', color: C.text2 }}>
-                        {l.specialties?.specialty_name || <span style={{ color: C.text3, fontStyle: 'italic' }}>None</span>}
-                      </td>
                       <td style={{ padding: '12px 14px' }}>
                         <span style={{
                           padding: '3px 12px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 600,
-                          background: ss.bg, color: ss.c,
+                          background: l.status === 'Active' ? 'rgba(16,185,129,0.1)' : 'rgba(148,163,184,0.1)',
+                          color: l.status === 'Active' ? C.green : C.text3,
                         }}>{l.status}</span>
                       </td>
                       <td style={{ padding: '12px 14px' }}>
-                        <div style={{ display: 'flex', gap: 8 }}>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                           <button
                             onClick={() => openEditModal(l)}
                             style={{
@@ -302,9 +321,9 @@ export default function LessonManagement({ isMobile, isTablet }) {
                             Edit
                           </button>
                           <button
-                            onClick={() => setDeleteConfirm(l)}
+                            onClick={() => openDeleteConfirm(l)}
                             style={{
-                              padding: '5px 14px', borderRadius: 8, border: `1.5px solid ${C.coral}`,
+                              padding: '5px 12px', borderRadius: 8, border: `1.5px solid ${C.coral}`,
                               background: 'rgba(248,113,113,0.08)', color: C.coral,
                               fontSize: '0.72rem', fontWeight: 600, fontFamily: C.font,
                               cursor: 'pointer',
@@ -315,52 +334,15 @@ export default function LessonManagement({ isMobile, isTablet }) {
                         </div>
                       </td>
                     </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal — matching Specialty Management exactly */}
-      {deleteConfirm && (
-        <div style={modalOverlayStyle} onClick={() => setDeleteConfirm(null)}>
-          <div style={{ ...modalStyle, maxWidth: 400 }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ fontFamily: C.display, fontSize: '1.1rem', fontWeight: 700, color: C.navy, margin: '0 0 12px' }}>
-              Confirm Delete
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: C.text2, marginBottom: 20 }}>
-              Are you sure you want to delete <strong>{deleteConfirm.lesson_name}</strong>? This action cannot be undone.
-            </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                style={{
-                  padding: '10px 20px', borderRadius: 10, border: `1.5px solid ${C.border2}`,
-                  background: '#fff', fontSize: '0.82rem', fontWeight: 600, fontFamily: C.font,
-                  color: C.text2, cursor: 'pointer',
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDelete(deleteConfirm.id)}
-                style={{
-                  padding: '10px 24px', borderRadius: 10, border: 'none',
-                  background: `linear-gradient(135deg, ${C.coral}, ${C.coral})`,
-                  color: '#fff', fontSize: '0.82rem', fontWeight: 600, fontFamily: C.font,
-                  cursor: 'pointer',
-                }}
-              >
-                Delete
-              </button>
-            </div>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
-      {/* Add/Edit Lesson Modal — matching Specialty Management exactly */}
+      {/* Add/Edit Lesson Modal */}
       {showModal && (
         <div style={modalOverlayStyle} onClick={closeModal}>
           <div style={modalStyle} onClick={e => e.stopPropagation()}>
@@ -384,7 +366,7 @@ export default function LessonManagement({ isMobile, isTablet }) {
             )}
 
             <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: 20 }}>
+              <div style={{ marginBottom: 16 }}>
                 <label style={labelStyle}>Lesson Name *</label>
                 <input
                   type="text"
@@ -396,7 +378,7 @@ export default function LessonManagement({ isMobile, isTablet }) {
                 />
               </div>
 
-              <div style={{ marginBottom: 20 }}>
+              <div style={{ marginBottom: 16 }}>
                 <label style={labelStyle}>Specialty</label>
                 <select
                   name="specialty_id"
@@ -404,14 +386,14 @@ export default function LessonManagement({ isMobile, isTablet }) {
                   onChange={handleInputChange}
                   style={inputStyle}
                 >
-                  <option value="">— None —</option>
-                  {specialties.map(s => (
+                  <option value="">-- No specialty --</option>
+                  {specialties.filter(s => s.status === 'Active').map(s => (
                     <option key={s.id} value={s.id}>{s.specialty_name}</option>
                   ))}
                 </select>
               </div>
 
-              <div style={{ marginBottom: 20 }}>
+              <div style={{ marginBottom: 16 }}>
                 <label style={labelStyle}>Status</label>
                 <select
                   name="status"
@@ -450,6 +432,56 @@ export default function LessonManagement({ isMobile, isTablet }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div style={modalOverlayStyle} onClick={cancelDelete}>
+          <div style={{ ...modalStyle, maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontFamily: C.display, fontSize: '1.1rem', fontWeight: 700, color: C.navy, margin: 0 }}>
+                Confirm Deletion
+              </h3>
+              <button onClick={cancelDelete} style={{ background: 'none', border: 'none', fontSize: '1.3rem', cursor: 'pointer', color: C.text3, padding: '0 4px' }}>✕</button>
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: C.text2, lineHeight: 1.5, margin: '0 0 16px 0' }}>
+              Are you sure you want to delete <strong style={{ color: C.navy }}>{deleteConfirm.lesson_name}</strong>?
+            </p>
+
+            {deleteError && (
+              <div style={{ padding: '10px 14px', background: 'rgba(248,113,113,0.1)', borderRadius: 8, marginBottom: 16, fontSize: '0.8rem', color: C.coral }}>
+                {deleteError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={cancelDelete}
+                disabled={deleteLoading}
+                style={{
+                  padding: '10px 20px', borderRadius: 10, border: `1.5px solid ${C.border2}`,
+                  background: '#fff', fontSize: '0.82rem', fontWeight: 600, fontFamily: C.font,
+                  color: C.text2, cursor: deleteLoading ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteLoading}
+                style={{
+                  padding: '10px 24px', borderRadius: 10, border: 'none',
+                  background: `linear-gradient(135deg, ${C.coral}, #dc2626)`,
+                  color: '#fff', fontSize: '0.82rem', fontWeight: 600, fontFamily: C.font,
+                  cursor: deleteLoading ? 'not-allowed' : 'pointer', opacity: deleteLoading ? 0.7 : 1,
+                }}
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -196,9 +196,6 @@ router.put('/users/:id', verifyToken, checkRole(['admin']), async (req, res) => 
 router.get('/lessons', verifyToken, checkRole(['admin']), async (req, res) => {
   try {
     const lessons = await prisma.lesson.findMany({
-      include: {
-        specialties: true,
-      },
       orderBy: { id: 'desc' },
     })
 
@@ -218,8 +215,7 @@ router.get('/lessons', verifyToken, checkRole(['admin']), async (req, res) => {
 // POST /api/admin/lessons - Create a new lesson (Admin only)
 router.post('/lessons', verifyToken, checkRole(['admin']), async (req, res) => {
   try {
-    const { lesson_name, status } = req.body
-    const specialty_id = req.body.specialty_id
+    const { lesson_name, status, specialty_id } = req.body
 
     // Validate required fields
     if (!lesson_name) {
@@ -233,7 +229,7 @@ router.post('/lessons', verifyToken, checkRole(['admin']), async (req, res) => {
       data: {
         lesson_name,
         status: status || 'Active',
-        ...(specialty_id !== undefined && { specialty_id: specialty_id === '' ? null : Number(specialty_id) }),
+        ...(specialty_id !== undefined && specialty_id !== null && specialty_id !== '' ? { specialty_id: parseInt(specialty_id) } : {}),
       },
     })
 
@@ -255,16 +251,21 @@ router.post('/lessons', verifyToken, checkRole(['admin']), async (req, res) => {
 router.put('/lessons/:id', verifyToken, checkRole(['admin']), async (req, res) => {
   try {
     const { id } = req.params
-    const { lesson_name, status } = req.body
-    const specialty_id = req.body.specialty_id
+    const { lesson_name, status, specialty_id } = req.body
+
+    const updateData = {}
+    if (lesson_name !== undefined) updateData.lesson_name = lesson_name
+    if (status !== undefined) updateData.status = status
+    if (specialty_id !== undefined && specialty_id !== null && specialty_id !== '') {
+      updateData.specialty_id = parseInt(specialty_id)
+    } else if (specialty_id !== undefined) {
+      // Explicitly set to null (user cleared the selection)
+      updateData.specialty_id = null
+    }
 
     const updatedLesson = await prisma.lesson.update({
       where: { id: parseInt(id) },
-      data: {
-        ...(lesson_name !== undefined && { lesson_name }),
-        ...(status !== undefined && { status }),
-        ...(specialty_id !== undefined && { specialty_id: specialty_id === '' ? null : Number(specialty_id) }),
-      },
+      data: updateData,
     })
 
     res.json({
@@ -334,6 +335,92 @@ router.delete('/lessons/:id', verifyToken, checkRole(['admin']), async (req, res
     res.status(500).json({
       success: false,
       message: error.message || 'Error deleting lesson.',
+    })
+  }
+})
+
+// ==================== ROOM ROUTES ====================
+
+// GET /api/admin/rooms - Get all rooms (Admin only)
+router.get('/rooms', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const rooms = await prisma.band_rooms.findMany({
+      orderBy: { id: 'desc' },
+    })
+
+    res.json({
+      success: true,
+      data: rooms,
+    })
+  } catch (error) {
+    console.error('Error fetching rooms:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching rooms.',
+    })
+  }
+})
+
+// POST /api/admin/rooms - Create a new room (Admin only)
+router.post('/rooms', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { room_name, hourly_rate, status } = req.body
+
+    // Validate required fields
+    if (!room_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Room name is required.',
+      })
+    }
+
+    const newRoom = await prisma.band_rooms.create({
+      data: {
+        room_name,
+        hourly_rate: hourly_rate ? parseFloat(hourly_rate) : null,
+        status: status || 'Active',
+      },
+    })
+
+    res.status(201).json({
+      success: true,
+      message: 'Room created successfully.',
+      data: newRoom,
+    })
+  } catch (error) {
+    console.error('Error creating room:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error creating room.',
+    })
+  }
+})
+
+// PUT /api/admin/rooms/:id - Update a room (Admin only)
+router.put('/rooms/:id', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params
+    const { room_name, hourly_rate, status } = req.body
+
+    const updatedRoom = await prisma.band_rooms.update({
+      where: { id: parseInt(id) },
+      data: {
+        ...(room_name !== undefined && { room_name }),
+        ...(hourly_rate !== undefined && { hourly_rate: hourly_rate ? parseFloat(hourly_rate) : null }),
+        ...(status !== undefined && { status }),
+      },
+    })
+
+    res.json({
+      success: true,
+      message: 'Room updated successfully.',
+      data: updatedRoom,
+    })
+  } catch (error) {
+    console.error('Error updating room:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error updating room.',
     })
   }
 })
@@ -736,9 +823,24 @@ router.get('/time-slots', verifyToken, checkRole(['admin']), async (req, res) =>
       orderBy: { start_time: 'asc' },
     })
 
+    // Format start_time/end_time to 12-hour format (e.g. "7:00am", "8:00pm")
+    const formatTime12 = (date) => {
+      return new Date(date).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      }).toLowerCase().replace(' ', '')
+    }
+
+    const result = timeSlots.map(slot => ({
+      ...slot,
+      formatted_start: formatTime12(slot.start_time),
+      formatted_end: formatTime12(slot.end_time),
+    }))
+
     res.json({
       success: true,
-      data: timeSlots,
+      data: result,
     })
   } catch (error) {
     console.error('Error fetching time slots:', error)
@@ -1299,7 +1401,7 @@ router.get('/lessons/:id/available-instructors', verifyToken, checkRole(['admin'
             specialties: true,
           },
         },
-        instructor_schedules: {
+        instructor_schedule: {
           include: {
             time_slot: true,
           },
@@ -1320,6 +1422,937 @@ router.get('/lessons/:id/available-instructors', verifyToken, checkRole(['admin'
     res.status(500).json({
       success: false,
       message: error.message || 'Error fetching available instructors.',
+    })
+  }
+})
+
+// ==================== PACKAGE TYPE ROUTES ====================
+
+// GET /api/admin/package-types - Get all package types (Admin only)
+router.get('/package-types', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const packageTypes = await prisma.package_type.findMany({
+      orderBy: { id: 'asc' },
+    })
+
+    res.json({
+      success: true,
+      data: packageTypes,
+    })
+  } catch (error) {
+    console.error('Error fetching package types:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching package types.',
+    })
+  }
+})
+
+// POST /api/admin/package-types - Create a new package type (Admin only)
+router.post('/package-types', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { package_type_name, session, frequency, duration, status } = req.body
+
+    if (!package_type_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Package type name is required.',
+      })
+    }
+
+    if (!session || !frequency || !duration) {
+      return res.status(400).json({
+        success: false,
+        message: 'Session, frequency, and duration are required.',
+      })
+    }
+
+    // Uniqueness check
+    const existing = await prisma.package_type.findFirst({
+      where: { package_type_name },
+    })
+
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: `Package type "${package_type_name}" already exists.`,
+      })
+    }
+
+    const newPackageType = await prisma.package_type.create({
+      data: {
+        package_type_name,
+        session: parseInt(session),
+        frequency,
+        duration,
+        status: status || 'Active',
+      },
+    })
+
+    res.status(201).json({
+      success: true,
+      message: 'Package type created successfully.',
+      data: newPackageType,
+    })
+  } catch (error) {
+    console.error('Error creating package type:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error creating package type.',
+    })
+  }
+})
+
+// PUT /api/admin/package-types/:id - Update a package type (Admin only)
+router.put('/package-types/:id', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params
+    const { package_type_name, session, frequency, duration, status } = req.body
+
+    const existing = await prisma.package_type.findUnique({
+      where: { id: parseInt(id) },
+    })
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Package type not found.',
+      })
+    }
+
+    // Uniqueness check (if name is being changed)
+    if (package_type_name !== undefined && package_type_name !== existing.package_type_name) {
+      const duplicate = await prisma.package_type.findFirst({
+        where: { package_type_name, NOT: { id: parseInt(id) } },
+      })
+      if (duplicate) {
+        return res.status(409).json({
+          success: false,
+          message: `Package type "${package_type_name}" already exists.`,
+        })
+      }
+    }
+
+    const updateData = {}
+    if (package_type_name !== undefined) updateData.package_type_name = package_type_name
+    if (session !== undefined) updateData.session = parseInt(session)
+    if (frequency !== undefined) updateData.frequency = frequency
+    if (duration !== undefined) updateData.duration = duration
+    if (status !== undefined) updateData.status = status
+
+    const updated = await prisma.package_type.update({
+      where: { id: parseInt(id) },
+      data: updateData,
+    })
+
+    res.json({
+      success: true,
+      message: 'Package type updated successfully.',
+      data: updated,
+    })
+  } catch (error) {
+    console.error('Error updating package type:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error updating package type.',
+    })
+  }
+})
+
+// DELETE /api/admin/package-types/:id - Delete a package type (Admin only)
+router.delete('/package-types/:id', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const existing = await prisma.package_type.findUnique({
+      where: { id: parseInt(id) },
+    })
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Package type not found.',
+      })
+    }
+
+    // Check if any packages reference this package_type_id
+    const packageCount = await prisma.packages.count({
+      where: { package_type_id: parseInt(id) },
+    })
+
+    if (packageCount > 0) {
+      return res.status(409).json({
+        success: false,
+        message: `Cannot delete package type. It is used by ${packageCount} package(s).`,
+      })
+    }
+
+    await prisma.package_type.delete({
+      where: { id: parseInt(id) },
+    })
+
+    res.json({
+      success: true,
+      message: 'Package type deleted successfully.',
+    })
+  } catch (error) {
+    console.error('Error deleting package type:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error deleting package type.',
+    })
+  }
+})
+
+// GET /api/admin/lesson-package-fees/:lesson_id - Get package_type templates merged with existing fees
+router.get('/lesson-package-fees/:lesson_id', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const lessonId = parseInt(req.params.lesson_id)
+
+    // Fetch all package_type templates (the 4 fixed ones)
+    const packageTypes = await prisma.package_type.findMany({ orderBy: { id: 'asc' } })
+
+    // Fetch any existing packages for this lesson
+    const existingPackages = await prisma.packages.findMany({
+      where: { lesson_id: lessonId },
+    })
+
+    // Merge: for each package_type, attach the fee from matching packages row (or null)
+    const result = packageTypes.map(pt => {
+      const match = existingPackages.find(p => p.package_type_id === pt.id)
+      return {
+        package_type_id: pt.id,
+        package_type_name: pt.package_type_name,
+        session: pt.session,
+        frequency: pt.frequency,
+        duration: pt.duration,
+        fee: match ? Number(match.fee) : null,
+        package_id: match ? match.id : null,
+        status: match ? match.status : null,
+      }
+    })
+
+    res.json({ success: true, data: result })
+  } catch (error) {
+    console.error('Error fetching lesson package fees:', error)
+    res.status(500).json({ success: false, message: 'Error fetching lesson package fees.' })
+  }
+})
+
+// ==================== LESSON PACKAGE FEE UPSERT ====================
+
+// PUT /api/admin/lesson-package-fees - Upsert a package fee for a lesson + package_type combination
+router.put('/lesson-package-fees', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { lesson_id, package_type_id, fee } = req.body
+
+    // Validate required fields
+    if (!lesson_id || !package_type_id || fee === undefined || fee === null) {
+      return res.status(400).json({
+        success: false,
+        message: 'lesson_id, package_type_id, and fee are required.',
+      })
+    }
+
+    // Validate fee is a positive number
+    const parsedFee = parseFloat(fee)
+    if (isNaN(parsedFee) || parsedFee <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Fee must be a positive number.',
+      })
+    }
+
+    const parsedLessonId = parseInt(lesson_id)
+    const parsedPackageTypeId = parseInt(package_type_id)
+
+    // Check if a packages row already exists for this combination
+    const existing = await prisma.packages.findFirst({
+      where: {
+        lesson_id: parsedLessonId,
+        package_type_id: parsedPackageTypeId,
+      },
+    })
+
+    if (existing) {
+      // UPDATE existing row
+      const updated = await prisma.packages.update({
+        where: { id: existing.id },
+        data: { fee: parsedFee },
+      })
+
+      return res.json({
+        success: true,
+        message: 'Package fee updated successfully.',
+        data: {
+          id: updated.id,
+          lesson_id: updated.lesson_id,
+          package_type_id: updated.package_type_id,
+          fee: Number(updated.fee),
+          status: updated.status,
+          description: updated.description,
+          isNew: false,
+        },
+      })
+    } else {
+      // INSERT new row with sensible defaults
+      const created = await prisma.packages.create({
+        data: {
+          lesson_id: parsedLessonId,
+          package_type_id: parsedPackageTypeId,
+          fee: parsedFee,
+          status: 'Active',
+          description: null,
+        },
+      })
+
+      return res.status(201).json({
+        success: true,
+        message: 'Package fee created successfully.',
+        data: {
+          id: created.id,
+          lesson_id: created.lesson_id,
+          package_type_id: created.package_type_id,
+          fee: Number(created.fee),
+          status: created.status,
+          description: created.description,
+          isNew: true,
+        },
+      })
+    }
+  } catch (error) {
+    console.error('Error upserting package fee:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error saving package fee.',
+    })
+  }
+})
+
+// ==================== LESSON PACKAGES SUMMARY ====================
+
+// GET /api/admin/lesson-packages-summary - Get all saved packages with lesson + package_type joins
+router.get('/lesson-packages-summary', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const packages = await prisma.packages.findMany({ orderBy: { id: 'desc' } })
+
+    // Fetch lesson and package_type lookup tables
+    const [lessons, packageTypes] = await Promise.all([
+      prisma.lesson.findMany(),
+      prisma.package_type.findMany(),
+    ])
+
+    const result = packages.map(pkg => {
+      const lesson = lessons.find(l => l.id === pkg.lesson_id)
+      const pt = packageTypes.find(t => t.id === pkg.package_type_id)
+      return {
+        id: pkg.id,
+        lesson_id: pkg.lesson_id,
+        lesson_name: lesson?.lesson_name || null,
+        package_type_id: pkg.package_type_id,
+        package_type_name: pt?.package_type_name || null,
+        session: pt?.session || null,
+        frequency: pt?.frequency || null,
+        duration: pt?.duration || null,
+        fee: Number(pkg.fee),
+        status: pkg.status || 'Active',
+      }
+    })
+
+    res.json({ success: true, data: result })
+  } catch (error) {
+    console.error('Error fetching lesson packages summary:', error)
+    res.status(500).json({ success: false, message: 'Error fetching lesson packages summary.' })
+  }
+})
+
+// ==================== ENROLLMENT APPROVAL ROUTES ====================
+
+/**
+ * GET /api/admin/enrollments
+ * Returns all enrollments (pending, approved, rejected) with full joined data.
+ * Accessible by admin and frontdesk roles.
+ */
+router.get('/enrollments', verifyToken, checkRole(['admin', 'frontdesk']), async (req, res) => {
+  try {
+    // Fetch enrollments first (no Prisma relations defined for students/packages/payments)
+    const enrollments = await prisma.enrollments.findMany({
+      orderBy: { enrollment_date: 'desc' },
+    })
+
+    if (enrollments.length === 0) {
+      return res.json({ success: true, data: [] })
+    }
+
+    // Fetch lookup data manually
+    const studentIds = [...new Set(enrollments.map((e) => e.student_id))]
+    const packageIds = [...new Set(enrollments.map((e) => e.package_id))]
+    const enrollmentIds = enrollments.map((e) => e.id)
+
+    const students = await prisma.students.findMany({
+      where: { id: { in: studentIds } },
+    })
+
+    // Extract actual client_id values from the student records
+    const clientIds = [...new Set(students.map((s) => s.client_id).filter((id) => id != null))]
+
+    const [clients, packages, lessons, packageTypes, enrollmentSchedules, payments] = await Promise.all([
+      prisma.clients.findMany({
+        where: { id: { in: clientIds } },
+      }),
+      prisma.packages.findMany({
+        where: { id: { in: packageIds } },
+      }),
+      prisma.lesson.findMany(),
+      prisma.package_type.findMany(),
+      prisma.enrollment_schedule.findMany({
+        where: { enrollment_id: { in: enrollmentIds } },
+        include: {
+          time_slots: true,
+          instructors: { include: { staff: true } },
+        },
+      }),
+      prisma.payments.findMany({
+        where: { enrollment_id: { in: enrollmentIds } },
+      }),
+    ])
+
+    // Build lookup maps
+    const studentMap = {}
+    for (const s of students) studentMap[s.id] = s
+
+    const clientMap = {}
+    for (const c of clients) clientMap[c.id] = c
+
+    const packageMap = {}
+    for (const p of packages) packageMap[p.id] = p
+
+    const scheduleMap = {}
+    for (const s of enrollmentSchedules) {
+      if (!scheduleMap[s.enrollment_id]) scheduleMap[s.enrollment_id] = []
+      scheduleMap[s.enrollment_id].push(s)
+    }
+
+    const paymentMap = {}
+    for (const p of payments) {
+      if (!paymentMap[p.enrollment_id]) paymentMap[p.enrollment_id] = []
+      paymentMap[p.enrollment_id].push(p)
+    }
+
+    // Build lesson and package_type lookup maps
+    const lessonMap = {}
+    for (const l of lessons) lessonMap[l.id] = l
+    const pkgTypeMap = {}
+    for (const pt of packageTypes) pkgTypeMap[pt.id] = pt
+
+    const result = enrollments.map((e) => {
+      const student = studentMap[e.student_id] || {}
+      const client = clientMap[student.client_id] || {}
+      const pkg = packageMap[e.package_id] || {}
+      const lesson = lessonMap[pkg.lesson_id] || {}
+      const pkgType = pkgTypeMap[pkg.package_type_id] || {}
+      const schedule = scheduleMap[e.id] || []
+      const payment = paymentMap[e.id]?.[0] || {}
+
+      // Build schedule display string
+      const scheduleStr = schedule
+        .map((s) => {
+          const start = s.time_slots?.start_time
+            ? new Date(s.time_slots.start_time).toISOString().slice(11, 16)
+            : ''
+          const end = s.time_slots?.end_time
+            ? new Date(s.time_slots.end_time).toISOString().slice(11, 16)
+            : ''
+          const timeStr = start && end ? `${start}-${end}` : ''
+          return `${s.day_of_week} ${timeStr}`
+        })
+        .join(', ')
+
+      // Instructor name from first schedule entry
+      const instructorName = schedule[0]?.instructors?.staff
+        ? `${schedule[0].instructors.staff.f_name || ''} ${schedule[0].instructors.staff.l_name || ''}`.trim()
+        : ''
+
+      return {
+        id: e.id,
+        student_id: e.student_id,
+        name: `${client.f_name || ''} ${client.l_name || ''}`.trim(),
+        email: client.email || '',
+        phone: client.phone || '',
+        age: client.age ? String(client.age) : '',
+        address: client.address || '',
+        level: client.level || '',
+        notes: client.notes || '',
+        emergency_contact_name: student.guardian_name || null,
+        emergency_contact_number: student.guardian_no || null,
+        course: lesson.lesson_name || '',
+        package: pkgType.package_type_name || '',
+        instructor: instructorName,
+        schedule: scheduleStr,
+        schedule_detail: schedule.map((s) => ({
+          day_of_week: s.day_of_week,
+          start_time: s.time_slots?.start_time || null,
+          end_time: s.time_slots?.end_time || null,
+          instructor_name: s.instructors?.staff
+            ? `${s.instructors.staff.f_name || ''} ${s.instructors.staff.l_name || ''}`.trim()
+            : '',
+        })),
+        total_amount: Number(e.amount) || 0,
+        payment_method: payment.payment_method || '',
+        payment_reference: payment.refnum || '',
+        payment_status: payment.status || '',
+        status: e.status ? e.status.toLowerCase() : 'pending',
+        submitted: e.enrollment_date
+          ? new Date(e.enrollment_date).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })
+          : '',
+      }
+    })
+
+    res.json({ success: true, data: result })
+  } catch (error) {
+    console.error('Error fetching enrollments:', error)
+    res.status(500).json({ success: false, message: 'Error fetching enrollments.' })
+  }
+})
+
+/**
+ * GET /api/admin/enrollments/pending
+ * Returns all pending enrollments with full joined data for frontdesk review.
+ * Accessible by admin and frontdesk roles.
+ */
+router.get('/enrollments/pending', verifyToken, checkRole(['admin', 'frontdesk']), async (req, res) => {
+  try {
+    // Fetch enrollments first (no Prisma relations defined for students/packages/payments)
+    const enrollments = await prisma.enrollments.findMany({
+      where: { status: 'Pending' },
+      orderBy: { enrollment_date: 'desc' },
+    })
+
+    if (enrollments.length === 0) {
+      return res.json({ success: true, data: [] })
+    }
+
+    // Fetch lookup data manually
+    const studentIds = [...new Set(enrollments.map((e) => e.student_id))]
+    const packageIds = [...new Set(enrollments.map((e) => e.package_id))]
+    const enrollmentIds = enrollments.map((e) => e.id)
+
+    const students = await prisma.students.findMany({
+      where: { id: { in: studentIds } },
+    })
+
+    // Extract actual client_id values from the student records
+    const clientIds = [...new Set(students.map((s) => s.client_id).filter((id) => id != null))]
+
+    const [clients, packages, lessons, packageTypes, enrollmentSchedules, payments] = await Promise.all([
+      prisma.clients.findMany({
+        where: { id: { in: clientIds } },
+      }),
+      prisma.packages.findMany({
+        where: { id: { in: packageIds } },
+      }),
+      prisma.lesson.findMany(),
+      prisma.package_type.findMany(),
+      prisma.enrollment_schedule.findMany({
+        where: { enrollment_id: { in: enrollmentIds } },
+        include: {
+          time_slots: true,
+          instructors: { include: { staff: true } },
+        },
+      }),
+      prisma.payments.findMany({
+        where: { enrollment_id: { in: enrollmentIds } },
+      }),
+    ])
+
+    // Build lookup maps
+    const studentMap = {}
+    for (const s of students) studentMap[s.id] = s
+
+    const clientMap = {}
+    for (const c of clients) clientMap[c.id] = c
+
+    const packageMap = {}
+    for (const p of packages) packageMap[p.id] = p
+
+    const scheduleMap = {}
+    for (const s of enrollmentSchedules) {
+      if (!scheduleMap[s.enrollment_id]) scheduleMap[s.enrollment_id] = []
+      scheduleMap[s.enrollment_id].push(s)
+    }
+
+    const paymentMap = {}
+    for (const p of payments) {
+      if (!paymentMap[p.enrollment_id]) paymentMap[p.enrollment_id] = []
+      paymentMap[p.enrollment_id].push(p)
+    }
+
+    // Build lesson and package_type lookup maps
+    const lessonMap = {}
+    for (const l of lessons) lessonMap[l.id] = l
+    const pkgTypeMap = {}
+    for (const pt of packageTypes) pkgTypeMap[pt.id] = pt
+
+    const result = enrollments.map((e) => {
+      const student = studentMap[e.student_id] || {}
+      const client = clientMap[student.client_id] || {}
+      const pkg = packageMap[e.package_id] || {}
+      const lesson = lessonMap[pkg.lesson_id] || {}
+      const pkgType = pkgTypeMap[pkg.package_type_id] || {}
+      const schedule = scheduleMap[e.id] || []
+      const payment = paymentMap[e.id]?.[0] || {}
+
+      // Build schedule display string
+      const scheduleStr = schedule
+        .map((s) => {
+          const start = s.time_slots?.start_time
+            ? new Date(s.time_slots.start_time).toISOString().slice(11, 16)
+            : ''
+          const end = s.time_slots?.end_time
+            ? new Date(s.time_slots.end_time).toISOString().slice(11, 16)
+            : ''
+          const timeStr = start && end ? `${start}-${end}` : ''
+          return `${s.day_of_week} ${timeStr}`
+        })
+        .join(', ')
+
+      // Instructor name from first schedule entry
+      const instructorName = schedule[0]?.instructors?.staff
+        ? `${schedule[0].instructors.staff.f_name || ''} ${schedule[0].instructors.staff.l_name || ''}`.trim()
+        : ''
+
+      return {
+        id: e.id,
+        student_id: e.student_id,
+        name: `${client.f_name || ''} ${client.l_name || ''}`.trim(),
+        email: client.email || '',
+        phone: client.phone || '',
+        age: client.age ? String(client.age) : '',
+        address: client.address || '',
+        level: client.level || '',
+        notes: client.notes || '',
+        emergency_contact_name: student.guardian_name || null,
+        emergency_contact_number: student.guardian_no || null,
+        course: lesson.lesson_name || '',
+        package: pkgType.package_type_name || '',
+        instructor: instructorName,
+        schedule: scheduleStr,
+        schedule_detail: schedule.map((s) => ({
+          day_of_week: s.day_of_week,
+          start_time: s.time_slots?.start_time || null,
+          end_time: s.time_slots?.end_time || null,
+          instructor_name: s.instructors?.staff
+            ? `${s.instructors.staff.f_name || ''} ${s.instructors.staff.l_name || ''}`.trim()
+            : '',
+        })),
+        total_amount: Number(e.amount) || 0,
+        payment_method: payment.payment_method || '',
+        payment_reference: payment.refnum || '',
+        payment_status: payment.status || '',
+        status: e.status ? e.status.toLowerCase() : 'pending',
+        submitted: e.enrollment_date
+          ? new Date(e.enrollment_date).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })
+          : '',
+      }
+    })
+
+    res.json({ success: true, data: result })
+  } catch (error) {
+    console.error('Error fetching pending enrollments:', error)
+    res.status(500).json({ success: false, message: 'Error fetching pending enrollments.' })
+  }
+})
+
+/**
+ * PUT /api/admin/enrollments/:id/approve
+ * Approves a pending enrollment:
+ *   enrollments.status → "Approved"
+ *   students.status → "Active"
+ *   payments.status → "Paid"
+ * Does NOT generate classes (separate feature).
+ */
+router.put('/enrollments/:id/approve', verifyToken, checkRole(['admin', 'frontdesk']), async (req, res) => {
+  try {
+    const enrollmentId = parseInt(req.params.id, 10)
+    if (isNaN(enrollmentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid enrollment ID.' })
+    }
+
+    const [enrollment, payment] = await Promise.all([
+      prisma.enrollments.findUnique({ where: { id: enrollmentId } }),
+      prisma.payments.findFirst({ where: { enrollment_id: enrollmentId } }),
+    ])
+
+    if (!enrollment) {
+      return res.status(404).json({ success: false, message: 'Enrollment not found.' })
+    }
+
+    if (enrollment.status !== 'Pending') {
+      return res.status(400).json({ success: false, message: `Enrollment is already ${enrollment.status}.` })
+    }
+
+    const paymentId = payment?.id
+
+    await prisma.$transaction([
+      prisma.enrollments.update({
+        where: { id: enrollmentId },
+        data: { status: 'Approved' },
+      }),
+      prisma.students.update({
+        where: { id: enrollment.student_id },
+        data: { status: 'Active' },
+      }),
+      ...(paymentId
+        ? [
+            prisma.payments.update({
+              where: { id: paymentId },
+              data: { status: 'Paid' },
+            }),
+          ]
+        : []),
+    ])
+
+    res.json({ success: true, message: 'Enrollment approved successfully.' })
+  } catch (error) {
+    console.error('Error approving enrollment:', error)
+    res.status(500).json({ success: false, message: 'Error approving enrollment.' })
+  }
+})
+
+/**
+ * PUT /api/admin/enrollments/:id/reject
+ * Rejects a pending enrollment:
+ *   enrollments.status → "Rejected"
+ *   students.status → "Rejected"
+ *   payments.status → "Rejected"
+ * Rows are kept for audit trail — no deletions.
+ */
+router.put('/enrollments/:id/reject', verifyToken, checkRole(['admin', 'frontdesk']), async (req, res) => {
+  try {
+    const enrollmentId = parseInt(req.params.id, 10)
+    if (isNaN(enrollmentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid enrollment ID.' })
+    }
+
+    const [enrollment, payment] = await Promise.all([
+      prisma.enrollments.findUnique({ where: { id: enrollmentId } }),
+      prisma.payments.findFirst({ where: { enrollment_id: enrollmentId } }),
+    ])
+
+    if (!enrollment) {
+      return res.status(404).json({ success: false, message: 'Enrollment not found.' })
+    }
+
+    if (enrollment.status !== 'Pending') {
+      return res.status(400).json({ success: false, message: `Enrollment is already ${enrollment.status}.` })
+    }
+
+    const paymentId = payment?.id
+
+    await prisma.$transaction([
+      prisma.enrollments.update({
+        where: { id: enrollmentId },
+        data: { status: 'Rejected' },
+      }),
+      prisma.students.update({
+        where: { id: enrollment.student_id },
+        data: { status: 'Rejected' },
+      }),
+      ...(paymentId
+        ? [
+            prisma.payments.update({
+              where: { id: paymentId },
+              data: { status: 'Rejected' },
+            }),
+          ]
+        : []),
+    ])
+
+    res.json({ success: true, message: 'Enrollment rejected successfully.' })
+  } catch (error) {
+    console.error('Error rejecting enrollment:', error)
+    res.status(500).json({ success: false, message: 'Error rejecting enrollment.' })
+  }
+})
+
+// ==================== CLIENT ROUTES ====================
+
+// GET /api/admin/clients - Get all clients (Admin only)
+router.get('/clients', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const clients = await prisma.clients.findMany({
+      orderBy: { f_name: 'asc' },
+    })
+
+    res.json({
+      success: true,
+      data: clients,
+    })
+  } catch (error) {
+    console.error('Error fetching clients:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching clients.',
+    })
+  }
+})
+
+// ==================== BAND ROOM RENTAL ROUTES ====================
+
+// GET /api/admin/band-room-rentals - Get all band room rentals (Admin only)
+router.get('/band-room-rentals', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const rentals = await prisma.band_room_rentals.findMany({
+      orderBy: { id: 'desc' },
+    })
+
+    if (rentals.length === 0) {
+      return res.json({ success: true, data: [] })
+    }
+
+    // Extract client_ids and band_room_ids for manual join
+    const clientIds = [...new Set(rentals.map(r => r.client_id).filter(id => id != null))]
+    const roomIds = [...new Set(rentals.map(r => r.band_room_id).filter(id => id != null))]
+
+    const [clients, rooms] = await Promise.all([
+      prisma.clients.findMany({ where: { id: { in: clientIds } } }),
+      prisma.band_rooms.findMany({ where: { id: { in: roomIds } } }),
+    ])
+
+    const clientMap = {}
+    for (const c of clients) clientMap[c.id] = c
+
+    const roomMap = {}
+    for (const r of rooms) roomMap[r.id] = r
+
+    const result = rentals.map(rental => ({
+      ...rental,
+      total_amount: rental.total_amount != null ? Number(rental.total_amount) : null,
+      client_name: clientMap[rental.client_id]
+        ? `${clientMap[rental.client_id].f_name || ''} ${clientMap[rental.client_id].l_name || ''}`.trim()
+        : null,
+      client_email: clientMap[rental.client_id]?.email || null,
+      room_name: roomMap[rental.band_room_id]?.room_name || null,
+    }))
+
+    res.json({ success: true, data: result })
+  } catch (error) {
+    console.error('Error fetching band room rentals:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching band room rentals.',
+    })
+  }
+})
+
+// POST /api/admin/band-room-rentals - Create a new band room rental (Admin only)
+router.post('/band-room-rentals', verifyToken, checkRole(['admin']), async (req, res) => {
+  console.log('POST /band-room-rentals body:', JSON.stringify(req.body))
+  try {
+    const { client_id, band_room_id, rental_date, start_time, end_time, total_amount, status } = req.body
+
+    // Validate required fields (NOT NULL in schema)
+    if (!client_id) {
+      return res.status(400).json({ success: false, message: 'Client is required.' })
+    }
+    if (!band_room_id) {
+      return res.status(400).json({ success: false, message: 'Room is required.' })
+    }
+
+    // Convert time strings to ISO-8601 DateTime for Prisma's db.Time(0)
+    const parseTime = (timeStr) => {
+      if (!timeStr) return null
+      // If it's already a full ISO string, use it directly
+      if (timeStr.includes('T')) return new Date(timeStr)
+      // <input type="time"> produces "HH:mm" — add ":00" seconds if missing
+      const parts = timeStr.split(':')
+      const padded = parts.length === 2 ? `${timeStr}:00` : timeStr
+      // Otherwise treat as HH:mm or HH:mm:ss and combine with rental_date or today
+      const baseDate = rental_date || new Date().toISOString().slice(0, 10)
+      return new Date(`${baseDate}T${padded}.000Z`)
+    }
+
+    const newRental = await prisma.band_room_rentals.create({
+      data: {
+        client_id: parseInt(client_id),
+        band_room_id: parseInt(band_room_id),
+        rental_date: rental_date ? new Date(rental_date) : null,
+        start_time: parseTime(start_time),
+        end_time: parseTime(end_time),
+        total_amount: total_amount != null ? parseFloat(total_amount) : null,
+        status: status || 'Pending',
+      },
+    })
+
+    res.status(201).json({
+      success: true,
+      message: 'Band room rental created successfully.',
+      data: { ...newRental, total_amount: newRental.total_amount != null ? Number(newRental.total_amount) : null },
+    })
+  } catch (error) {
+    console.error('Error creating band room rental:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error creating band room rental.',
+    })
+  }
+})
+
+// PUT /api/admin/band-room-rentals/:id - Update a band room rental (Admin only)
+router.put('/band-room-rentals/:id', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params
+    const { client_id, band_room_id, rental_date, start_time, end_time, total_amount, status } = req.body
+
+    const existing = await prisma.band_room_rentals.findUnique({
+      where: { id: parseInt(id) },
+    })
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Band room rental not found.' })
+    }
+
+    const parseTime = (timeStr) => {
+      if (!timeStr) return null
+      if (timeStr.includes('T')) return new Date(timeStr)
+      const parts = timeStr.split(':')
+      const padded = parts.length === 2 ? `${timeStr}:00` : timeStr
+      const baseDate = rental_date || new Date().toISOString().slice(0, 10)
+      return new Date(`${baseDate}T${padded}.000Z`)
+    }
+
+    const updateData = {}
+    if (client_id !== undefined) updateData.client_id = parseInt(client_id)
+    if (band_room_id !== undefined) updateData.band_room_id = parseInt(band_room_id)
+    if (rental_date !== undefined) updateData.rental_date = rental_date ? new Date(rental_date) : null
+    if (start_time !== undefined) updateData.start_time = parseTime(start_time)
+    if (end_time !== undefined) updateData.end_time = parseTime(end_time)
+    if (total_amount !== undefined) updateData.total_amount = total_amount != null ? parseFloat(total_amount) : null
+    if (status !== undefined) updateData.status = status
+
+    const updated = await prisma.band_room_rentals.update({
+      where: { id: parseInt(id) },
+      data: updateData,
+    })
+
+    res.json({
+      success: true,
+      message: 'Band room rental updated successfully.',
+      data: { ...updated, total_amount: updated.total_amount != null ? Number(updated.total_amount) : null },
+    })
+  } catch (error) {
+    console.error('Error updating band room rental:', error)
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error updating band room rental.',
     })
   }
 })

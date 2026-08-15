@@ -23,6 +23,10 @@ model clients {
   email    String?
   address  String? @db.Text
   users_id Int?
+  age      Int?
+  level    String? @db.VarChar(50)
+  notes    String? @db.Text
+  users    users?  @relation(fields: [users_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_clients_users")
 
   @@index([users_id], map: "fk_clients_users")
 }
@@ -39,9 +43,10 @@ model equipments {
 model instructors {
   id                     Int                      @id @default(autoincrement())
   staff_id               Int                      @unique(map: "staff_id")
+  enrollment_schedule    enrollment_schedule[]
+  instructor_schedule    instructor_schedule[]
   instructor_specialties instructor_specialties[]
-  instructor_schedules   instructor_schedule[]
-  staff                  staff                    @relation(fields: [staff_id], references: [id], map: "fk_instructors_staff")
+  staff                  staff                    @relation(fields: [staff_id], references: [id])
 }
 
 model instruments {
@@ -74,6 +79,8 @@ model lesson {
   status       String?      @db.VarChar(50)
   specialty_id Int?
   specialties  specialties? @relation(fields: [specialty_id], references: [id])
+
+  @@index([specialty_id], map: "lesson_specialty_id_fkey")
 }
 
 model lesson_rooms {
@@ -83,17 +90,15 @@ model lesson_rooms {
 }
 
 model packages {
-  id            Int     @id @default(autoincrement())
-  package_name  String? @db.VarChar(100)
-  duration      String? @db.VarChar(100)
-  session       Int?
-  fee           Decimal @db.Decimal(10, 2)
-  status        String? @db.VarChar(50)
-  total_session Int?
-  lesson_id     Int
-  level_name    String? @db.VarChar(100)
+  id              Int     @id @default(autoincrement())
+  fee             Decimal @db.Decimal(10, 2)
+  status          String? @db.VarChar(50)
+  lesson_id       Int
+  description     String? @db.Text
+  package_type_id Int
 
   @@index([lesson_id], map: "fk_packages_lesson")
+  @@index([package_type_id], map: "fk_packages_package_type")
 }
 
 model rental_items {
@@ -169,8 +174,9 @@ model users {
   staff_id   Int?
   status     String?   @db.VarChar(50)
   created_at DateTime? @default(now()) @db.DateTime(0)
-  role       role      @relation(fields: [role_id], references: [id], map: "fk_users_role")
-  staff      staff?    @relation(fields: [staff_id], references: [id], map: "fk_users_staff")
+  clients    clients[]
+  role       role      @relation(fields: [role_id], references: [id])
+  staff      staff?    @relation(fields: [staff_id], references: [id])
 
   @@index([role_id], map: "fk_users_role")
   @@index([staff_id], map: "fk_users_staff")
@@ -207,15 +213,16 @@ model classes {
 }
 
 model enrollments {
-  id              Int       @id @default(autoincrement())
-  student_id      Int
-  class_id        Int
-  package_id      Int
-  amount          Decimal   @db.Decimal(10, 2)
-  enrollment_date DateTime? @db.Date
-  start_date      DateTime? @db.Date
-  end_date        DateTime? @db.Date
-  status          String?   @default("Active") @db.VarChar(50)
+  id                  Int                   @id @default(autoincrement())
+  student_id          Int
+  class_id            Int?
+  package_id          Int
+  amount              Decimal               @db.Decimal(10, 2)
+  enrollment_date     DateTime?             @db.Date
+  start_date          DateTime?             @db.Date
+  end_date            DateTime?             @db.Date
+  status              String?               @default("Active") @db.VarChar(50)
+  enrollment_schedule enrollment_schedule[]
 
   @@index([class_id], map: "fk_enrollments_class")
   @@index([package_id], map: "fk_enrollments_package")
@@ -226,8 +233,8 @@ model instructor_specialties {
   id            Int         @id @default(autoincrement())
   instructor_id Int
   specialty_id  Int
-  instructors   instructors @relation(fields: [instructor_id], references: [id], map: "fk_instructor_specialty_instructor")
-  specialties   specialties @relation(fields: [specialty_id], references: [id], map: "fk_instructor_specialty_specialty")
+  instructors   instructors @relation(fields: [instructor_id], references: [id])
+  specialties   specialties @relation(fields: [specialty_id], references: [id])
 
   @@index([instructor_id], map: "fk_instructor_specialty_instructor")
   @@index([specialty_id], map: "fk_instructor_specialty_specialty")
@@ -244,6 +251,7 @@ model payments {
   payment_date        DateTime? @default(now()) @db.DateTime(0)
   payment_method      String?   @db.VarChar(50)
   status              String?   @default("Paid") @db.VarChar(50)
+  refnum              String?   @db.VarChar(100)
 
   @@index([band_room_rental_id], map: "fk_payment_band_room_rental")
   @@index([client_id], map: "fk_payment_client")
@@ -266,9 +274,8 @@ model instructor_schedule {
   day_of_week   String      @db.VarChar(20)
   time_slot_id  Int
   status        String?     @default("Available") @db.VarChar(50)
-
-  instructor instructors @relation(fields: [instructor_id], references: [id])
-  time_slot  time_slots  @relation(fields: [time_slot_id], references: [id])
+  instructor    instructors @relation(fields: [instructor_id], references: [id])
+  time_slot     time_slots  @relation(fields: [time_slot_id], references: [id])
 
   @@unique([instructor_id, day_of_week, time_slot_id])
   @@index([instructor_id], map: "idx_instructor_id")
@@ -276,8 +283,33 @@ model instructor_schedule {
 }
 
 model time_slots {
-  id                   Int                   @id @default(autoincrement())
-  start_time           DateTime              @db.Time(0)
-  end_time             DateTime              @db.Time(0)
-  instructor_schedules instructor_schedule[]
+  id                  Int                   @id @default(autoincrement())
+  start_time          DateTime              @db.Time(0)
+  end_time            DateTime              @db.Time(0)
+  enrollment_schedule enrollment_schedule[]
+  instructor_schedule instructor_schedule[]
+}
+
+model package_type {
+  id                Int     @id @default(autoincrement())
+  package_type_name String  @db.VarChar(100)
+  session           Int
+  frequency         String  @db.VarChar(100)
+  duration          String  @db.VarChar(100)
+  status            String? @default("Active") @db.VarChar(50)
+}
+
+model enrollment_schedule {
+  id            Int          @id @default(autoincrement())
+  enrollment_id Int
+  day_of_week   String       @db.VarChar(10)
+  time_slot_id  Int
+  instructor_id Int?
+  enrollments   enrollments  @relation(fields: [enrollment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "enrollment_schedule_ibfk_1")
+  time_slots    time_slots   @relation(fields: [time_slot_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "enrollment_schedule_ibfk_2")
+  instructors   instructors? @relation(fields: [instructor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_enrollment_schedule_instructor")
+
+  @@index([enrollment_id], map: "enrollment_id")
+  @@index([time_slot_id], map: "time_slot_id")
+  @@index([instructor_id], map: "fk_enrollment_schedule_instructor")
 }
